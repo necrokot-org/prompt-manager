@@ -1,7 +1,7 @@
 {
   "name": "prompt-manager",
-  "displayName": "Prompt manager",
-  "description": "",
+  "displayName": "Prompt Manager",
+  "description": "A VSCode extension to manage prompts for LLMs with tree view organization and file management",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.100.0"
@@ -9,15 +9,73 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:promptManagerTree"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "promptManagerTree",
+          "name": "Prompt Manager",
+          "when": "workspaceHasPromptManager"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "prompt-manager.helloWorld",
-        "title": "Hello World"
+        "command": "promptManager.refreshTree",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "promptManager.addPrompt",
+        "title": "Add Prompt",
+        "icon": "$(add)"
+      },
+      {
+        "command": "promptManager.openPrompt",
+        "title": "Open Prompt"
+      },
+      {
+        "command": "promptManager.deletePrompt",
+        "title": "Delete Prompt"
+      },
+      {
+        "command": "promptManager.createFolder",
+        "title": "Create Folder"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "promptManager.refreshTree",
+          "when": "view == promptManagerTree",
+          "group": "navigation"
+        },
+        {
+          "command": "promptManager.addPrompt",
+          "when": "view == promptManagerTree",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "promptManager.openPrompt",
+          "when": "view == promptManagerTree && viewItem == promptFile",
+          "group": "inline"
+        },
+        {
+          "command": "promptManager.deletePrompt",
+          "when": "view == promptManagerTree && viewItem == promptFile"
+        },
+        {
+          "command": "promptManager.createFolder",
+          "when": "view == promptManagerTree && viewItem == promptFolder"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
