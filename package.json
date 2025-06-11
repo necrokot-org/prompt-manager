@@ -4,13 +4,10 @@
   "description": "A VSCode extension to manage prompts for LLMs with tree view organization and file management",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Other"
-  ],
-  "activationEvents": [
-    "onView:promptManagerTree"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -93,7 +90,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.100.0",
+    "@types/vscode": "^1.96.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
