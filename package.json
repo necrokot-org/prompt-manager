@@ -17,6 +17,7 @@
     "views": {
       "explorer": [
         {
+          "icon": "assets/icon.svg",
           "id": "promptManagerTree",
           "name": "Prompt Manager",
           "when": "workspaceHasPromptManager"
