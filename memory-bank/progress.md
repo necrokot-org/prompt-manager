@@ -1,1 +1,1 @@
-# Progress Tracking
+# VSCode Prompt Manager Extension - Build Progress

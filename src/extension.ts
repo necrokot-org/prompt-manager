@@ -1,26 +1,95 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { PromptManager } from "./promptManager";
+import { PromptTreeProvider } from "./promptTreeProvider";
+import { CommandHandler } from "./commandHandler";
+
+// Global instances
+let promptManager: PromptManager;
+let treeProvider: PromptTreeProvider;
+let commandHandler: CommandHandler;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+  console.log("Prompt Manager extension is being activated...");
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "prompt-manager" is now active!');
+  try {
+    // Initialize core components in proper order (following layered architecture)
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('prompt-manager.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Prompt manager!');
-	});
+    // 1. Business Logic Layer
+    promptManager = new PromptManager();
 
-	context.subscriptions.push(disposable);
+    // 2. Presentation Layer
+    treeProvider = new PromptTreeProvider(promptManager);
+
+    // 3. Command Handler
+    commandHandler = new CommandHandler(promptManager, treeProvider, context);
+
+    // Initialize the prompt manager (creates directory structure)
+    const initialized = await promptManager.initialize();
+
+    if (initialized) {
+      // Register the tree view
+      const treeView = vscode.window.createTreeView("promptManagerTree", {
+        treeDataProvider: treeProvider,
+        showCollapseAll: true,
+      });
+
+      // Add tree view to subscriptions
+      context.subscriptions.push(treeView);
+
+      // Register all commands
+      commandHandler.registerCommands();
+
+      // Show welcome message for new users
+      await showWelcomeMessage(context);
+
+      console.log("Prompt Manager extension activated successfully");
+    } else {
+      throw new Error("Failed to initialize Prompt Manager");
+    }
+  } catch (error) {
+    console.error("Failed to activate Prompt Manager extension:", error);
+    vscode.window.showErrorMessage(
+      `Failed to activate Prompt Manager: ${error}`
+    );
+  }
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+  console.log("Prompt Manager extension is being deactivated");
+
+  // Clean up resources if needed
+  // VSCode automatically disposes of registered commands and tree views
+}
+
+async function showWelcomeMessage(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const hasShownWelcome = context.globalState.get(
+    "promptManager.hasShownWelcome",
+    false
+  );
+
+  if (!hasShownWelcome) {
+    const action = await vscode.window.showInformationMessage(
+      "Welcome to Prompt Manager! This extension helps you organize and manage your LLM prompts.",
+      "Create First Prompt",
+      "Learn More"
+    );
+
+    if (action === "Create First Prompt") {
+      vscode.commands.executeCommand("promptManager.addPrompt");
+    } else if (action === "Learn More") {
+      vscode.env.openExternal(
+        vscode.Uri.parse("https://github.com/your-repo/prompt-manager#readme")
+      );
+    }
+
+    // Mark as shown
+    await context.globalState.update("promptManager.hasShownWelcome", true);
+  }
+}

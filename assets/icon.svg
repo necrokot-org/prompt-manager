@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="folderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4FC3F7;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#29B6F6;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="promptGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#43A047;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#FFA726;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#FF9800;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+
+    <!-- Background Circle -->
+    <circle cx="64" cy="64" r="60" fill="#263238" stroke="#37474F" stroke-width="2" />
+
+    <!-- Main Folder Structure -->
+    <rect x="20" y="35" width="48" height="35" rx="3" ry="3" fill="url(#folderGradient)"
+        opacity="0.9" />
+    <rect x="18" y="33" width="12" height="6" rx="2" ry="2" fill="url(#folderGradient)" />
+
+    <!-- Secondary Folder -->
+    <rect x="25" y="45" width="38" height="25" rx="2" ry="2" fill="#E3F2FD" opacity="0.8" />
+
+    <!-- Prompt/Chat Bubbles -->
+    <!-- Main prompt bubble -->
+    <path
+        d="M 75 25 Q 105 25 105 45 Q 105 65 75 65 L 70 65 L 75 70 L 75 65 Q 75 55 75 45 Q 75 25 75 25 Z"
+        fill="url(#promptGradient)" opacity="0.9" />
+
+    <!-- Secondary prompt bubble -->
+    <path
+        d="M 80 75 Q 105 75 105 90 Q 105 105 80 105 L 77 105 L 80 108 L 80 105 Q 80 98 80 90 Q 80 75 80 75 Z"
+        fill="url(#textGradient)" opacity="0.8" />
+
+    <!-- Text Lines in Folder -->
+    <rect x="30" y="50" width="20" height="2" rx="1" fill="#1976D2" opacity="0.7" />
+    <rect x="30" y="55" width="15" height="2" rx="1" fill="#1976D2" opacity="0.7" />
+    <rect x="30" y="60" width="18" height="2" rx="1" fill="#1976D2" opacity="0.7" />
+
+    <!-- AI/Prompt indicators in bubbles -->
+    <circle cx="85" cy="45" r="3" fill="#FFFFFF" opacity="0.9" />
+    <circle cx="95" cy="45" r="3" fill="#FFFFFF" opacity="0.9" />
+    <rect x="80" y="50" width="20" height="1.5" rx="0.5" fill="#FFFFFF" opacity="0.8" />
+    <rect x="82" y="53" width="16" height="1.5" rx="0.5" fill="#FFFFFF" opacity="0.8" />
+
+    <!-- Small text in second bubble -->
+    <rect x="85" y="85" width="12" height="1.5" rx="0.5" fill="#FFFFFF" opacity="0.8" />
+    <rect x="85" y="88" width="10" height="1.5" rx="0.5" fill="#FFFFFF" opacity="0.8" />
+    <rect x="85" y="91" width="14" height="1.5" rx="0.5" fill="#FFFFFF" opacity="0.8" />
+
+    <!-- Connection lines showing organization -->
+    <line x1="68" y1="50" x2="75" y2="45" stroke="#607D8B" stroke-width="1.5" opacity="0.6" />
+    <line x1="68" y1="60" x2="80" y2="85" stroke="#607D8B" stroke-width="1.5" opacity="0.6" />
+
+    <!-- Management/Organization icon -->
+    <circle cx="45" cy="85" r="8" fill="#37474F" opacity="0.8" />
+    <rect x="41" y="81" width="8" height="1.5" rx="0.5" fill="#FFFFFF" />
+    <rect x="41" y="84" width="8" height="1.5" rx="0.5" fill="#FFFFFF" />
+    <rect x="41" y="87" width="8" height="1.5" rx="0.5" fill="#FFFFFF" />
+</svg> 
