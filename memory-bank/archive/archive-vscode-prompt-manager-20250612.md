@@ -1,7 +1,7 @@
 # ARCHIVE: VSCode Prompt Manager Extension
 
 **Feature ID**: vscode-prompt-manager  
-**Date Archived**: 2024-01-15  
+**Date Archived**: 2025-06-12  
 **Status**: COMPLETED & ARCHIVED  
 **Complexity Level**: Level 3 (Intermediate Feature)
 
