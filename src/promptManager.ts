@@ -64,9 +64,6 @@ export class PromptManager {
         if (!value || value.trim().length === 0) {
           return "Prompt name cannot be empty";
         }
-        if (value.length > 50) {
-          return "Prompt name must be 50 characters or less";
-        }
         return undefined;
       },
     });
@@ -142,9 +139,6 @@ export class PromptManager {
         if (!value || value.trim().length === 0) {
           return "Folder name cannot be empty";
         }
-        if (value.length > 30) {
-          return "Folder name must be 30 characters or less";
-        }
         return undefined;
       },
     });
@@ -191,9 +185,6 @@ export class PromptManager {
         if (!value || value.trim().length === 0) {
           return "Folder name cannot be empty";
         }
-        if (value.length > 30) {
-          return "Folder name must be 30 characters or less";
-        }
         return undefined;
       },
     });
@@ -221,8 +212,8 @@ export class PromptManager {
       errors.push("Prompt content cannot be empty");
     }
 
-    if (content.length > 50000) {
-      errors.push("Prompt content is too large (max 50KB)");
+    if (content.length > 500000) {
+      errors.push("Prompt content is too large (max 500KB)");
     }
 
     // Validate front matter if present
@@ -251,9 +242,6 @@ export class PromptManager {
       validateInput: (value: string) => {
         if (!value || value.trim().length === 0) {
           return "Prompt name cannot be empty";
-        }
-        if (value.length > 50) {
-          return "Prompt name must be 50 characters or less";
         }
         return undefined;
       },
