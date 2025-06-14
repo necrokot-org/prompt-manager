@@ -29,6 +29,13 @@ export class CommandHandler {
         "promptManager.createFolder",
         (item: PromptTreeItem) => this.createFolder(item)
       ),
+      vscode.commands.registerCommand("promptManager.openDirectory", () =>
+        this.openDirectory()
+      ),
+      vscode.commands.registerCommand(
+        "promptManager.addPromptToFolder",
+        (item: PromptTreeItem) => this.addPromptToFolder(item)
+      ),
     ];
 
     // Add all commands to subscriptions for proper cleanup
@@ -82,6 +89,38 @@ export class CommandHandler {
       await this.promptManager.createFolderInLocation(folderPath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create folder: ${error}`);
+    }
+  }
+
+  private async openDirectory(): Promise<void> {
+    try {
+      const promptPath = this.promptManager
+        .getFileManager()
+        .getPromptManagerPath();
+      if (promptPath) {
+        const uri = vscode.Uri.file(promptPath);
+        await vscode.commands.executeCommand("vscode.openFolder", uri, {
+          forceNewWindow: false,
+        });
+      } else {
+        vscode.window.showErrorMessage("No prompt directory found");
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to open directory: ${error}`);
+    }
+  }
+
+  private async addPromptToFolder(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item?.promptFolder) {
+        vscode.window.showErrorMessage("No folder selected");
+        return;
+      }
+      await this.promptManager.createPromptInFolder(item.promptFolder.path);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to add prompt to folder: ${error}`
+      );
     }
   }
 }

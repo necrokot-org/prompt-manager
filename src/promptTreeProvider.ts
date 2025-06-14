@@ -25,9 +25,7 @@ export class PromptTreeItem extends vscode.TreeItem {
         this.promptFile.tags.length > 0
           ? ` | Tags: ${this.promptFile.tags.join(", ")}`
           : "";
-      return `${
-        this.promptFile.title
-      }${tags}\nModified: ${this.promptFile.modified.toLocaleDateString()}`;
+      return `${this.promptFile.title}${tags}`;
     }
     if (this.promptFolder) {
       return `${this.promptFolder.name}\n${this.promptFolder.prompts.length} prompts`;
@@ -36,8 +34,11 @@ export class PromptTreeItem extends vscode.TreeItem {
   }
 
   private getDescription(): string | undefined {
+    const config = vscode.workspace.getConfiguration("promptManager");
+    const showDescription = config.get<boolean>("showDescriptionInTree", true);
+
     if (this.promptFile) {
-      return this.promptFile.description || "";
+      return showDescription ? this.promptFile.description || "" : "";
     }
     if (this.promptFolder) {
       return `${this.promptFolder.prompts.length} prompts`;

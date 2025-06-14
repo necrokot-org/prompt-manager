@@ -9,14 +9,25 @@
   "categories": [
     "Other"
   ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
-    "views": {
-      "explorer": [
+    "viewsContainers": {
+      "activitybar": [
         {
-          "icon": "assets/icon.svg",
+          "id": "promptManager",
+          "title": "Prompt Manager",
+          "icon": "$(edit)"
+        }
+      ]
+    },
+    "views": {
+      "promptManager": [
+        {
           "id": "promptManagerTree",
-          "name": "Prompt Manager",
+          "name": "Prompts",
           "when": "workspaceHasPromptManager"
         }
       ]
@@ -43,6 +54,15 @@
       {
         "command": "promptManager.createFolder",
         "title": "Create Folder"
+      },
+      {
+        "command": "promptManager.openDirectory",
+        "title": "Open Prompt Directory",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "promptManager.addPromptToFolder",
+        "title": "Add Prompt to Folder"
       }
     ],
     "menus": {
@@ -54,6 +74,11 @@
         },
         {
           "command": "promptManager.addPrompt",
+          "when": "view == promptManagerTree",
+          "group": "navigation"
+        },
+        {
+          "command": "promptManager.openDirectory",
           "when": "view == promptManagerTree",
           "group": "navigation"
         }
@@ -71,8 +96,37 @@
         {
           "command": "promptManager.createFolder",
           "when": "view == promptManagerTree && viewItem == promptFolder"
+        },
+        {
+          "command": "promptManager.addPromptToFolder",
+          "when": "view == promptManagerTree && viewItem == promptFolder"
         }
       ]
+    },
+    "configuration": {
+      "title": "Prompt Manager",
+      "properties": {
+        "promptManager.defaultPromptDirectory": {
+          "type": "string",
+          "default": ".prompt_manager",
+          "description": "Default directory name for storing prompts"
+        },
+        "promptManager.fileNamingPattern": {
+          "type": "string",
+          "enum": [
+            "kebab-case",
+            "snake_case",
+            "original"
+          ],
+          "default": "kebab-case",
+          "description": "File naming pattern for new prompts"
+        },
+        "promptManager.showDescriptionInTree": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show prompt descriptions in the tree view"
+        }
+      }
     }
   },
   "scripts": {

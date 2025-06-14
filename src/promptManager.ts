@@ -20,10 +20,30 @@ export class PromptManager {
         new vscode.RelativePattern(promptPath, "**/*.md")
       );
 
-      watcher.onDidCreate(() => this.refresh());
-      watcher.onDidDelete(() => this.refresh());
-      watcher.onDidChange(() => this.refresh());
+      watcher.onDidCreate(() => {
+        console.log("PromptManager: File created, invalidating index");
+        this.fileManager.invalidateIndex();
+        this.refresh();
+      });
+
+      watcher.onDidDelete(() => {
+        console.log("PromptManager: File deleted, invalidating index");
+        this.fileManager.invalidateIndex();
+        this.refresh();
+      });
+
+      watcher.onDidChange((uri) => {
+        console.log("PromptManager: File changed, invalidating index");
+        this.handleFileChange(uri);
+        this.fileManager.invalidateIndex();
+        this.refresh();
+      });
     }
+  }
+
+  private async handleFileChange(uri: vscode.Uri): Promise<void> {
+    // File change handling without timestamp updates
+    // This method can be used for other file change reactions in the future
   }
 
   public async initialize(): Promise<boolean> {
@@ -55,9 +75,6 @@ export class PromptManager {
       validateInput: (value: string) => {
         if (!value || value.trim().length === 0) {
           return "Prompt name cannot be empty";
-        }
-        if (value.length > 50) {
-          return "Prompt name must be 50 characters or less";
         }
         return undefined;
       },
@@ -134,9 +151,6 @@ export class PromptManager {
         if (!value || value.trim().length === 0) {
           return "Folder name cannot be empty";
         }
-        if (value.length > 30) {
-          return "Folder name must be 30 characters or less";
-        }
         return undefined;
       },
     });
@@ -183,9 +197,6 @@ export class PromptManager {
         if (!value || value.trim().length === 0) {
           return "Folder name cannot be empty";
         }
-        if (value.length > 30) {
-          return "Folder name must be 30 characters or less";
-        }
         return undefined;
       },
     });
@@ -213,8 +224,8 @@ export class PromptManager {
       errors.push("Prompt content cannot be empty");
     }
 
-    if (content.length > 50000) {
-      errors.push("Prompt content is too large (max 50KB)");
+    if (content.length > 500000) {
+      errors.push("Prompt content is too large (max 500KB)");
     }
 
     // Validate front matter if present
@@ -234,5 +245,31 @@ export class PromptManager {
 
   public getFileManager(): FileManager {
     return this.fileManager;
+  }
+
+  public async createPromptInFolder(folderPath: string): Promise<void> {
+    const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the name for your new prompt",
+      placeHolder: "e.g., Code Review Helper",
+      validateInput: (value: string) => {
+        if (!value || value.trim().length === 0) {
+          return "Prompt name cannot be empty";
+        }
+        return undefined;
+      },
+    });
+
+    if (!fileName) {
+      return;
+    }
+
+    const filePath = await this.fileManager.createPromptFile(
+      fileName.trim(),
+      folderPath
+    );
+    if (filePath) {
+      await this.openPromptFile(filePath);
+      this.refresh();
+    }
   }
 }

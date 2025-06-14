@@ -2,8 +2,6 @@
 title: "Code Review Helper"
 description: "Assists with comprehensive code review feedback"
 tags: ["review", "quality", "feedback"]
-created: "2024-01-15T10:00:00Z"
-modified: "2024-01-15T10:00:00Z"
 ---
 
 # Code Review Helper
