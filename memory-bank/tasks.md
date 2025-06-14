@@ -37,7 +37,7 @@ All core components have been successfully implemented and enhanced with additio
    - ✅ Markdown file handling with YAML frontmatter
    - ✅ CRUD operations (Create, Read, Update, Delete)
    - ✅ Configurable file naming patterns (kebab-case, snake_case, original)
-   - ✅ Configurable sorting (name, created, modified)
+   - ✅ Configurable sorting (name, created)
    - ✅ Automatic README.md generation
 
 3. **CommandHandler** - VS Code command integration ✅ COMPLETE
@@ -52,22 +52,19 @@ All core components have been successfully implemented and enhanced with additio
 
    - ✅ User preferences for directory naming
    - ✅ File naming pattern configuration
-   - ✅ Auto-timestamp functionality
    - ✅ Sort preference settings
    - ✅ Tree view display options
 
 5. **PromptManager** - Business logic layer ✅ COMPLETE
    - ✅ File system integration
-   - ✅ Auto-timestamp updates on file changes
    - ✅ File watcher for real-time updates
    - ✅ Validation and error handling
 
 #### ✅ Enhanced Features Implemented
 
 - ✅ **Configuration-driven behavior**: All major features respect user settings
-- ✅ **Auto-timestamp functionality**: Automatic timestamp updates when files are modified
 - ✅ **Flexible file naming**: Support for different naming conventions
-- ✅ **Configurable sorting**: Sort prompts by name, creation date, or modification date
+- ✅ **Configurable sorting**: Sort prompts by name or creation date
 - ✅ **Enhanced UI commands**: Additional commands for better user experience
 - ✅ **Directory integration**: Direct access to prompt directory from VS Code
 
@@ -99,7 +96,6 @@ All core components have been successfully implemented and enhanced with additio
 - [x] ✅ FileManager with Markdown + YAML frontmatter storage
 - [x] ✅ CommandHandler with all planned commands
 - [x] ✅ Configuration system with user preferences
-- [x] ✅ Auto-timestamp functionality
 - [x] ✅ Configurable file naming patterns
 - [x] ✅ Configurable sorting options
 - [x] ✅ Enhanced UI commands for better UX
@@ -109,7 +105,9 @@ All core components have been successfully implemented and enhanced with additio
 
 ---
 
-### 🐛 LEVEL 1 BUG FIX IMPLEMENTED
+### 🐛 LEVEL 1 BUG FIXES IMPLEMENTED
+
+#### Bug Fix #1: Extension View Container Issue
 
 **Issue**: Extension was using the Explorer pane instead of creating its own view container
 
@@ -121,30 +119,26 @@ All core components have been successfully implemented and enhanced with additio
 - **Files Modified**: `package.json`
 - **Testing**: ✅ Build successful with no errors
 
-#### Configuration Changes Made:
+#### Bug Fix #2: Remove Modified Metadata Field
 
-```json
-// Before: View in Explorer pane
-"views": {
-  "explorer": [...]
-}
+**Issue**: Prompt files contained unnecessary `modified` metadata field with auto-timestamp functionality
 
-// After: Dedicated view container
-"viewsContainers": {
-  "activitybar": [
-    {
-      "id": "promptManager",
-      "title": "Prompt Manager",
-      "icon": "$(edit)"
-    }
-  ]
-},
-"views": {
-  "promptManager": [...]
-}
-```
+**Fix Applied**: ✅ **COMPLETE**
 
-**Status**: ✅ **BUG FIX COMPLETE** - Extension now has its own dedicated view pane
+- **Removed**: `modified` field from `PromptFile` interface
+- **Removed**: Auto-timestamp functionality from `PromptManager`
+- **Removed**: `modified` field from prompt templates and README example
+- **Updated**: Tree view tooltips to show creation date instead of modification date
+- **Updated**: Sorting logic to use `name` and `created` only (defaulting to `created`)
+- **Removed**: `autoTimestamps` configuration setting
+- **Files Modified**:
+  - `src/fileManager.ts` - Interface, parsing, sorting, templates
+  - `src/promptManager.ts` - Auto-timestamp functionality removal
+  - `src/promptTreeProvider.ts` - Tooltip display
+  - `package.json` - Configuration settings
+- **Testing**: ✅ Build successful with no errors
+
+**Status**: ✅ **ALL BUG FIXES COMPLETE**
 
 ---
 

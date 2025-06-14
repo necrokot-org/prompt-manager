@@ -30,35 +30,8 @@ export class PromptManager {
   }
 
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
-    const config = vscode.workspace.getConfiguration("promptManager");
-    const autoTimestamps = config.get<boolean>("autoTimestamps", true);
-
-    if (autoTimestamps) {
-      await this.updateFileTimestamp(uri.fsPath);
-    }
-  }
-
-  private async updateFileTimestamp(filePath: string): Promise<void> {
-    try {
-      const fs = require("fs").promises;
-      const content = await fs.readFile(filePath, "utf8");
-
-      // Check if file has frontmatter
-      const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (frontMatterMatch) {
-        const now = new Date().toISOString();
-        const updatedContent = content.replace(
-          /^(---\n[\s\S]*?modified:\s*")([^"]*?)("\n[\s\S]*?---)/,
-          `$1${now}$3`
-        );
-
-        if (updatedContent !== content) {
-          await fs.writeFile(filePath, updatedContent, "utf8");
-        }
-      }
-    } catch (error) {
-      console.error("Failed to update timestamp:", error);
-    }
+    // File change handling without timestamp updates
+    // This method can be used for other file change reactions in the future
   }
 
   public async initialize(): Promise<boolean> {

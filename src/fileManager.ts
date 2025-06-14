@@ -9,7 +9,6 @@ export interface PromptFile {
   description?: string;
   tags: string[];
   created: Date;
-  modified: Date;
   fileSize: number;
   isDirectory: boolean;
 }
@@ -86,7 +85,6 @@ title: "Code Review Helper"
 description: "Assists with comprehensive code review"
 tags: ["review", "quality", "feedback"]
 created: "2024-01-15T10:00:00Z"
-modified: "2024-01-15T10:00:00Z"
 ---
 
 # Code Review Helper
@@ -164,20 +162,15 @@ Happy prompting!
       folders.sort((a, b) => a.name.localeCompare(b.name));
 
       const config = vscode.workspace.getConfiguration("promptManager");
-      const sortBy = config.get<string>("sortPromptsBy", "modified");
+      const sortBy = config.get<string>("sortPromptsBy", "created");
 
       switch (sortBy) {
         case "name":
           rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
           break;
         case "created":
-          rootPrompts.sort((a, b) => b.created.getTime() - a.created.getTime());
-          break;
-        case "modified":
         default:
-          rootPrompts.sort(
-            (a, b) => b.modified.getTime() - a.modified.getTime()
-          );
+          rootPrompts.sort((a, b) => b.created.getTime() - a.created.getTime());
           break;
       }
 
@@ -206,19 +199,15 @@ Happy prompting!
       }
 
       const config = vscode.workspace.getConfiguration("promptManager");
-      const sortBy = config.get<string>("sortPromptsBy", "modified");
+      const sortBy = config.get<string>("sortPromptsBy", "created");
 
       switch (sortBy) {
         case "name":
           return prompts.sort((a, b) => a.title.localeCompare(b.title));
         case "created":
-          return prompts.sort(
-            (a, b) => b.created.getTime() - a.created.getTime()
-          );
-        case "modified":
         default:
           return prompts.sort(
-            (a, b) => b.modified.getTime() - a.modified.getTime()
+            (a, b) => b.created.getTime() - a.created.getTime()
           );
       }
     } catch (error) {
@@ -276,7 +265,6 @@ Happy prompting!
         created: metadata.created
           ? new Date(metadata.created)
           : stats.birthtime,
-        modified: metadata.modified ? new Date(metadata.modified) : stats.mtime,
         fileSize: stats.size,
         isDirectory: false,
       };
@@ -318,7 +306,6 @@ title: "${fileName}"
 description: ""
 tags: []
 created: "${now.toISOString()}"
-modified: "${now.toISOString()}"
 ---
 
 # ${fileName}
