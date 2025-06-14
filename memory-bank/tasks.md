@@ -155,6 +155,44 @@ All core components have been successfully implemented and enhanced with additio
   - `package.json` - Configuration settings
 - **Testing**: ✅ Build successful with no errors
 
+#### Bug Fix #4: Workspace Dependency Issue - CRITICAL ⚠️
+
+**Issue**: Extension must start as folder or workspace opened (VS Code window started with opened folder/workspace)
+
+**Fix Applied**: ✅ **COMPLETE**
+
+- **Problem**: Extension tried to initialize immediately on activation, failing when no workspace was open
+- **Root Cause**: Missing activation events and no workspace validation
+- **Enhanced Requirement**: Extension must work both in workspace and opened folder scenarios
+- **Solution Implemented**:
+  - **Added**: `activationEvents: ["onStartupFinished"]` to `package.json`
+  - **Enhanced**: Extension activation logic to check for workspace before initialization
+  - **Added**: Workspace change listener to handle dynamic workspace opening/closing
+  - **Updated**: `FileManager` to dynamically detect workspace instead of caching on construction
+  - **Improved**: Graceful handling when no workspace is available
+  - **Enhanced**: Explicit support for both VS Code workspace files (.code-workspace) and single folder scenarios
+  - **Added**: Comprehensive logging to distinguish between workspace and folder contexts
+- **Key Changes**:
+  - Extension waits for workspace to be available before initializing
+  - Context `workspaceHasPromptManager` properly managed based on workspace state
+  - Dynamic workspace detection prevents stale workspace references
+  - Clean extension cleanup when workspace is closed
+  - **Workspace Detection**: Uses `vscode.workspace.workspaceFolders[0]` which works for both:
+    - **Single Folder**: When user opens a folder via File > Open Folder
+    - **VS Code Workspace**: When user opens a .code-workspace file (single or multi-root)
+  - **Logging**: Added detailed logging to identify workspace vs folder scenarios
+- **Scenarios Supported**:
+  - ✅ Single folder opened (File > Open Folder)
+  - ✅ VS Code workspace file opened (single root)
+  - ✅ VS Code workspace file opened (multi-root, uses first folder)
+  - ✅ No workspace/folder open (extension waits gracefully)
+  - ✅ Dynamic workspace/folder changes (real-time adaptation)
+- **Files Modified**:
+  - `package.json` - Added activation events
+  - `src/extension.ts` - Workspace validation and change handling with workspace/folder detection
+  - `src/fileManager.ts` - Dynamic workspace detection with logging
+- **Testing**: ✅ Build successful with no errors
+
 **Status**: ✅ **ALL BUG FIXES COMPLETE**
 
 ---

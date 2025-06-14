@@ -2,8 +2,6 @@
 title: "System Prompt Template"
 description: "Base system prompt for AI assistants"
 tags: ["system", "template", "base"]
-created: "2024-01-15T09:00:00Z"
-modified: "2024-01-15T09:00:00Z"
 ---
 
 # System Prompt Template

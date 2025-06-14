@@ -6,9 +6,9 @@ import { PromptTreeProvider } from "./promptTreeProvider";
 import { CommandHandler } from "./commandHandler";
 
 // Global instances
-let promptManager: PromptManager;
-let treeProvider: PromptTreeProvider;
-let commandHandler: CommandHandler;
+let promptManager: PromptManager | undefined;
+let treeProvider: PromptTreeProvider | undefined;
+let commandHandler: CommandHandler | undefined;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -16,46 +16,130 @@ export async function activate(context: vscode.ExtensionContext) {
   console.log("Prompt Manager extension is being activated...");
 
   try {
-    // Initialize core components in proper order (following layered architecture)
+    // Enhanced workspace/folder detection
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const workspaceName = vscode.workspace.name;
+    const isWorkspaceFile = vscode.workspace.workspaceFile !== undefined;
 
-    // 1. Business Logic Layer
-    promptManager = new PromptManager();
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      console.log(
+        "Extension: No workspace or folder open, waiting for workspace/folder to be opened..."
+      );
+      // Set context to hide the view when no workspace is open
+      vscode.commands.executeCommand(
+        "setContext",
+        "workspaceHasPromptManager",
+        false
+      );
 
-    // 2. Presentation Layer
-    treeProvider = new PromptTreeProvider(promptManager);
-
-    // 3. Command Handler
-    commandHandler = new CommandHandler(promptManager, treeProvider, context);
-
-    // Initialize the prompt manager (creates directory structure)
-    const initialized = await promptManager.initialize();
-
-    if (initialized) {
-      // Register the tree view
-      const treeView = vscode.window.createTreeView("promptManagerTree", {
-        treeDataProvider: treeProvider,
-        showCollapseAll: true,
-      });
-
-      // Add tree view to subscriptions
-      context.subscriptions.push(treeView);
-
-      // Register all commands
-      commandHandler.registerCommands();
-
-      // Show welcome message for new users
-      await showWelcomeMessage(context);
-
-      console.log("Prompt Manager extension activated successfully");
-    } else {
-      throw new Error("Failed to initialize Prompt Manager");
+      // Listen for workspace changes
+      setupWorkspaceChangeListener(context);
+      return;
     }
+
+    await initializeExtension(context);
+
+    // Listen for workspace changes
+    setupWorkspaceChangeListener(context);
   } catch (error) {
     console.error("Failed to activate Prompt Manager extension:", error);
     vscode.window.showErrorMessage(
       `Failed to activate Prompt Manager: ${error}`
     );
   }
+}
+
+async function initializeExtension(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  // Initialize core components in proper order (following layered architecture)
+
+  // 1. Business Logic Layer
+  promptManager = new PromptManager();
+
+  // 2. Presentation Layer
+  treeProvider = new PromptTreeProvider(promptManager);
+
+  // 3. Command Handler
+  commandHandler = new CommandHandler(promptManager, treeProvider, context);
+
+  // Initialize the prompt manager (creates directory structure)
+  const initialized = await promptManager.initialize();
+
+  if (initialized) {
+    // Register the tree view
+    const treeView = vscode.window.createTreeView("promptManagerTree", {
+      treeDataProvider: treeProvider,
+      showCollapseAll: true,
+    });
+
+    // Add tree view to subscriptions
+    context.subscriptions.push(treeView);
+
+    // Register all commands
+    commandHandler.registerCommands();
+
+    // Show welcome message for new users
+    await showWelcomeMessage(context);
+
+    console.log("Prompt Manager extension activated successfully");
+  } else {
+    throw new Error("Failed to initialize Prompt Manager");
+  }
+}
+
+function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
+  // Listen for workspace folder changes
+  const workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(
+    async (event) => {
+      console.log("Workspace folders changed:", event);
+
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      const workspaceName = vscode.workspace.name;
+      const isWorkspaceFile = vscode.workspace.workspaceFile !== undefined;
+
+      if (workspaceFolders && workspaceFolders.length > 0) {
+        if (isWorkspaceFile) {
+          console.log(
+            `Workspace change: VS Code workspace opened/modified - Name: ${workspaceName}, Folders: ${workspaceFolders.length}`
+          );
+        } else {
+          console.log(
+            `Workspace change: Single folder opened - Path: ${workspaceFolders[0].uri.fsPath}`
+          );
+        }
+
+        try {
+          await initializeExtension(context);
+        } catch (error) {
+          console.error(
+            "Failed to initialize extension after workspace change:",
+            error
+          );
+          vscode.window.showErrorMessage(
+            `Failed to initialize Prompt Manager after workspace change: ${error}`
+          );
+        }
+      } else {
+        console.log(
+          "Workspace change: All workspaces/folders closed, hiding extension..."
+        );
+        // Hide the view when no workspace is open
+        vscode.commands.executeCommand(
+          "setContext",
+          "workspaceHasPromptManager",
+          false
+        );
+
+        // Clean up existing instances
+        promptManager = undefined;
+        treeProvider = undefined;
+        commandHandler = undefined;
+      }
+    }
+  );
+
+  context.subscriptions.push(workspaceChangeListener);
 }
 
 // This method is called when your extension is deactivated

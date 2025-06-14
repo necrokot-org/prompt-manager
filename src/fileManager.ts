@@ -24,24 +24,39 @@ export interface PromptStructure {
 }
 
 export class FileManager {
-  private readonly promptManagerDir = ".prompt_manager";
-  private workspaceRoot: string | undefined;
-
-  constructor() {
-    this.workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  }
+  private readonly defaultPromptManagerDir = ".prompt_manager";
 
   public getPromptManagerPath(): string | undefined {
-    if (!this.workspaceRoot) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      console.log("FileManager: No workspace folders available");
       return undefined;
     }
+
+    // Log the workspace context for debugging
+    const workspaceName = vscode.workspace.name;
+    const isWorkspaceFile = vscode.workspace.workspaceFile !== undefined;
+
+    console.log(
+      `FileManager: Workspace detection - Name: ${workspaceName}, IsWorkspaceFile: ${isWorkspaceFile}, Folders: ${workspaceFolders.length}`
+    );
+
+    // Use the first workspace folder (works for both single folder and workspace scenarios)
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    console.log(`FileManager: Using workspace root: ${workspaceRoot}`);
+
     // Use configuration setting for directory name
     const config = vscode.workspace.getConfiguration("promptManager");
     const dirName = config.get<string>(
       "defaultPromptDirectory",
-      ".prompt_manager"
+      this.defaultPromptManagerDir
     );
-    return path.join(this.workspaceRoot, dirName);
+
+    const promptPath = path.join(workspaceRoot, dirName);
+    console.log(`FileManager: Prompt manager path: ${promptPath}`);
+
+    return promptPath;
   }
 
   public async ensurePromptManagerDirectory(): Promise<boolean> {
