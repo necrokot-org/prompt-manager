@@ -37,7 +37,13 @@ export class FileManager {
     if (!this.workspaceRoot) {
       return undefined;
     }
-    return path.join(this.workspaceRoot, this.promptManagerDir);
+    // Use configuration setting for directory name
+    const config = vscode.workspace.getConfiguration("promptManager");
+    const dirName = config.get<string>(
+      "defaultPromptDirectory",
+      ".prompt_manager"
+    );
+    return path.join(this.workspaceRoot, dirName);
   }
 
   public async ensurePromptManagerDirectory(): Promise<boolean> {
@@ -98,6 +104,27 @@ Happy prompting!
     }
   }
 
+  private normalizeFileName(fileName: string): string {
+    const config = vscode.workspace.getConfiguration("promptManager");
+    const namingPattern = config.get<string>("fileNamingPattern", "kebab-case");
+
+    switch (namingPattern) {
+      case "snake_case":
+        return fileName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      case "kebab-case":
+        return fileName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      case "original":
+      default:
+        return fileName;
+    }
+  }
+
   public async scanPrompts(): Promise<PromptStructure> {
     const promptPath = this.getPromptManagerPath();
     if (!promptPath || !fs.existsSync(promptPath)) {
@@ -133,9 +160,26 @@ Happy prompting!
         }
       }
 
-      // Sort folders alphabetically, files by modified date (newest first)
+      // Sort folders alphabetically, files by configured sort method
       folders.sort((a, b) => a.name.localeCompare(b.name));
-      rootPrompts.sort((a, b) => b.modified.getTime() - a.modified.getTime());
+
+      const config = vscode.workspace.getConfiguration("promptManager");
+      const sortBy = config.get<string>("sortPromptsBy", "modified");
+
+      switch (sortBy) {
+        case "name":
+          rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
+          break;
+        case "created":
+          rootPrompts.sort((a, b) => b.created.getTime() - a.created.getTime());
+          break;
+        case "modified":
+        default:
+          rootPrompts.sort(
+            (a, b) => b.modified.getTime() - a.modified.getTime()
+          );
+          break;
+      }
 
       return { folders, rootPrompts };
     } catch (error) {
@@ -161,9 +205,22 @@ Happy prompting!
         }
       }
 
-      return prompts.sort(
-        (a, b) => b.modified.getTime() - a.modified.getTime()
-      );
+      const config = vscode.workspace.getConfiguration("promptManager");
+      const sortBy = config.get<string>("sortPromptsBy", "modified");
+
+      switch (sortBy) {
+        case "name":
+          return prompts.sort((a, b) => a.title.localeCompare(b.title));
+        case "created":
+          return prompts.sort(
+            (a, b) => b.created.getTime() - a.created.getTime()
+          );
+        case "modified":
+        default:
+          return prompts.sort(
+            (a, b) => b.modified.getTime() - a.modified.getTime()
+          );
+      }
     } catch (error) {
       console.error(`Failed to scan folder prompts in ${folderPath}:`, error);
       return [];
@@ -241,10 +298,7 @@ Happy prompting!
     await this.ensurePromptManagerDirectory();
 
     // Sanitize filename
-    const sanitizedName = fileName
-      .replace(/[^a-zA-Z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .toLowerCase();
+    const sanitizedName = this.normalizeFileName(fileName);
     const fullFileName = `${sanitizedName}.md`;
 
     const targetDir = folderPath || promptPath;
@@ -258,22 +312,22 @@ Happy prompting!
       return null;
     }
 
-    const currentDate = new Date().toISOString();
-    const template = `---
+    const now = new Date();
+    const frontMatter = `---
 title: "${fileName}"
 description: ""
 tags: []
-created: "${currentDate}"
-modified: "${currentDate}"
+created: "${now.toISOString()}"
+modified: "${now.toISOString()}"
 ---
 
 # ${fileName}
 
-Your prompt content goes here...
+Write your prompt here...
 `;
 
     try {
-      await fs.promises.writeFile(filePath, template, "utf8");
+      await fs.promises.writeFile(filePath, frontMatter, "utf8");
       return filePath;
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create prompt file: ${error}`);
@@ -289,10 +343,7 @@ Your prompt content goes here...
 
     await this.ensurePromptManagerDirectory();
 
-    const sanitizedName = folderName
-      .replace(/[^a-zA-Z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .toLowerCase();
+    const sanitizedName = this.normalizeFileName(folderName);
     const folderPath = path.join(promptPath, sanitizedName);
 
     if (fs.existsSync(folderPath)) {

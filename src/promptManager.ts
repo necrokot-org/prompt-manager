@@ -22,7 +22,42 @@ export class PromptManager {
 
       watcher.onDidCreate(() => this.refresh());
       watcher.onDidDelete(() => this.refresh());
-      watcher.onDidChange(() => this.refresh());
+      watcher.onDidChange((uri) => {
+        this.handleFileChange(uri);
+        this.refresh();
+      });
+    }
+  }
+
+  private async handleFileChange(uri: vscode.Uri): Promise<void> {
+    const config = vscode.workspace.getConfiguration("promptManager");
+    const autoTimestamps = config.get<boolean>("autoTimestamps", true);
+
+    if (autoTimestamps) {
+      await this.updateFileTimestamp(uri.fsPath);
+    }
+  }
+
+  private async updateFileTimestamp(filePath: string): Promise<void> {
+    try {
+      const fs = require("fs").promises;
+      const content = await fs.readFile(filePath, "utf8");
+
+      // Check if file has frontmatter
+      const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (frontMatterMatch) {
+        const now = new Date().toISOString();
+        const updatedContent = content.replace(
+          /^(---\n[\s\S]*?modified:\s*")([^"]*?)("\n[\s\S]*?---)/,
+          `$1${now}$3`
+        );
+
+        if (updatedContent !== content) {
+          await fs.writeFile(filePath, updatedContent, "utf8");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update timestamp:", error);
     }
   }
 
@@ -234,5 +269,34 @@ export class PromptManager {
 
   public getFileManager(): FileManager {
     return this.fileManager;
+  }
+
+  public async createPromptInFolder(folderPath: string): Promise<void> {
+    const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the name for your new prompt",
+      placeHolder: "e.g., Code Review Helper",
+      validateInput: (value: string) => {
+        if (!value || value.trim().length === 0) {
+          return "Prompt name cannot be empty";
+        }
+        if (value.length > 50) {
+          return "Prompt name must be 50 characters or less";
+        }
+        return undefined;
+      },
+    });
+
+    if (!fileName) {
+      return;
+    }
+
+    const filePath = await this.fileManager.createPromptFile(
+      fileName.trim(),
+      folderPath
+    );
+    if (filePath) {
+      await this.openPromptFile(filePath);
+      this.refresh();
+    }
   }
 }
