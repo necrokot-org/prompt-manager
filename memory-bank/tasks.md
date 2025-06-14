@@ -37,7 +37,7 @@ All core components have been successfully implemented and enhanced with additio
    - ✅ Markdown file handling with YAML frontmatter
    - ✅ CRUD operations (Create, Read, Update, Delete)
    - ✅ Configurable file naming patterns (kebab-case, snake_case, original)
-   - ✅ Configurable sorting (name, created)
+   - ✅ Alphabetical sorting by name
    - ✅ Automatic README.md generation
 
 3. **CommandHandler** - VS Code command integration ✅ COMPLETE
@@ -52,7 +52,7 @@ All core components have been successfully implemented and enhanced with additio
 
    - ✅ User preferences for directory naming
    - ✅ File naming pattern configuration
-   - ✅ Sort preference settings
+
    - ✅ Tree view display options
 
 5. **PromptManager** - Business logic layer ✅ COMPLETE
@@ -64,7 +64,7 @@ All core components have been successfully implemented and enhanced with additio
 
 - ✅ **Configuration-driven behavior**: All major features respect user settings
 - ✅ **Flexible file naming**: Support for different naming conventions
-- ✅ **Configurable sorting**: Sort prompts by name or creation date
+- ✅ **Alphabetical sorting**: Sort prompts by name for consistent organization
 - ✅ **Enhanced UI commands**: Additional commands for better user experience
 - ✅ **Directory integration**: Direct access to prompt directory from VS Code
 
@@ -97,7 +97,7 @@ All core components have been successfully implemented and enhanced with additio
 - [x] ✅ CommandHandler with all planned commands
 - [x] ✅ Configuration system with user preferences
 - [x] ✅ Configurable file naming patterns
-- [x] ✅ Configurable sorting options
+- [x] ✅ Alphabetical sorting
 - [x] ✅ Enhanced UI commands for better UX
 - [x] ✅ Error handling and validation
 - [x] ✅ Clean compilation with no linting errors
@@ -134,6 +134,23 @@ All core components have been successfully implemented and enhanced with additio
 - **Files Modified**:
   - `src/fileManager.ts` - Interface, parsing, sorting, templates
   - `src/promptManager.ts` - Auto-timestamp functionality removal
+  - `src/promptTreeProvider.ts` - Tooltip display
+  - `package.json` - Configuration settings
+- **Testing**: ✅ Build successful with no errors
+
+#### Bug Fix #3: Remove Created Metadata Field
+
+**Issue**: Prompt files contained unnecessary `created` metadata field, over-complicating the structure
+
+**Fix Applied**: ✅ **COMPLETE**
+
+- **Removed**: `created` field from `PromptFile` interface
+- **Removed**: `created` field from prompt templates and README example
+- **Simplified**: Tree view tooltips to show only title and tags
+- **Simplified**: Sorting logic to alphabetical by name only
+- **Removed**: `sortPromptsBy` configuration setting (no longer needed)
+- **Files Modified**:
+  - `src/fileManager.ts` - Interface, parsing, sorting, templates
   - `src/promptTreeProvider.ts` - Tooltip display
   - `package.json` - Configuration settings
 - **Testing**: ✅ Build successful with no errors

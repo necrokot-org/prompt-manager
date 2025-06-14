@@ -8,7 +8,6 @@ export interface PromptFile {
   path: string;
   description?: string;
   tags: string[];
-  created: Date;
   fileSize: number;
   isDirectory: boolean;
 }
@@ -84,7 +83,6 @@ This directory contains your LLM prompts organized by the VSCode Prompt Manager 
 title: "Code Review Helper"
 description: "Assists with comprehensive code review"
 tags: ["review", "quality", "feedback"]
-created: "2024-01-15T10:00:00Z"
 ---
 
 # Code Review Helper
@@ -158,21 +156,9 @@ Happy prompting!
         }
       }
 
-      // Sort folders alphabetically, files by configured sort method
+      // Sort folders alphabetically, files by name
       folders.sort((a, b) => a.name.localeCompare(b.name));
-
-      const config = vscode.workspace.getConfiguration("promptManager");
-      const sortBy = config.get<string>("sortPromptsBy", "created");
-
-      switch (sortBy) {
-        case "name":
-          rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
-          break;
-        case "created":
-        default:
-          rootPrompts.sort((a, b) => b.created.getTime() - a.created.getTime());
-          break;
-      }
+      rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
 
       return { folders, rootPrompts };
     } catch (error) {
@@ -198,18 +184,7 @@ Happy prompting!
         }
       }
 
-      const config = vscode.workspace.getConfiguration("promptManager");
-      const sortBy = config.get<string>("sortPromptsBy", "created");
-
-      switch (sortBy) {
-        case "name":
-          return prompts.sort((a, b) => a.title.localeCompare(b.title));
-        case "created":
-        default:
-          return prompts.sort(
-            (a, b) => b.created.getTime() - a.created.getTime()
-          );
-      }
+      return prompts.sort((a, b) => a.title.localeCompare(b.title));
     } catch (error) {
       console.error(`Failed to scan folder prompts in ${folderPath}:`, error);
       return [];
@@ -262,9 +237,6 @@ Happy prompting!
         path: filePath,
         description: metadata.description,
         tags: metadata.tags || [],
-        created: metadata.created
-          ? new Date(metadata.created)
-          : stats.birthtime,
         fileSize: stats.size,
         isDirectory: false,
       };
@@ -300,12 +272,10 @@ Happy prompting!
       return null;
     }
 
-    const now = new Date();
     const frontMatter = `---
 title: "${fileName}"
 description: ""
 tags: []
-created: "${now.toISOString()}"
 ---
 
 # ${fileName}

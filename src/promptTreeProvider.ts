@@ -25,9 +25,7 @@ export class PromptTreeItem extends vscode.TreeItem {
         this.promptFile.tags.length > 0
           ? ` | Tags: ${this.promptFile.tags.join(", ")}`
           : "";
-      return `${
-        this.promptFile.title
-      }${tags}\nCreated: ${this.promptFile.created.toLocaleDateString()}`;
+      return `${this.promptFile.title}${tags}`;
     }
     if (this.promptFolder) {
       return `${this.promptFolder.name}\n${this.promptFolder.prompts.length} prompts`;

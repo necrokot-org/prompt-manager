@@ -122,15 +122,6 @@
           "type": "boolean",
           "default": true,
           "description": "Show prompt descriptions in the tree view"
-        },
-        "promptManager.sortPromptsBy": {
-          "type": "string",
-          "enum": [
-            "name",
-            "created"
-          ],
-          "default": "created",
-          "description": "How to sort prompts in the tree view"
         }
       }
     }
