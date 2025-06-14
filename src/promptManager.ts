@@ -20,10 +20,22 @@ export class PromptManager {
         new vscode.RelativePattern(promptPath, "**/*.md")
       );
 
-      watcher.onDidCreate(() => this.refresh());
-      watcher.onDidDelete(() => this.refresh());
+      watcher.onDidCreate(() => {
+        console.log("PromptManager: File created, invalidating index");
+        this.fileManager.invalidateIndex();
+        this.refresh();
+      });
+
+      watcher.onDidDelete(() => {
+        console.log("PromptManager: File deleted, invalidating index");
+        this.fileManager.invalidateIndex();
+        this.refresh();
+      });
+
       watcher.onDidChange((uri) => {
+        console.log("PromptManager: File changed, invalidating index");
         this.handleFileChange(uri);
+        this.fileManager.invalidateIndex();
         this.refresh();
       });
     }

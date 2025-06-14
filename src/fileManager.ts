@@ -25,6 +25,9 @@ export interface PromptStructure {
 
 export class FileManager {
   private readonly defaultPromptManagerDir = ".prompt_manager";
+  private cachedPromptStructure: PromptStructure | null = null;
+  private indexBuilt = false;
+  private indexBuildPromise: Promise<void> | null = null;
 
   public getPromptManagerPath(): string | undefined {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -70,6 +73,9 @@ export class FileManager {
         await fs.promises.mkdir(promptPath, { recursive: true });
         await this.createReadmeFile(promptPath);
       }
+
+      // Build initial index after ensuring directory exists
+      await this.buildIndex();
       return true;
     } catch (error) {
       vscode.window.showErrorMessage(
@@ -77,6 +83,98 @@ export class FileManager {
       );
       return false;
     }
+  }
+
+  /**
+   * Build the in-memory index by scanning all prompt files
+   * This is called once on initialization and after file system changes
+   */
+  public async buildIndex(): Promise<void> {
+    // Prevent concurrent index builds
+    if (this.indexBuildPromise) {
+      return this.indexBuildPromise;
+    }
+
+    this.indexBuildPromise = this.performIndexBuild();
+    await this.indexBuildPromise;
+    this.indexBuildPromise = null;
+  }
+
+  private async performIndexBuild(): Promise<void> {
+    console.log("FileManager: Building in-memory index...");
+    const promptPath = this.getPromptManagerPath();
+    if (!promptPath || !fs.existsSync(promptPath)) {
+      this.cachedPromptStructure = { folders: [], rootPrompts: [] };
+      this.indexBuilt = true;
+      return;
+    }
+
+    try {
+      const folders: PromptFolder[] = [];
+      const rootPrompts: PromptFile[] = [];
+      const items = await fs.promises.readdir(promptPath, {
+        withFileTypes: true,
+      });
+
+      for (const item of items) {
+        const itemPath = path.join(promptPath, item.name);
+
+        if (item.isDirectory()) {
+          const folderPrompts = await this.scanFolderPrompts(itemPath);
+          folders.push({
+            name: item.name,
+            path: itemPath,
+            prompts: folderPrompts,
+          });
+        } else if (
+          item.isFile() &&
+          item.name.endsWith(".md") &&
+          item.name !== "README.md"
+        ) {
+          const promptFile = await this.parsePromptFile(itemPath);
+          if (promptFile) {
+            rootPrompts.push(promptFile);
+          }
+        }
+      }
+
+      // Sort folders alphabetically, files by name
+      folders.sort((a, b) => a.name.localeCompare(b.name));
+      rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
+
+      this.cachedPromptStructure = { folders, rootPrompts };
+      this.indexBuilt = true;
+      console.log(
+        `FileManager: Index built - ${folders.length} folders, ${rootPrompts.length} root prompts`
+      );
+    } catch (error) {
+      console.error("Failed to build index:", error);
+      this.cachedPromptStructure = { folders: [], rootPrompts: [] };
+      this.indexBuilt = true;
+    }
+  }
+
+  /**
+   * Invalidate the cached index - call this when files are added/removed/changed
+   */
+  public invalidateIndex(): void {
+    console.log("FileManager: Invalidating index cache");
+    this.cachedPromptStructure = null;
+    this.indexBuilt = false;
+  }
+
+  /**
+   * Get the current prompt structure from memory index
+   * Builds index if not yet built
+   */
+  public async scanPrompts(): Promise<PromptStructure> {
+    // If index not built yet, build it now
+    if (!this.indexBuilt) {
+      await this.buildIndex();
+    }
+
+    // Return cached structure or empty structure if failed
+    return this.cachedPromptStructure || { folders: [], rootPrompts: [] };
   }
 
   private async createReadmeFile(promptPath: string): Promise<void> {
@@ -133,52 +231,6 @@ Happy prompting!
       case "original":
       default:
         return fileName;
-    }
-  }
-
-  public async scanPrompts(): Promise<PromptStructure> {
-    const promptPath = this.getPromptManagerPath();
-    if (!promptPath || !fs.existsSync(promptPath)) {
-      return { folders: [], rootPrompts: [] };
-    }
-
-    try {
-      const folders: PromptFolder[] = [];
-      const rootPrompts: PromptFile[] = [];
-      const items = await fs.promises.readdir(promptPath, {
-        withFileTypes: true,
-      });
-
-      for (const item of items) {
-        const itemPath = path.join(promptPath, item.name);
-
-        if (item.isDirectory()) {
-          const folderPrompts = await this.scanFolderPrompts(itemPath);
-          folders.push({
-            name: item.name,
-            path: itemPath,
-            prompts: folderPrompts,
-          });
-        } else if (
-          item.isFile() &&
-          item.name.endsWith(".md") &&
-          item.name !== "README.md"
-        ) {
-          const promptFile = await this.parsePromptFile(itemPath);
-          if (promptFile) {
-            rootPrompts.push(promptFile);
-          }
-        }
-      }
-
-      // Sort folders alphabetically, files by name
-      folders.sort((a, b) => a.name.localeCompare(b.name));
-      rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
-
-      return { folders, rootPrompts };
-    } catch (error) {
-      vscode.window.showErrorMessage(`Failed to scan prompts: ${error}`);
-      return { folders: [], rootPrompts: [] };
     }
   }
 
@@ -300,6 +352,11 @@ Write your prompt here...
 
     try {
       await fs.promises.writeFile(filePath, frontMatter, "utf8");
+
+      // Invalidate cache and rebuild index since we added a new file
+      this.invalidateIndex();
+      await this.buildIndex();
+
       return filePath;
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create prompt file: ${error}`);
@@ -327,6 +384,11 @@ Write your prompt here...
 
     try {
       await fs.promises.mkdir(folderPath, { recursive: true });
+
+      // Invalidate cache and rebuild index since we added a new folder
+      this.invalidateIndex();
+      await this.buildIndex();
+
       return folderPath;
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create folder: ${error}`);
@@ -337,6 +399,11 @@ Write your prompt here...
   public async deletePromptFile(filePath: string): Promise<boolean> {
     try {
       await fs.promises.unlink(filePath);
+
+      // Invalidate cache and rebuild index since we deleted a file
+      this.invalidateIndex();
+      await this.buildIndex();
+
       return true;
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt file: ${error}`);
