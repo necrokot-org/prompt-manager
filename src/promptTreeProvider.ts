@@ -8,6 +8,7 @@ import {
   SearchMatch,
 } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
+import { SearchService } from "./searchService";
 
 export class PromptTreeItem extends vscode.TreeItem {
   constructor(
@@ -84,8 +85,13 @@ export class PromptTreeProvider
   > = this._onDidChangeTreeData.event;
 
   private _currentSearchCriteria: SearchCriteria | null = null;
+  private _searchService: SearchService;
 
   constructor(private promptManager: PromptManager) {
+    this._searchService = new SearchService(
+      this.promptManager.getFileManager()
+    );
+
     // Listen to changes from PromptManager
     this.promptManager.onDidChangeTreeData(() => {
       this.refresh();
@@ -320,101 +326,15 @@ export class PromptTreeProvider
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    // Use enhanced search functionality from FileManager
-    const fileManager = this.promptManager.getFileManager();
-
     try {
-      let results: ContentSearchResult[] = [];
-
-      switch (criteria.scope) {
-        case "titles":
-          results = await fileManager.searchInTitle(criteria.query, {
-            caseSensitive: criteria.caseSensitive,
-            exact: false,
-          });
-          break;
-        case "content":
-          results = await fileManager.searchInContent(criteria.query, {
-            caseSensitive: criteria.caseSensitive,
-            exact: false,
-            includeYaml: false,
-          });
-          break;
-        case "both":
-          const titleResults = await fileManager.searchInTitle(criteria.query, {
-            caseSensitive: criteria.caseSensitive,
-            exact: false,
-          });
-          const contentResults = await fileManager.searchInContent(
-            criteria.query,
-            {
-              caseSensitive: criteria.caseSensitive,
-              exact: false,
-              includeYaml: false,
-            }
-          );
-          results = [...titleResults, ...contentResults];
-          break;
-        default:
-          return false;
-      }
-
-      // Check if this specific prompt is in the results
-      return results.some((result) => result.file.path === prompt.path);
+      return await this._searchService.matchesPrompt(prompt, criteria);
     } catch (error) {
       console.error(
         "Error in enhanced search, falling back to simple search:",
         error
       );
       // Fallback to simple text matching
-      return this.matchesTextFallback(prompt, criteria);
-    }
-  }
-
-  private matchesText(
-    text: string,
-    query: string,
-    caseSensitive: boolean
-  ): boolean {
-    const searchText = caseSensitive ? text : text.toLowerCase();
-    const searchQuery = caseSensitive ? query : query.toLowerCase();
-    return searchText.includes(searchQuery);
-  }
-
-  private matchesTextFallback(
-    prompt: PromptFile,
-    criteria: SearchCriteria
-  ): boolean {
-    // Fallback method for simple text search when enhanced search fails
-    const query = criteria.caseSensitive
-      ? criteria.query
-      : criteria.query.toLowerCase();
-
-    switch (criteria.scope) {
-      case "titles":
-        return this.matchesText(prompt.title, query, criteria.caseSensitive);
-      case "content":
-        // Search in description and tags as fallback
-        const searchableContent = [
-          prompt.description || "",
-          ...(prompt.tags || []),
-        ].join(" ");
-        return this.matchesText(
-          searchableContent,
-          query,
-          criteria.caseSensitive
-        );
-      case "both":
-        return (
-          this.matchesText(prompt.title, query, criteria.caseSensitive) ||
-          this.matchesText(
-            [prompt.description || "", ...(prompt.tags || [])].join(" "),
-            query,
-            criteria.caseSensitive
-          )
-        );
-      default:
-        return false;
+      return this._searchService.matchesTextFallback(prompt, criteria);
     }
   }
 }

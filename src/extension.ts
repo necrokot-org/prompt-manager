@@ -6,12 +6,14 @@ import { PromptTreeProvider } from "./promptTreeProvider";
 import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
 import { PromptFile } from "./fileManager";
+import { SearchService } from "./searchService";
 
 // Global instances
 let promptManager: PromptManager | undefined;
 let treeProvider: PromptTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
 let searchProvider: SearchPanelProvider | undefined;
+let searchService: SearchService | undefined;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -63,9 +65,10 @@ async function initializeExtension(
   // 2. Presentation Layer
   treeProvider = new PromptTreeProvider(promptManager);
   searchProvider = new SearchPanelProvider(context.extensionUri);
+  searchService = new SearchService(promptManager.getFileManager());
 
   // 3. Command Handler
-  commandHandler = new CommandHandler(promptManager, treeProvider, context);
+  commandHandler = new CommandHandler(promptManager, context);
 
   // Initialize the prompt manager (creates directory structure)
   const initialized = await promptManager.initialize();
@@ -87,19 +90,24 @@ async function initializeExtension(
     context.subscriptions.push(treeView, searchWebviewProvider);
 
     // Connect search provider to tree provider
-    if (searchProvider && treeProvider && promptManager) {
-      searchProvider.onDidChangeSearch((criteria) => {
+    if (searchProvider && treeProvider && promptManager && searchService) {
+      searchProvider.onDidChangeSearch(async (criteria) => {
         treeProvider!.setSearchCriteria(criteria.isActive ? criteria : null);
 
         // Update result count in search panel
         if (criteria.isActive) {
-          // For now, we'll implement a simple count - this can be enhanced later
-          promptManager!.getPromptStructure().then((structure) => {
+          try {
+            const count = await searchService!.countMatches(criteria);
+            searchProvider!.updateResultCount(count);
+          } catch (error) {
+            console.error("Error counting search results:", error);
+            // Fallback to simple count
+            const structure = await promptManager!.getPromptStructure();
             let count = 0;
 
             // Count matching root prompts
             for (const prompt of structure.rootPrompts) {
-              if (matchesSearchCriteria(prompt, criteria)) {
+              if (searchService!.matchesTextFallback(prompt, criteria)) {
                 count++;
               }
             }
@@ -107,14 +115,14 @@ async function initializeExtension(
             // Count matching prompts in folders
             for (const folder of structure.folders) {
               for (const prompt of folder.prompts) {
-                if (matchesSearchCriteria(prompt, criteria)) {
+                if (searchService!.matchesTextFallback(prompt, criteria)) {
                   count++;
                 }
               }
             }
 
             searchProvider!.updateResultCount(count);
-          });
+          }
         }
       });
     }
@@ -179,6 +187,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         treeProvider = undefined;
         commandHandler = undefined;
         searchProvider = undefined;
+        searchService = undefined;
       }
     }
   );
@@ -220,51 +229,4 @@ async function showWelcomeMessage(
     // Mark as shown
     await context.globalState.update("promptManager.hasShownWelcome", true);
   }
-}
-
-// Helper function for search matching (will be enhanced later)
-function matchesSearchCriteria(
-  prompt: PromptFile,
-  criteria: SearchCriteria
-): boolean {
-  const query = criteria.caseSensitive
-    ? criteria.query
-    : criteria.query.toLowerCase();
-
-  switch (criteria.scope) {
-    case "titles":
-      return matchesText(prompt.title, query, criteria.caseSensitive);
-    case "content":
-      return matchesContentFallback(prompt, query, criteria.caseSensitive);
-    case "both":
-      return (
-        matchesText(prompt.title, query, criteria.caseSensitive) ||
-        matchesContentFallback(prompt, query, criteria.caseSensitive)
-      );
-    default:
-      return false;
-  }
-}
-
-function matchesText(
-  text: string,
-  query: string,
-  caseSensitive: boolean
-): boolean {
-  const searchText = caseSensitive ? text : text.toLowerCase();
-  return searchText.includes(query);
-}
-
-function matchesContentFallback(
-  prompt: PromptFile,
-  query: string,
-  caseSensitive: boolean
-): boolean {
-  // Fallback content search using available properties
-  const searchableContent = [
-    prompt.description || "",
-    ...(prompt.tags || []),
-  ].join(" ");
-
-  return matchesText(searchableContent, query, caseSensitive);
 }
