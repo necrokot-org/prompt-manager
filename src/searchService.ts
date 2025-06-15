@@ -1,8 +1,13 @@
 import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
+import { SearchEngine, FileContent } from "./core/SearchEngine";
 
 export class SearchService {
-  constructor(private fileManager: FileManager) {}
+  private searchEngine: SearchEngine;
+
+  constructor(private fileManager: FileManager) {
+    this.searchEngine = new SearchEngine();
+  }
 
   /**
    * Centralized search method that handles scope routing
@@ -12,67 +17,39 @@ export class SearchService {
       return [];
     }
 
-    const searchOptions = {
-      caseSensitive: criteria.caseSensitive,
-      exact: false,
+    // Get file contents for search
+    const files = await this.getFileContentsForSearch();
+
+    // Convert to our SearchEngine's criteria format
+    const searchCriteria = {
+      ...criteria,
+      exact: false, // Can be made configurable later
+      includeYaml: false, // Can be made configurable later
     };
 
-    let results: ContentSearchResult[] = [];
+    try {
+      const results = await this.searchEngine.searchFiles(
+        files,
+        searchCriteria
+      );
 
-    switch (criteria.scope) {
-      case "titles":
-        results = await this.fileManager.searchInTitle(
-          criteria.query,
-          searchOptions
-        );
-        break;
-      case "content":
-        results = await this.fileManager.searchInContent(criteria.query, {
-          ...searchOptions,
-          includeYaml: false,
+      // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
+      const contentResults: ContentSearchResult[] = [];
+      for (const result of results) {
+        const file = await this.convertSearchResultToPromptFile(result);
+        contentResults.push({
+          file,
+          score: result.score,
+          matches: result.matches,
         });
-        break;
-      case "both":
-        const titleResults = await this.fileManager.searchInTitle(
-          criteria.query,
-          searchOptions
-        );
-        const contentResults = await this.fileManager.searchInContent(
-          criteria.query,
-          {
-            ...searchOptions,
-            includeYaml: false,
-          }
-        );
+      }
 
-        // Merge results, removing duplicates based on file path
-        const resultMap = new Map<string, ContentSearchResult>();
-
-        // Add title results
-        for (const result of titleResults) {
-          resultMap.set(result.file.path, result);
-        }
-
-        // Add content results, combining scores if file already exists
-        for (const result of contentResults) {
-          const existing = resultMap.get(result.file.path);
-          if (existing) {
-            // Combine matches and scores
-            existing.matches.push(...result.matches);
-            existing.score += result.score;
-          } else {
-            resultMap.set(result.file.path, result);
-          }
-        }
-
-        results = Array.from(resultMap.values());
-        break;
-      default:
-        results = [];
+      return contentResults.sort((a, b) => b.score - a.score);
+    } catch (error) {
+      console.error("Search failed:", error);
+      // Fallback to simple text matching
+      return this.fallbackSearch(criteria);
     }
-
-    // Sort by relevance score (highest first)
-    return results.sort((a, b) => b.score - a.score);
   }
 
   /**
@@ -82,8 +59,22 @@ export class SearchService {
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    const results = await this.search(criteria);
-    return results.some((result) => result.file.path === prompt.path);
+    try {
+      // Create a FileContent object for the single file
+      const content = await this.fileManager
+        .getFileSystemManager()
+        .readFile(prompt.path);
+      const fileContent: FileContent = {
+        path: prompt.path,
+        content,
+      };
+
+      return await this.searchEngine.fileMatches(fileContent, criteria);
+    } catch (error) {
+      console.error("Error checking file match:", error);
+      // Fallback to simple text matching
+      return this.matchesTextFallback(prompt, criteria);
+    }
   }
 
   /**
@@ -128,6 +119,127 @@ export class SearchService {
       default:
         return false;
     }
+  }
+
+  /**
+   * Clear search caches
+   */
+  clearCache(): void {
+    this.searchEngine.clearCache();
+  }
+
+  /**
+   * Get search engine statistics
+   */
+  getStats() {
+    return this.searchEngine.getCacheStats();
+  }
+
+  // Private helper methods
+
+  private async getFileContentsForSearch(): Promise<FileContent[]> {
+    const structure = await this.fileManager.scanPrompts();
+    const allFiles: PromptFile[] = [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((folder) => folder.prompts),
+    ];
+
+    const fileContents: FileContent[] = [];
+
+    for (const promptFile of allFiles) {
+      try {
+        const content = await this.fileManager
+          .getFileSystemManager()
+          .readFile(promptFile.path);
+        fileContents.push({
+          path: promptFile.path,
+          content,
+        });
+      } catch (error) {
+        console.warn(
+          `Failed to read file for search: ${promptFile.path}`,
+          error
+        );
+      }
+    }
+
+    return fileContents;
+  }
+
+  private async convertSearchResultToPromptFile(
+    result: any
+  ): Promise<PromptFile> {
+    // Try to find the file in our directory scanner
+    const structure = await this.fileManager.scanPrompts();
+    const allFiles: PromptFile[] = [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((folder) => folder.prompts),
+    ];
+
+    const file = allFiles.find((f) => f.path === result.filePath);
+
+    if (file) {
+      return file;
+    }
+
+    // Fallback: create a PromptFile from the search result
+    try {
+      const stats = await this.fileManager
+        .getFileSystemManager()
+        .getFileStats(result.filePath);
+      return {
+        name: result.fileName,
+        title: result.title,
+        path: result.filePath,
+        description: undefined,
+        tags: [],
+        fileSize: stats.size,
+        isDirectory: false,
+      };
+    } catch (error) {
+      console.error(`Failed to get file stats for ${result.filePath}:`, error);
+      // Return minimal file info
+      return {
+        name: result.fileName,
+        title: result.title,
+        path: result.filePath,
+        description: undefined,
+        tags: [],
+        fileSize: 0,
+        isDirectory: false,
+      };
+    }
+  }
+
+  private async fallbackSearch(
+    criteria: SearchCriteria
+  ): Promise<ContentSearchResult[]> {
+    const structure = await this.fileManager.scanPrompts();
+    const allFiles: PromptFile[] = [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((folder) => folder.prompts),
+    ];
+
+    const results: ContentSearchResult[] = [];
+
+    for (const file of allFiles) {
+      if (this.matchesTextFallback(file, criteria)) {
+        results.push({
+          file,
+          score: 50, // Default score for fallback matches
+          matches: [
+            {
+              type: "title",
+              position: 0,
+              length: criteria.query.length,
+              context: file.title,
+            },
+          ],
+        });
+      }
+    }
+
+    return results;
   }
 
   private matchesText(
