@@ -36,6 +36,10 @@ export class CommandHandler {
         "promptManager.addPromptToFolder",
         (item: PromptTreeItem) => this.addPromptToFolder(item)
       ),
+      vscode.commands.registerCommand(
+        "promptManager.copyPromptContent",
+        (item: PromptTreeItem) => this.copyPromptContent(item)
+      ),
     ];
 
     // Add all commands to subscriptions for proper cleanup
@@ -121,6 +125,26 @@ export class CommandHandler {
       vscode.window.showErrorMessage(
         `Failed to add prompt to folder: ${error}`
       );
+    }
+  }
+
+  private async copyPromptContent(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item?.promptFile) {
+        vscode.window.showErrorMessage("No prompt selected for copying");
+        return;
+      }
+
+      const success = await this.promptManager.copyPromptContentToClipboard(
+        item.promptFile.path
+      );
+      if (success) {
+        vscode.window.showInformationMessage(
+          `Copied content from "${item.promptFile.title}"`
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to copy prompt content: ${error}`);
     }
   }
 }
