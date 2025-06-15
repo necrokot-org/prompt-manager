@@ -1,7 +1,12 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { PromptManager } from "./promptManager";
-import { PromptFile, PromptFolder } from "./fileManager";
+import {
+  PromptFile,
+  PromptFolder,
+  ContentSearchResult,
+  SearchMatch,
+} from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 
 export class PromptTreeItem extends vscode.TreeItem {
@@ -242,7 +247,7 @@ export class PromptTreeProvider
 
     // Search through root prompts
     for (const prompt of structure.rootPrompts) {
-      if (this.matchesSearchCriteria(prompt, criteria)) {
+      if (await this.matchesSearchCriteria(prompt, criteria)) {
         const promptItem = new PromptTreeItem(
           prompt.title,
           vscode.TreeItemCollapsibleState.None,
@@ -264,7 +269,7 @@ export class PromptTreeProvider
       const matchingPrompts: PromptTreeItem[] = [];
 
       for (const prompt of folder.prompts) {
-        if (this.matchesSearchCriteria(prompt, criteria)) {
+        if (await this.matchesSearchCriteria(prompt, criteria)) {
           const promptItem = new PromptTreeItem(
             prompt.title,
             vscode.TreeItemCollapsibleState.None,
@@ -311,34 +316,58 @@ export class PromptTreeProvider
     return items;
   }
 
-  private matchesSearchCriteria(
+  private async matchesSearchCriteria(
     prompt: PromptFile,
     criteria: SearchCriteria
-  ): boolean {
-    const query = criteria.caseSensitive
-      ? criteria.query
-      : criteria.query.toLowerCase();
+  ): Promise<boolean> {
+    // Use enhanced search functionality from FileManager
+    const fileManager = this.promptManager.getFileManager();
 
-    switch (criteria.scope) {
-      case "titles":
-        return this.matchesText(prompt.title, query, criteria.caseSensitive);
-      case "content":
-        return this.matchesContentSearchFallback(
-          prompt,
-          query,
-          criteria.caseSensitive
-        );
-      case "both":
-        return (
-          this.matchesText(prompt.title, query, criteria.caseSensitive) ||
-          this.matchesContentSearchFallback(
-            prompt,
-            query,
-            criteria.caseSensitive
-          )
-        );
-      default:
-        return false;
+    try {
+      let results: ContentSearchResult[] = [];
+
+      switch (criteria.scope) {
+        case "titles":
+          results = await fileManager.searchInTitle(criteria.query, {
+            caseSensitive: criteria.caseSensitive,
+            exact: false,
+          });
+          break;
+        case "content":
+          results = await fileManager.searchInContent(criteria.query, {
+            caseSensitive: criteria.caseSensitive,
+            exact: false,
+            includeYaml: false,
+          });
+          break;
+        case "both":
+          const titleResults = await fileManager.searchInTitle(criteria.query, {
+            caseSensitive: criteria.caseSensitive,
+            exact: false,
+          });
+          const contentResults = await fileManager.searchInContent(
+            criteria.query,
+            {
+              caseSensitive: criteria.caseSensitive,
+              exact: false,
+              includeYaml: false,
+            }
+          );
+          results = [...titleResults, ...contentResults];
+          break;
+        default:
+          return false;
+      }
+
+      // Check if this specific prompt is in the results
+      return results.some((result) => result.file.path === prompt.path);
+    } catch (error) {
+      console.error(
+        "Error in enhanced search, falling back to simple search:",
+        error
+      );
+      // Fallback to simple text matching
+      return this.matchesTextFallback(prompt, criteria);
     }
   }
 
@@ -348,21 +377,44 @@ export class PromptTreeProvider
     caseSensitive: boolean
   ): boolean {
     const searchText = caseSensitive ? text : text.toLowerCase();
-    return searchText.includes(query);
+    const searchQuery = caseSensitive ? query : query.toLowerCase();
+    return searchText.includes(searchQuery);
   }
 
-  private matchesContentSearchFallback(
+  private matchesTextFallback(
     prompt: PromptFile,
-    query: string,
-    caseSensitive: boolean
+    criteria: SearchCriteria
   ): boolean {
-    // This is a fallback - we'll enhance this when we add enhanced content search
-    // For now, search in description and tags
-    const searchableContent = [
-      prompt.description || "",
-      ...(prompt.tags || []),
-    ].join(" ");
+    // Fallback method for simple text search when enhanced search fails
+    const query = criteria.caseSensitive
+      ? criteria.query
+      : criteria.query.toLowerCase();
 
-    return this.matchesText(searchableContent, query, caseSensitive);
+    switch (criteria.scope) {
+      case "titles":
+        return this.matchesText(prompt.title, query, criteria.caseSensitive);
+      case "content":
+        // Search in description and tags as fallback
+        const searchableContent = [
+          prompt.description || "",
+          ...(prompt.tags || []),
+        ].join(" ");
+        return this.matchesText(
+          searchableContent,
+          query,
+          criteria.caseSensitive
+        );
+      case "both":
+        return (
+          this.matchesText(prompt.title, query, criteria.caseSensitive) ||
+          this.matchesText(
+            [prompt.description || "", ...(prompt.tags || [])].join(" "),
+            query,
+            criteria.caseSensitive
+          )
+        );
+      default:
+        return false;
+    }
   }
 }
