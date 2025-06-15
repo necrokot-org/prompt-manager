@@ -1,6 +1,11 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { PromptTreeProvider, PromptTreeItem } from "../promptTreeProvider";
+import {
+  PromptTreeProvider,
+  PromptTreeItem,
+  FileTreeItem,
+  FolderTreeItem,
+} from "../promptTreeProvider";
 import { PromptManager } from "../promptManager";
 import { SearchCriteria } from "../searchPanelProvider";
 import { PromptFile, PromptFolder } from "../fileManager";
@@ -108,19 +113,23 @@ suite("PromptTreeProvider Tests", () => {
     assert.ok(rootItems.length >= 4);
 
     // Check folder item
-    const folderItem = rootItems.find((item) => item.promptFolder);
+    const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
     assert.ok(folderItem);
     assert.strictEqual(folderItem?.label, "TestFolder");
 
     // Check root prompt items
-    const promptItems = rootItems.filter((item) => item.promptFile);
+    const promptItems = rootItems.filter(
+      (item) => item instanceof FileTreeItem
+    );
     assert.ok(promptItems.length >= 3);
   });
 
   test("Tree Item Creation - Prompt File", async () => {
     const rootItems = await treeProvider.getChildren();
     const promptItem = rootItems.find(
-      (item) => item.promptFile?.title === "JavaScript Prompt"
+      (item) =>
+        item instanceof FileTreeItem &&
+        item.promptFile?.title === "JavaScript Prompt"
     );
 
     assert.ok(promptItem);
@@ -135,7 +144,7 @@ suite("PromptTreeProvider Tests", () => {
 
   test("Tree Item Creation - Folder", async () => {
     const rootItems = await treeProvider.getChildren();
-    const folderItem = rootItems.find((item) => item.promptFolder);
+    const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
 
     assert.ok(folderItem);
     assert.strictEqual(folderItem.label, "TestFolder");
@@ -148,7 +157,7 @@ suite("PromptTreeProvider Tests", () => {
 
   test("Folder Children Retrieval", async () => {
     const rootItems = await treeProvider.getChildren();
-    const folderItem = rootItems.find((item) => item.promptFolder);
+    const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
 
     assert.ok(folderItem);
 
@@ -215,8 +224,8 @@ suite("PromptTreeProvider Tests", () => {
   test("Tree Item Context Values", async () => {
     const rootItems = await treeProvider.getChildren();
 
-    const promptItem = rootItems.find((item) => item.promptFile);
-    const folderItem = rootItems.find((item) => item.promptFolder);
+    const promptItem = rootItems.find((item) => item instanceof FileTreeItem);
+    const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
 
     assert.ok(promptItem);
     assert.ok(folderItem);
@@ -229,8 +238,8 @@ suite("PromptTreeProvider Tests", () => {
   test("Tree Item Icons", async () => {
     const rootItems = await treeProvider.getChildren();
 
-    const promptItem = rootItems.find((item) => item.promptFile);
-    const folderItem = rootItems.find((item) => item.promptFolder);
+    const promptItem = rootItems.find((item) => item instanceof FileTreeItem);
+    const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
 
     assert.ok(promptItem);
     assert.ok(folderItem);
@@ -247,7 +256,9 @@ suite("PromptTreeProvider Tests", () => {
     const rootItems = await treeProvider.getChildren();
 
     const promptItem = rootItems.find(
-      (item) => item.promptFile?.title === "JavaScript Prompt"
+      (item) =>
+        item instanceof FileTreeItem &&
+        item.promptFile?.title === "JavaScript Prompt"
     );
 
     assert.ok(promptItem);
@@ -260,9 +271,11 @@ suite("PromptTreeProvider Tests", () => {
     const rootItems = await treeProvider.getChildren();
 
     const promptItem = rootItems.find(
-      (item) => item.promptFile?.title === "JavaScript Prompt"
+      (item) =>
+        item instanceof FileTreeItem &&
+        item.promptFile?.title === "JavaScript Prompt"
     );
-    const folderItem = rootItems.find((item) => item.promptFolder);
+    const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
 
     assert.ok(promptItem);
     assert.ok(folderItem);

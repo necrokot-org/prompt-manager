@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { PromptManager } from "./promptManager";
-import { PromptTreeItem } from "./promptTreeProvider";
+import {
+  PromptTreeItem,
+  FileTreeItem,
+  FolderTreeItem,
+} from "./promptTreeProvider";
 
 export class CommandHandler {
   constructor(
@@ -76,7 +80,7 @@ export class CommandHandler {
 
   private async deletePrompt(item?: PromptTreeItem): Promise<void> {
     try {
-      if (!item?.promptFile) {
+      if (!item || !(item instanceof FileTreeItem)) {
         vscode.window.showErrorMessage("No prompt selected for deletion");
         return;
       }
@@ -88,7 +92,8 @@ export class CommandHandler {
 
   private async createFolder(item?: PromptTreeItem): Promise<void> {
     try {
-      const folderPath = item?.promptFolder?.path;
+      const folderPath =
+        item instanceof FolderTreeItem ? item.promptFolder.path : undefined;
       await this.promptManager.createFolderInLocation(folderPath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create folder: ${error}`);
@@ -115,7 +120,7 @@ export class CommandHandler {
 
   private async addPromptToFolder(item?: PromptTreeItem): Promise<void> {
     try {
-      if (!item?.promptFolder) {
+      if (!item || !(item instanceof FolderTreeItem)) {
         vscode.window.showErrorMessage("No folder selected");
         return;
       }
@@ -129,7 +134,7 @@ export class CommandHandler {
 
   private async copyPromptContent(item?: PromptTreeItem): Promise<void> {
     try {
-      if (!item?.promptFile) {
+      if (!item || !(item instanceof FileTreeItem)) {
         vscode.window.showErrorMessage("No prompt selected for copying");
         return;
       }

@@ -69,17 +69,7 @@ export class PromptManager {
   }
 
   public async createNewPrompt(): Promise<void> {
-    const fileName = await vscode.window.showInputBox({
-      prompt: "Enter the name for your new prompt",
-      placeHolder: "e.g., Code Review Helper",
-      validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Prompt name cannot be empty";
-        }
-        return undefined;
-      },
-    });
-
+    const fileName = await this.askPromptName();
     if (!fileName) {
       return;
     }
@@ -111,14 +101,7 @@ export class PromptManager {
       targetFolderPath = await this.createNewFolder();
     }
 
-    const filePath = await this.fileManager.createPromptFile(
-      fileName.trim(),
-      targetFolderPath
-    );
-    if (filePath) {
-      await this.openPromptFile(filePath);
-      this.refresh();
-    }
+    await this.createAndOpenPrompt(fileName, targetFolderPath);
   }
 
   private async selectExistingFolder(): Promise<string | undefined> {
@@ -144,22 +127,12 @@ export class PromptManager {
   }
 
   private async createNewFolder(): Promise<string | undefined> {
-    const folderName = await vscode.window.showInputBox({
-      prompt: "Enter the name for the new folder",
-      placeHolder: "e.g., coding, writing, templates",
-      validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Folder name cannot be empty";
-        }
-        return undefined;
-      },
-    });
-
+    const folderName = await this.askFolderName();
     if (!folderName) {
       return undefined;
     }
 
-    const result = await this.fileManager.createFolder(folderName.trim());
+    const result = await this.fileManager.createFolder(folderName);
     return result ?? undefined;
   }
 
@@ -190,24 +163,12 @@ export class PromptManager {
   }
 
   public async createFolderInLocation(folderPath?: string): Promise<void> {
-    const folderName = await vscode.window.showInputBox({
-      prompt: "Enter the name for the new folder",
-      placeHolder: "e.g., coding, writing, templates",
-      validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Folder name cannot be empty";
-        }
-        return undefined;
-      },
-    });
-
+    const folderName = await this.askFolderName();
     if (!folderName) {
       return;
     }
 
-    const newFolderPath = await this.fileManager.createFolder(
-      folderName.trim()
-    );
+    const newFolderPath = await this.fileManager.createFolder(folderName);
     if (newFolderPath) {
       this.refresh();
       vscode.window.showInformationMessage(`Created folder "${folderName}"`);
@@ -248,29 +209,12 @@ export class PromptManager {
   }
 
   public async createPromptInFolder(folderPath: string): Promise<void> {
-    const fileName = await vscode.window.showInputBox({
-      prompt: "Enter the name for your new prompt",
-      placeHolder: "e.g., Code Review Helper",
-      validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Prompt name cannot be empty";
-        }
-        return undefined;
-      },
-    });
-
+    const fileName = await this.askPromptName();
     if (!fileName) {
       return;
     }
 
-    const filePath = await this.fileManager.createPromptFile(
-      fileName.trim(),
-      folderPath
-    );
-    if (filePath) {
-      await this.openPromptFile(filePath);
-      this.refresh();
-    }
+    await this.createAndOpenPrompt(fileName, folderPath);
   }
 
   public async copyPromptContentToClipboard(
@@ -316,5 +260,58 @@ export class PromptManager {
 
     // If no front matter found, return original content
     return content.trim();
+  }
+
+  /**
+   * Helper method to ask for prompt name with validation
+   */
+  private async askPromptName(): Promise<string | undefined> {
+    const fileName = await vscode.window.showInputBox({
+      prompt: "Enter the name for your new prompt",
+      placeHolder: "e.g., Code Review Helper",
+      validateInput: (value: string) => {
+        if (!value || value.trim().length === 0) {
+          return "Prompt name cannot be empty";
+        }
+        return undefined;
+      },
+    });
+
+    return fileName?.trim();
+  }
+
+  /**
+   * Helper method to ask for folder name with validation
+   */
+  private async askFolderName(): Promise<string | undefined> {
+    const folderName = await vscode.window.showInputBox({
+      prompt: "Enter the name for the new folder",
+      placeHolder: "e.g., coding, writing, templates",
+      validateInput: (value: string) => {
+        if (!value || value.trim().length === 0) {
+          return "Folder name cannot be empty";
+        }
+        return undefined;
+      },
+    });
+
+    return folderName?.trim();
+  }
+
+  /**
+   * Helper method to create prompt file, open it, and refresh the tree
+   */
+  private async createAndOpenPrompt(
+    fileName: string,
+    targetFolderPath?: string
+  ): Promise<void> {
+    const filePath = await this.fileManager.createPromptFile(
+      fileName,
+      targetFolderPath
+    );
+    if (filePath) {
+      await this.openPromptFile(filePath);
+      this.refresh();
+    }
   }
 }
