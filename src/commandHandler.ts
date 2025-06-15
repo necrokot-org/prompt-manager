@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { PromptManager } from "./promptManager";
+import { PromptController } from "./promptController";
 import {
   PromptTreeItem,
   FileTreeItem,
@@ -8,7 +8,7 @@ import {
 
 export class CommandHandler {
   constructor(
-    private promptManager: PromptManager,
+    private promptController: PromptController,
     private context: vscode.ExtensionContext
   ) {}
 
@@ -51,7 +51,7 @@ export class CommandHandler {
 
   private async refreshTree(): Promise<void> {
     try {
-      this.promptManager.refresh();
+      this.promptController.refresh();
       vscode.window.showInformationMessage("Prompt Manager tree refreshed");
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to refresh tree: ${error}`);
@@ -60,7 +60,7 @@ export class CommandHandler {
 
   private async addPrompt(): Promise<void> {
     try {
-      await this.promptManager.createNewPrompt();
+      await this.promptController.createNewPrompt();
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to add prompt: ${error}`);
     }
@@ -72,7 +72,7 @@ export class CommandHandler {
         vscode.window.showErrorMessage("No file path provided to open prompt");
         return;
       }
-      await this.promptManager.openPromptFile(filePath);
+      await this.promptController.openPromptFile(filePath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to open prompt: ${error}`);
     }
@@ -84,7 +84,7 @@ export class CommandHandler {
         vscode.window.showErrorMessage("No prompt selected for deletion");
         return;
       }
-      await this.promptManager.deletePromptFile(item.promptFile.path);
+      await this.promptController.deletePromptFile(item.promptFile.path);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
     }
@@ -94,7 +94,7 @@ export class CommandHandler {
     try {
       const folderPath =
         item instanceof FolderTreeItem ? item.promptFolder.path : undefined;
-      await this.promptManager.createFolderInLocation(folderPath);
+      await this.promptController.createFolderInLocation(folderPath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create folder: ${error}`);
     }
@@ -102,7 +102,8 @@ export class CommandHandler {
 
   private async openDirectory(): Promise<void> {
     try {
-      const promptPath = this.promptManager
+      const promptPath = this.promptController
+        .getRepository()
         .getFileManager()
         .getPromptManagerPath();
       if (promptPath) {
@@ -124,7 +125,7 @@ export class CommandHandler {
         vscode.window.showErrorMessage("No folder selected");
         return;
       }
-      await this.promptManager.createPromptInFolder(item.promptFolder.path);
+      await this.promptController.createPromptInFolder(item.promptFolder.path);
     } catch (error) {
       vscode.window.showErrorMessage(
         `Failed to add prompt to folder: ${error}`
@@ -139,7 +140,7 @@ export class CommandHandler {
         return;
       }
 
-      const success = await this.promptManager.copyPromptContentToClipboard(
+      const success = await this.promptController.copyPromptContentToClipboard(
         item.promptFile.path
       );
       if (success) {

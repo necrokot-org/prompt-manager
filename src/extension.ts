@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { PromptManager } from "./promptManager";
+import { PromptController } from "./promptController";
 import { PromptTreeProvider } from "./promptTreeProvider";
 import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
@@ -9,7 +9,7 @@ import { PromptFile } from "./fileManager";
 import { SearchService } from "./searchService";
 
 // Global instances
-let promptManager: PromptManager | undefined;
+let promptController: PromptController | undefined;
 let treeProvider: PromptTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
 let searchProvider: SearchPanelProvider | undefined;
@@ -60,18 +60,20 @@ async function initializeExtension(
   // Initialize core components in proper order (following layered architecture)
 
   // 1. Business Logic Layer
-  promptManager = new PromptManager();
+  promptController = new PromptController();
 
   // 2. Presentation Layer
-  treeProvider = new PromptTreeProvider(promptManager);
+  treeProvider = new PromptTreeProvider(promptController);
   searchProvider = new SearchPanelProvider(context.extensionUri);
-  searchService = new SearchService(promptManager.getFileManager());
+  searchService = new SearchService(
+    promptController.getRepository().getFileManager()
+  );
 
   // 3. Command Handler
-  commandHandler = new CommandHandler(promptManager, context);
+  commandHandler = new CommandHandler(promptController, context);
 
-  // Initialize the prompt manager (creates directory structure)
-  const initialized = await promptManager.initialize();
+  // Initialize the prompt controller (creates directory structure)
+  const initialized = await promptController.initialize();
 
   if (initialized) {
     // Register the tree view
@@ -90,7 +92,7 @@ async function initializeExtension(
     context.subscriptions.push(treeView, searchWebviewProvider);
 
     // Connect search provider to tree provider
-    if (searchProvider && treeProvider && promptManager && searchService) {
+    if (searchProvider && treeProvider && promptController && searchService) {
       searchProvider.onDidChangeSearch(async (criteria) => {
         treeProvider!.setSearchCriteria(criteria.isActive ? criteria : null);
 
@@ -102,7 +104,7 @@ async function initializeExtension(
           } catch (error) {
             console.error("Error counting search results:", error);
             // Fallback to simple count
-            const structure = await promptManager!.getPromptStructure();
+            const structure = await promptController!.getPromptStructure();
             let count = 0;
 
             // Count matching root prompts
@@ -183,7 +185,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         );
 
         // Clean up existing instances
-        promptManager = undefined;
+        promptController = undefined;
         treeProvider = undefined;
         commandHandler = undefined;
         searchProvider = undefined;

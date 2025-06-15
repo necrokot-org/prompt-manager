@@ -1,53 +1,32 @@
 import * as vscode from "vscode";
-import { FileManager, PromptStructure, PromptFile } from "./fileManager";
+import { PromptRepository } from "./promptRepository";
+import { PromptStructure, PromptFile } from "./fileManager";
 
-export class PromptManager {
-  private fileManager: FileManager;
+/**
+ * PromptController handles VSCode UI orchestration and user interactions.
+ * It uses PromptRepository for data operations and raises tree refresh events.
+ */
+export class PromptController {
+  private repository: PromptRepository;
   private _onDidChangeTreeData: vscode.EventEmitter<void> =
     new vscode.EventEmitter<void>();
   public readonly onDidChangeTreeData: vscode.Event<void> =
     this._onDidChangeTreeData.event;
 
-  constructor() {
-    this.fileManager = new FileManager();
-    this.setupFileWatcher();
+  constructor(repository?: PromptRepository) {
+    this.repository = repository || new PromptRepository();
+
+    // Listen to repository changes and refresh tree
+    this.repository.onStructureChanged(() => {
+      this.refresh();
+    });
   }
 
-  private setupFileWatcher(): void {
-    const promptPath = this.fileManager.getPromptManagerPath();
-    if (promptPath) {
-      const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(promptPath, "**/*.md")
-      );
-
-      watcher.onDidCreate(() => {
-        console.log("PromptManager: File created, invalidating index");
-        this.fileManager.invalidateIndex();
-        this.refresh();
-      });
-
-      watcher.onDidDelete(() => {
-        console.log("PromptManager: File deleted, invalidating index");
-        this.fileManager.invalidateIndex();
-        this.refresh();
-      });
-
-      watcher.onDidChange((uri) => {
-        console.log("PromptManager: File changed, invalidating index");
-        this.handleFileChange(uri);
-        this.fileManager.invalidateIndex();
-        this.refresh();
-      });
-    }
-  }
-
-  private async handleFileChange(uri: vscode.Uri): Promise<void> {
-    // File change handling without timestamp updates
-    // This method can be used for other file change reactions in the future
-  }
-
+  /**
+   * Initialize the controller and repository
+   */
   public async initialize(): Promise<boolean> {
-    const success = await this.fileManager.ensurePromptManagerDirectory();
+    const success = await this.repository.initialize();
     if (success) {
       this.refresh();
       // Set context variable to show the tree view
@@ -60,14 +39,23 @@ export class PromptManager {
     return success;
   }
 
+  /**
+   * Refresh the tree view
+   */
   public refresh(): void {
     this._onDidChangeTreeData.fire();
   }
 
+  /**
+   * Get prompt structure from repository
+   */
   public async getPromptStructure(): Promise<PromptStructure> {
-    return await this.fileManager.scanPrompts();
+    return await this.repository.getPromptStructure();
   }
 
+  /**
+   * Create a new prompt with user interaction
+   */
   public async createNewPrompt(): Promise<void> {
     const fileName = await this.askPromptName();
     if (!fileName) {
@@ -104,8 +92,11 @@ export class PromptManager {
     await this.createAndOpenPrompt(fileName, targetFolderPath);
   }
 
+  /**
+   * Let user select an existing folder
+   */
   private async selectExistingFolder(): Promise<string | undefined> {
-    const promptStructure = await this.fileManager.scanPrompts();
+    const promptStructure = await this.repository.getPromptStructure();
     if (promptStructure.folders.length === 0) {
       vscode.window.showInformationMessage(
         "No folders found. Creating in root directory."
@@ -126,16 +117,22 @@ export class PromptManager {
     return selectedFolder?.detail;
   }
 
+  /**
+   * Create a new folder with user input
+   */
   private async createNewFolder(): Promise<string | undefined> {
     const folderName = await this.askFolderName();
     if (!folderName) {
       return undefined;
     }
 
-    const result = await this.fileManager.createFolder(folderName);
+    const result = await this.repository.createFolder(folderName);
     return result ?? undefined;
   }
 
+  /**
+   * Open a prompt file in VS Code editor
+   */
   public async openPromptFile(filePath: string): Promise<void> {
     try {
       const document = await vscode.workspace.openTextDocument(filePath);
@@ -145,6 +142,9 @@ export class PromptManager {
     }
   }
 
+  /**
+   * Delete a prompt file with confirmation
+   */
   public async deletePromptFile(filePath: string): Promise<void> {
     const fileName = filePath.split(/[\\/]/).pop();
     const confirmation = await vscode.window.showWarningMessage(
@@ -154,60 +154,31 @@ export class PromptManager {
     );
 
     if (confirmation === "Delete") {
-      const success = await this.fileManager.deletePromptFile(filePath);
+      const success = await this.repository.deletePromptFile(filePath);
       if (success) {
-        this.refresh();
         vscode.window.showInformationMessage(`Deleted "${fileName}"`);
       }
     }
   }
 
+  /**
+   * Create a folder in a specific location
+   */
   public async createFolderInLocation(folderPath?: string): Promise<void> {
     const folderName = await this.askFolderName();
     if (!folderName) {
       return;
     }
 
-    const newFolderPath = await this.fileManager.createFolder(folderName);
+    const newFolderPath = await this.repository.createFolder(folderName);
     if (newFolderPath) {
-      this.refresh();
       vscode.window.showInformationMessage(`Created folder "${folderName}"`);
     }
   }
 
-  public validatePromptContent(content: string): {
-    isValid: boolean;
-    errors: string[];
-  } {
-    const errors: string[] = [];
-
-    if (!content || content.trim().length === 0) {
-      errors.push("Prompt content cannot be empty");
-    }
-
-    if (content.length > 500000) {
-      errors.push("Prompt content is too large (max 500KB)");
-    }
-
-    // Validate front matter if present
-    const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (frontMatterMatch) {
-      const frontMatter = frontMatterMatch[1];
-      if (!frontMatter.includes("title:")) {
-        errors.push("Front matter must include a title field");
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
-  }
-
-  public getFileManager(): FileManager {
-    return this.fileManager;
-  }
-
+  /**
+   * Create a prompt in a specific folder
+   */
   public async createPromptInFolder(folderPath: string): Promise<void> {
     const fileName = await this.askPromptName();
     if (!fileName) {
@@ -217,11 +188,14 @@ export class PromptManager {
     await this.createAndOpenPrompt(fileName, folderPath);
   }
 
+  /**
+   * Copy prompt content to clipboard (without front matter)
+   */
   public async copyPromptContentToClipboard(
     filePath: string
   ): Promise<boolean> {
     try {
-      const content = await this.readFileContent(filePath);
+      const content = await this.repository.readFileContent(filePath);
       if (!content) {
         vscode.window.showErrorMessage("Failed to read prompt file");
         return false;
@@ -237,16 +211,9 @@ export class PromptManager {
     }
   }
 
-  private async readFileContent(filePath: string): Promise<string | null> {
-    try {
-      const fs = await import("fs");
-      return await fs.promises.readFile(filePath, "utf8");
-    } catch (error) {
-      console.error(`Failed to read file ${filePath}:`, error);
-      return null;
-    }
-  }
-
+  /**
+   * Strip front matter from content
+   */
   private stripFrontMatter(content: string): string {
     // Check if content starts with front matter (---)
     const frontMatterMatch = content.match(
@@ -305,13 +272,27 @@ export class PromptManager {
     fileName: string,
     targetFolderPath?: string
   ): Promise<void> {
-    const filePath = await this.fileManager.createPromptFile(
+    const filePath = await this.repository.createPromptFile(
       fileName,
       targetFolderPath
     );
     if (filePath) {
       await this.openPromptFile(filePath);
-      this.refresh();
     }
+  }
+
+  /**
+   * Get the repository for advanced operations
+   */
+  public getRepository(): PromptRepository {
+    return this.repository;
+  }
+
+  /**
+   * Dispose of resources
+   */
+  public dispose(): void {
+    this.repository.dispose();
+    this._onDidChangeTreeData.dispose();
   }
 }

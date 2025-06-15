@@ -6,13 +6,13 @@ import {
   FileTreeItem,
   FolderTreeItem,
 } from "../promptTreeProvider";
-import { PromptManager } from "../promptManager";
+import { PromptController } from "../promptController";
 import { SearchCriteria } from "../searchPanelProvider";
 import { PromptFile, PromptFolder } from "../fileManager";
 
 suite("PromptTreeProvider Tests", () => {
   let treeProvider: PromptTreeProvider;
-  let mockPromptManager: PromptManager;
+  let mockPromptController: PromptController;
 
   const createMockPromptFile = (
     name: string,
@@ -87,8 +87,8 @@ suite("PromptTreeProvider Tests", () => {
       createMockPromptFolder("TestFolder", "/path/folder", folderPrompts),
     ];
 
-    // Mock PromptManager
-    mockPromptManager = {
+    // Mock PromptController
+    mockPromptController = {
       getPromptStructure: async () => ({
         folders: testFolders,
         rootPrompts: testPrompts,
@@ -103,7 +103,7 @@ suite("PromptTreeProvider Tests", () => {
       copyPromptContent: async () => false,
     } as any;
 
-    treeProvider = new PromptTreeProvider(mockPromptManager);
+    treeProvider = new PromptTreeProvider(mockPromptController);
   });
 
   test("Initial Tree State - No Search", async () => {

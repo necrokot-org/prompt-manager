@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { PromptManager } from "./promptManager";
+import { PromptController } from "./promptController";
 import {
   PromptFile,
   PromptFolder,
@@ -118,13 +118,13 @@ export class PromptTreeProvider
   private _currentSearchCriteria: SearchCriteria | null = null;
   private _searchService: SearchService;
 
-  constructor(private promptManager: PromptManager) {
+  constructor(private promptController: PromptController) {
     this._searchService = new SearchService(
-      this.promptManager.getFileManager()
+      this.promptController.getRepository().getFileManager()
     );
 
-    // Listen to changes from PromptManager
-    this.promptManager.onDidChangeTreeData(() => {
+    // Listen to changes from PromptController
+    this.promptController.onDidChangeTreeData(() => {
       this.refresh();
     });
   }
@@ -163,7 +163,7 @@ export class PromptTreeProvider
   private async getRootItems(): Promise<PromptTreeItem[]> {
     try {
       console.log("getRootItems: Starting to get prompt structure");
-      const structure = await this.promptManager.getPromptStructure();
+      const structure = await this.promptController.getPromptStructure();
       console.log("getRootItems: Got structure", {
         foldersCount: structure?.folders?.length || 0,
         rootPromptsCount: structure?.rootPrompts?.length || 0,
@@ -276,7 +276,7 @@ export class PromptTreeProvider
   public async findTreeItemByPath(
     filePath: string
   ): Promise<FileTreeItem | undefined> {
-    const structure = await this.promptManager.getPromptStructure();
+    const structure = await this.promptController.getPromptStructure();
 
     // Check root prompts
     for (const prompt of structure.rootPrompts) {

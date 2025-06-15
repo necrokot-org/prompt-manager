@@ -6,13 +6,13 @@ import * as os from "os";
 import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
 import { PromptTreeProvider } from "../promptTreeProvider";
 import { FileManager } from "../fileManager";
-import { PromptManager } from "../promptManager";
+import { PromptController } from "../promptController";
 
 suite("Search Integration Tests", () => {
   let searchProvider: SearchPanelProvider;
   let treeProvider: PromptTreeProvider;
   let fileManager: FileManager;
-  let promptManager: PromptManager;
+  let promptController: PromptController;
   let tempDir: string;
   let mockExtensionUri: vscode.Uri;
 
@@ -48,8 +48,8 @@ suite("Search Integration Tests", () => {
     mockExtensionUri = vscode.Uri.file("/mock/extension/path");
     searchProvider = new SearchPanelProvider(mockExtensionUri);
 
-    // Mock PromptManager for tree provider
-    const mockPromptManager = {
+    // Mock PromptController for tree provider
+    const mockPromptController = {
       getPromptStructure: async () => ({
         folders: [],
         rootPrompts: [],
@@ -57,7 +57,7 @@ suite("Search Integration Tests", () => {
       onDidChangeTreeData: () => ({ dispose: () => {} }),
     } as any;
 
-    treeProvider = new PromptTreeProvider(mockPromptManager);
+    treeProvider = new PromptTreeProvider(mockPromptController);
   });
 
   suiteTeardown(async () => {
