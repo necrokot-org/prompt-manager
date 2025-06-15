@@ -1,14 +1,19 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { PromptManager } from "./promptManager";
+import { PromptController } from "./promptController";
 import { PromptTreeProvider } from "./promptTreeProvider";
 import { CommandHandler } from "./commandHandler";
+import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
+import { PromptFile } from "./fileManager";
+import { SearchService } from "./searchService";
 
 // Global instances
-let promptManager: PromptManager | undefined;
+let promptController: PromptController | undefined;
 let treeProvider: PromptTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
+let searchProvider: SearchPanelProvider | undefined;
+let searchService: SearchService | undefined;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -55,16 +60,20 @@ async function initializeExtension(
   // Initialize core components in proper order (following layered architecture)
 
   // 1. Business Logic Layer
-  promptManager = new PromptManager();
+  promptController = new PromptController();
 
   // 2. Presentation Layer
-  treeProvider = new PromptTreeProvider(promptManager);
+  treeProvider = new PromptTreeProvider(promptController);
+  searchProvider = new SearchPanelProvider(context.extensionUri);
+  searchService = new SearchService(
+    promptController.getRepository().getFileManager()
+  );
 
   // 3. Command Handler
-  commandHandler = new CommandHandler(promptManager, treeProvider, context);
+  commandHandler = new CommandHandler(promptController, context);
 
-  // Initialize the prompt manager (creates directory structure)
-  const initialized = await promptManager.initialize();
+  // Initialize the prompt controller (creates directory structure)
+  const initialized = await promptController.initialize();
 
   if (initialized) {
     // Register the tree view
@@ -73,8 +82,52 @@ async function initializeExtension(
       showCollapseAll: true,
     });
 
-    // Add tree view to subscriptions
-    context.subscriptions.push(treeView);
+    // Register the search webview
+    const searchWebviewProvider = vscode.window.registerWebviewViewProvider(
+      SearchPanelProvider.viewType,
+      searchProvider
+    );
+
+    // Add to subscriptions
+    context.subscriptions.push(treeView, searchWebviewProvider);
+
+    // Connect search provider to tree provider
+    if (searchProvider && treeProvider && promptController && searchService) {
+      searchProvider.onDidChangeSearch(async (criteria) => {
+        treeProvider!.setSearchCriteria(criteria.isActive ? criteria : null);
+
+        // Update result count in search panel
+        if (criteria.isActive) {
+          try {
+            const count = await searchService!.countMatches(criteria);
+            searchProvider!.updateResultCount(count);
+          } catch (error) {
+            console.error("Error counting search results:", error);
+            // Fallback to simple count
+            const structure = await promptController!.getPromptStructure();
+            let count = 0;
+
+            // Count matching root prompts
+            for (const prompt of structure.rootPrompts) {
+              if (searchService!.matchesTextFallback(prompt, criteria)) {
+                count++;
+              }
+            }
+
+            // Count matching prompts in folders
+            for (const folder of structure.folders) {
+              for (const prompt of folder.prompts) {
+                if (searchService!.matchesTextFallback(prompt, criteria)) {
+                  count++;
+                }
+              }
+            }
+
+            searchProvider!.updateResultCount(count);
+          }
+        }
+      });
+    }
 
     // Register all commands
     commandHandler.registerCommands();
@@ -132,9 +185,11 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         );
 
         // Clean up existing instances
-        promptManager = undefined;
+        promptController = undefined;
         treeProvider = undefined;
         commandHandler = undefined;
+        searchProvider = undefined;
+        searchService = undefined;
       }
     }
   );
