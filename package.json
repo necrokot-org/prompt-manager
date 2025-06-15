@@ -26,6 +26,12 @@
     "views": {
       "promptManager": [
         {
+          "id": "promptManagerSearch",
+          "name": "Search",
+          "type": "webview",
+          "when": "workspaceHasPromptManager"
+        },
+        {
           "id": "promptManagerTree",
           "name": "Prompts",
           "when": "workspaceHasPromptManager"
@@ -68,6 +74,16 @@
         "command": "promptManager.copyPromptContent",
         "title": "Copy Content",
         "icon": "$(copy)"
+      },
+      {
+        "command": "promptManager.clearSearch",
+        "title": "Clear Search",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "promptManager.focusSearch",
+        "title": "Focus Search",
+        "icon": "$(search)"
       }
     ],
     "menus": {
@@ -86,6 +102,18 @@
           "command": "promptManager.openDirectory",
           "when": "view == promptManagerTree",
           "group": "navigation"
+        }
+      ],
+      "view/title/context": [
+        {
+          "command": "promptManager.clearSearch",
+          "when": "view == promptManagerSearch",
+          "group": "inline"
+        },
+        {
+          "command": "promptManager.focusSearch",
+          "when": "view == promptManagerSearch",
+          "group": "inline"
         }
       ],
       "view/item/context": [

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { PromptManager } from "./promptManager";
 import { PromptFile, PromptFolder } from "./fileManager";
+import { SearchCriteria } from "./searchPanelProvider";
 
 export class PromptTreeItem extends vscode.TreeItem {
   constructor(
@@ -77,6 +78,8 @@ export class PromptTreeProvider
     PromptTreeItem | undefined | void
   > = this._onDidChangeTreeData.event;
 
+  private _currentSearchCriteria: SearchCriteria | null = null;
+
   constructor(private promptManager: PromptManager) {
     // Listen to changes from PromptManager
     this.promptManager.onDidChangeTreeData(() => {
@@ -86,6 +89,15 @@ export class PromptTreeProvider
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  public setSearchCriteria(criteria: SearchCriteria | null): void {
+    this._currentSearchCriteria = criteria;
+    this.refresh();
+  }
+
+  public getCurrentSearchCriteria(): SearchCriteria | null {
+    return this._currentSearchCriteria;
   }
 
   getTreeItem(element: PromptTreeItem): vscode.TreeItem {
@@ -109,6 +121,11 @@ export class PromptTreeProvider
   private async getRootItems(): Promise<PromptTreeItem[]> {
     const structure = await this.promptManager.getPromptStructure();
     const items: PromptTreeItem[] = [];
+
+    // If search is active, apply filtering
+    if (this._currentSearchCriteria?.isActive) {
+      return this.getFilteredItems(structure);
+    }
 
     // Add folders
     for (const folder of structure.folders) {
@@ -216,5 +233,136 @@ export class PromptTreeProvider
     }
 
     return undefined;
+  }
+
+  private async getFilteredItems(structure: any): Promise<PromptTreeItem[]> {
+    const items: PromptTreeItem[] = [];
+    const criteria = this._currentSearchCriteria!;
+    let totalMatches = 0;
+
+    // Search through root prompts
+    for (const prompt of structure.rootPrompts) {
+      if (this.matchesSearchCriteria(prompt, criteria)) {
+        const promptItem = new PromptTreeItem(
+          prompt.title,
+          vscode.TreeItemCollapsibleState.None,
+          prompt,
+          undefined,
+          {
+            command: "promptManager.openPrompt",
+            title: "Open Prompt",
+            arguments: [prompt.path],
+          }
+        );
+        items.push(promptItem);
+        totalMatches++;
+      }
+    }
+
+    // Search through folders and their prompts
+    for (const folder of structure.folders) {
+      const matchingPrompts: PromptTreeItem[] = [];
+
+      for (const prompt of folder.prompts) {
+        if (this.matchesSearchCriteria(prompt, criteria)) {
+          const promptItem = new PromptTreeItem(
+            prompt.title,
+            vscode.TreeItemCollapsibleState.None,
+            prompt,
+            undefined,
+            {
+              command: "promptManager.openPrompt",
+              title: "Open Prompt",
+              arguments: [prompt.path],
+            }
+          );
+          matchingPrompts.push(promptItem);
+          totalMatches++;
+        }
+      }
+
+      // If folder has matching prompts, include the folder with just those prompts
+      if (matchingPrompts.length > 0) {
+        const folderItem = new PromptTreeItem(
+          `${folder.name} (${matchingPrompts.length})`,
+          vscode.TreeItemCollapsibleState.Expanded,
+          undefined,
+          {
+            ...folder,
+            prompts: matchingPrompts.map((item) => item.promptFile!),
+          }
+        );
+        items.push(folderItem);
+      }
+    }
+
+    // If no matches, show no results message
+    if (items.length === 0) {
+      const noResultsItem = new PromptTreeItem(
+        "No matching prompts",
+        vscode.TreeItemCollapsibleState.None
+      );
+      noResultsItem.description = `No prompts match "${criteria.query}"`;
+      noResultsItem.iconPath = new vscode.ThemeIcon("search");
+      noResultsItem.contextValue = "noResults";
+      items.push(noResultsItem);
+    }
+
+    return items;
+  }
+
+  private matchesSearchCriteria(
+    prompt: PromptFile,
+    criteria: SearchCriteria
+  ): boolean {
+    const query = criteria.caseSensitive
+      ? criteria.query
+      : criteria.query.toLowerCase();
+
+    switch (criteria.scope) {
+      case "titles":
+        return this.matchesText(prompt.title, query, criteria.caseSensitive);
+      case "content":
+        return this.matchesContentSearchFallback(
+          prompt,
+          query,
+          criteria.caseSensitive
+        );
+      case "both":
+        return (
+          this.matchesText(prompt.title, query, criteria.caseSensitive) ||
+          this.matchesContentSearchFallback(
+            prompt,
+            query,
+            criteria.caseSensitive
+          )
+        );
+      default:
+        return false;
+    }
+  }
+
+  private matchesText(
+    text: string,
+    query: string,
+    caseSensitive: boolean
+  ): boolean {
+    const searchText = caseSensitive ? text : text.toLowerCase();
+    return searchText.includes(query);
+  }
+
+  private matchesContentSearchFallback(
+    prompt: PromptFile,
+    query: string,
+    caseSensitive: boolean
+  ): boolean {
+    // This is a fallback - we'll enhance this when we add enhanced content search
+    // For now, search in description and tags
+    const searchableContent = [
+      prompt.description || "",
+      ...(prompt.tags || []),
+    ].join(" ");
+
+    return this.matchesText(searchableContent, query, caseSensitive);
   }
 }
