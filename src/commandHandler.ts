@@ -1,11 +1,10 @@
 import * as vscode from "vscode";
 import { PromptManager } from "./promptManager";
-import { PromptTreeProvider, PromptTreeItem } from "./promptTreeProvider";
+import { PromptTreeItem } from "./promptTreeProvider";
 
 export class CommandHandler {
   constructor(
     private promptManager: PromptManager,
-    private treeProvider: PromptTreeProvider,
     private context: vscode.ExtensionContext
   ) {}
 
