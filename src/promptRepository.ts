@@ -1,26 +1,20 @@
 import * as vscode from "vscode";
 import { FileManager, PromptStructure, PromptFile } from "./fileManager";
-
-export interface PromptRepositoryEvents {
-  onStructureChanged: vscode.Event<void>;
-}
+import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
  * for the prompt manager. It's designed to be testable without VSCode stubs.
+ * Now integrated with the centralized event system.
  */
-export class PromptRepository implements PromptRepositoryEvents {
+export class PromptRepository {
   private fileManager: FileManager;
   private fileWatcher?: vscode.FileSystemWatcher;
+  private eventBus: ExtensionEventBus;
 
-  // Events
-  private _onStructureChanged: vscode.EventEmitter<void> =
-    new vscode.EventEmitter<void>();
-  public readonly onStructureChanged: vscode.Event<void> =
-    this._onStructureChanged.event;
-
-  constructor(fileManager?: FileManager) {
-    this.fileManager = fileManager || new FileManager();
+  constructor(eventBus: ExtensionEventBus, fileManager?: FileManager) {
+    this.eventBus = eventBus;
+    this.fileManager = fileManager || new FileManager(eventBus);
   }
 
   /**
@@ -60,17 +54,17 @@ export class PromptRepository implements PromptRepositoryEvents {
   /**
    * Handle file creation events
    */
-  private handleFileCreated(): void {
+  private handleFileCreated(uri: vscode.Uri): void {
     console.log("PromptRepository: File created, invalidating index");
-    this.invalidateCache();
+    this.invalidateCache("file-created", uri.fsPath);
   }
 
   /**
    * Handle file deletion events
    */
-  private handleFileDeleted(): void {
+  private handleFileDeleted(uri: vscode.Uri): void {
     console.log("PromptRepository: File deleted, invalidating index");
-    this.invalidateCache();
+    this.invalidateCache("file-deleted", uri.fsPath);
   }
 
   /**
@@ -78,15 +72,30 @@ export class PromptRepository implements PromptRepositoryEvents {
    */
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
     // File change handling without timestamp updates
-    this.invalidateCache();
+    this.invalidateCache("file-changed", uri.fsPath);
   }
 
   /**
    * Invalidate cache and notify listeners of structure changes
    */
-  private invalidateCache(): void {
+  private invalidateCache(
+    reason:
+      | "file-created"
+      | "file-deleted"
+      | "file-changed"
+      | "manual-refresh" = "manual-refresh",
+    affectedPath?: string
+  ): void {
     this.fileManager.invalidateIndex();
-    this._onStructureChanged.fire();
+
+    // Publish structure changed event
+    this.eventBus.publishSync(
+      EventBuilder.fileSystem.structureChanged(
+        reason,
+        affectedPath,
+        "PromptRepository"
+      )
+    );
   }
 
   /**
@@ -221,6 +230,5 @@ export class PromptRepository implements PromptRepositoryEvents {
     if (this.fileWatcher) {
       this.fileWatcher.dispose();
     }
-    this._onStructureChanged.dispose();
   }
 }

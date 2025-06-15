@@ -1,11 +1,15 @@
 import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchEngine, FileContent } from "./core/SearchEngine";
+import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
 
 export class SearchService {
   private searchEngine: SearchEngine;
 
-  constructor(private fileManager: FileManager) {
+  constructor(
+    private fileManager: FileManager,
+    private eventBus: ExtensionEventBus
+  ) {
     this.searchEngine = new SearchEngine();
   }
 
@@ -44,7 +48,20 @@ export class SearchService {
         });
       }
 
-      return contentResults.sort((a, b) => b.score - a.score);
+      const sortedResults = contentResults.sort((a, b) => b.score - a.score);
+
+      // Publish search results updated event
+      if (this.eventBus) {
+        this.eventBus.publishSync(
+          EventBuilder.search.resultsUpdated(
+            sortedResults.length,
+            criteria.query,
+            "SearchService"
+          )
+        );
+      }
+
+      return sortedResults;
     } catch (error) {
       console.error("Search failed:", error);
       // Fallback to simple text matching
@@ -237,6 +254,17 @@ export class SearchService {
           ],
         });
       }
+    }
+
+    // Publish search results updated event for fallback search too
+    if (this.eventBus) {
+      this.eventBus.publishSync(
+        EventBuilder.search.resultsUpdated(
+          results.length,
+          criteria.query,
+          "SearchService"
+        )
+      );
     }
 
     return results;

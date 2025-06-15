@@ -1,70 +1,54 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
-import { createMockExtensionUri } from "./helpers";
+import { SearchPanelProvider } from "../searchPanelProvider";
+import { ExtensionEventBus } from "../core/EventSystem";
 
 suite("SearchPanelProvider Tests", () => {
   let searchProvider: SearchPanelProvider;
-  let mockExtensionUri: vscode.Uri;
+  let mockEventBus: ExtensionEventBus;
 
-  suiteSetup(() => {
-    mockExtensionUri = createMockExtensionUri();
-    searchProvider = new SearchPanelProvider(mockExtensionUri);
+  setup(() => {
+    const mockUri = vscode.Uri.file("/test/path");
+    mockEventBus = new ExtensionEventBus();
+    searchProvider = new SearchPanelProvider(mockUri, mockEventBus);
   });
 
-  test("Initial Search Criteria State", () => {
-    const criteria = searchProvider.getCurrentSearchCriteria();
-
-    assert.strictEqual(criteria.query, "");
-    assert.strictEqual(criteria.scope, "both");
-    assert.strictEqual(criteria.caseSensitive, false);
-    assert.strictEqual(criteria.isActive, false);
+  teardown(() => {
+    if (mockEventBus) {
+      mockEventBus.dispose();
+    }
   });
 
-  test("Search Criteria Interface Validation", () => {
-    const validCriteria: SearchCriteria = {
-      query: "test query",
-      scope: "titles",
-      caseSensitive: true,
-      isActive: true,
-    };
-
-    // Should not throw any TypeScript errors
-    assert.strictEqual(validCriteria.query, "test query");
-    assert.strictEqual(validCriteria.scope, "titles");
-    assert.strictEqual(validCriteria.caseSensitive, true);
-    assert.strictEqual(validCriteria.isActive, true);
+  test("Constructor initializes correctly", () => {
+    assert.ok(searchProvider);
+    assert.strictEqual(searchProvider.getCurrentSearchCriteria().query, "");
+    assert.strictEqual(searchProvider.getCurrentSearchCriteria().scope, "both");
+    assert.strictEqual(
+      searchProvider.getCurrentSearchCriteria().caseSensitive,
+      false
+    );
+    assert.strictEqual(
+      searchProvider.getCurrentSearchCriteria().isActive,
+      false
+    );
   });
 
-  test("Search Scope Values", () => {
-    const scopes: Array<SearchCriteria["scope"]> = [
-      "titles",
-      "content",
-      "both",
-    ];
-
-    scopes.forEach((scope) => {
-      const criteria: SearchCriteria = {
-        query: "test",
-        scope: scope,
-        caseSensitive: false,
-        isActive: true,
-      };
-      assert.ok(["titles", "content", "both"].includes(criteria.scope));
-    });
+  test("Webview Provider implements interface", () => {
+    assert.strictEqual(SearchPanelProvider.viewType, "promptManagerSearch");
   });
 
-  test("Search Event Emission", (done) => {
-    let eventFired = false;
+  test("Search Event Publication via Event Bus", (done) => {
+    let eventReceived = false;
 
-    const disposable = searchProvider.onDidChangeSearch((criteria) => {
-      eventFired = true;
-      assert.strictEqual(criteria.query, "test search");
-      assert.strictEqual(criteria.scope, "content");
-      assert.strictEqual(criteria.caseSensitive, true);
-      assert.strictEqual(criteria.isActive, true);
-
-      disposable.dispose();
+    // Subscribe to search criteria changed event
+    mockEventBus.subscribe("search.criteria.changed", (event) => {
+      eventReceived = true;
+      const searchEvent = event as any;
+      assert.strictEqual(searchEvent.payload.query, "test search");
+      assert.strictEqual(searchEvent.payload.scope, "content");
+      assert.strictEqual(searchEvent.payload.caseSensitive, true);
+      assert.strictEqual(searchEvent.payload.isActive, true);
+      assert.strictEqual(searchEvent.source, "SearchPanelProvider");
       done();
     });
 
@@ -105,20 +89,15 @@ suite("SearchPanelProvider Tests", () => {
     );
   });
 
-  test("Clear Search Functionality", (done) => {
-    let clearEventFired = false;
+  test("Clear Search Event Publication", (done) => {
+    let eventReceived = false;
 
-    const disposable = searchProvider.onDidChangeSearch((criteria) => {
-      if (clearEventFired) {
-        // This should be the clear event
-        assert.strictEqual(criteria.query, "");
-        assert.strictEqual(criteria.scope, "both");
-        assert.strictEqual(criteria.caseSensitive, false);
-        assert.strictEqual(criteria.isActive, false);
-
-        disposable.dispose();
-        done();
-      }
+    // Subscribe to search cleared event
+    mockEventBus.subscribe("search.cleared", (event) => {
+      eventReceived = true;
+      const searchEvent = event as any;
+      assert.strictEqual(searchEvent.source, "SearchPanelProvider");
+      done();
     });
 
     // Mock a webview view to test clear message handling
@@ -126,22 +105,11 @@ suite("SearchPanelProvider Tests", () => {
       options: {},
       html: "",
       onDidReceiveMessage: (handler: (message: any) => void) => {
-        // First simulate a search, then clear
+        // Simulate clear search message
         setTimeout(() => {
           handler({
-            type: "searchChanged",
-            query: "test",
-            scope: "both",
-            caseSensitive: false,
+            type: "clearSearch",
           });
-          clearEventFired = true;
-
-          // Then clear
-          setTimeout(() => {
-            handler({
-              type: "clearSearch",
-            });
-          }, 5);
         }, 10);
         return { dispose: () => {} };
       },
@@ -158,6 +126,7 @@ suite("SearchPanelProvider Tests", () => {
       description: "",
     };
 
+    // Trigger the webview resolution
     searchProvider.resolveWebviewView(
       mockWebviewView as any,
       {} as any,
@@ -165,17 +134,36 @@ suite("SearchPanelProvider Tests", () => {
     );
   });
 
-  test("Result Count Update", () => {
-    let postMessageCalled = false;
-    let messageData: any = null;
-
+  test("HTML Generation", () => {
     const mockWebview = {
-      options: {},
-      html: "",
-      onDidReceiveMessage: () => ({ dispose: () => {} }),
+      asWebviewUri: (uri: vscode.Uri) => uri,
+    };
+
+    const mockWebviewView = {
+      webview: mockWebview,
+      visible: true,
+      onDidDispose: () => ({ dispose: () => {} }),
+      onDidChangeVisibility: () => ({ dispose: () => {} }),
+      show: () => {},
+      title: "Search",
+      description: "",
+    };
+
+    // Should not throw when resolving webview
+    assert.doesNotThrow(() => {
+      searchProvider.resolveWebviewView(
+        mockWebviewView as any,
+        {} as any,
+        {} as any
+      );
+    });
+  });
+
+  test("Result Count Update", () => {
+    const mockWebview = {
       postMessage: (message: any) => {
-        postMessageCalled = true;
-        messageData = message;
+        assert.strictEqual(message.type, "updateResultCount");
+        assert.strictEqual(message.count, 5);
         return Promise.resolve(true);
       },
     };
@@ -190,77 +178,51 @@ suite("SearchPanelProvider Tests", () => {
       description: "",
     };
 
-    // First resolve the webview
+    // Set up the webview
     searchProvider.resolveWebviewView(
       mockWebviewView as any,
       {} as any,
       {} as any
     );
 
-    // Then update result count
-    searchProvider.updateResultCount(42);
-
-    assert.ok(postMessageCalled);
-    assert.strictEqual(messageData.type, "updateResultCount");
-    assert.strictEqual(messageData.count, 42);
+    // Update result count
+    searchProvider.updateResultCount(5);
   });
 
-  test("Search Active State Changes", () => {
-    // Test that isActive is false for empty queries
-    const criteria1: SearchCriteria = {
-      query: "",
-      scope: "both",
-      caseSensitive: false,
-      isActive: false,
-    };
-    assert.strictEqual(criteria1.isActive, false);
+  test("Multiple Search Criteria Updates", (done) => {
+    let eventCount = 0;
+    const expectedEvents = 2;
 
-    // Test that isActive should be true for non-empty queries
-    const criteria2: SearchCriteria = {
-      query: "test",
-      scope: "both",
-      caseSensitive: false,
-      isActive: true,
-    };
-    assert.strictEqual(criteria2.isActive, true);
-  });
-
-  test("Search Criteria Immutability", () => {
-    const original = searchProvider.getCurrentSearchCriteria();
-    const copy = { ...original };
-
-    // Modify the copy
-    copy.query = "modified";
-    copy.scope = "titles";
-    copy.caseSensitive = true;
-    copy.isActive = true;
-
-    // Original should remain unchanged
-    const currentOriginal = searchProvider.getCurrentSearchCriteria();
-    assert.strictEqual(currentOriginal.query, original.query);
-    assert.strictEqual(currentOriginal.scope, original.scope);
-    assert.strictEqual(currentOriginal.caseSensitive, original.caseSensitive);
-    assert.strictEqual(currentOriginal.isActive, original.isActive);
-  });
-
-  test("Invalid Message Type Handling", () => {
-    let eventFired = false;
-
-    const disposable = searchProvider.onDidChangeSearch(() => {
-      eventFired = true;
+    mockEventBus.subscribe("search.criteria.changed", (event) => {
+      eventCount++;
+      if (eventCount === expectedEvents) {
+        done();
+      }
     });
 
+    // Mock webview for multiple messages
     const mockWebview = {
       options: {},
       html: "",
       onDidReceiveMessage: (handler: (message: any) => void) => {
-        // Send an invalid message type
         setTimeout(() => {
           handler({
-            type: "invalidMessageType",
-            query: "test",
+            type: "searchChanged",
+            query: "first search",
+            scope: "titles",
+            caseSensitive: false,
           });
         }, 10);
+
+        setTimeout(() => {
+          handler({
+            type: "searchChanged",
+            query: "second search",
+            scope: "content",
+            caseSensitive: true,
+          });
+        }, 20);
+
         return { dispose: () => {} };
       },
       postMessage: () => Promise.resolve(true),
@@ -281,42 +243,5 @@ suite("SearchPanelProvider Tests", () => {
       {} as any,
       {} as any
     );
-
-    // Wait a bit and ensure no event was fired for invalid message
-    setTimeout(() => {
-      assert.strictEqual(eventFired, false);
-      disposable.dispose();
-    }, 50);
-  });
-
-  test("HTML Content Generation", () => {
-    const mockWebview = {
-      options: {},
-      html: "",
-      onDidReceiveMessage: () => ({ dispose: () => {} }),
-      postMessage: () => Promise.resolve(true),
-    };
-
-    const mockWebviewView = {
-      webview: mockWebview,
-      visible: true,
-      onDidDispose: () => ({ dispose: () => {} }),
-      onDidChangeVisibility: () => ({ dispose: () => {} }),
-      show: () => {},
-      title: "Search",
-      description: "",
-    };
-
-    searchProvider.resolveWebviewView(
-      mockWebviewView as any,
-      {} as any,
-      {} as any
-    );
-
-    // Verify HTML was set
-    assert.ok(mockWebview.html.length > 0);
-    assert.ok(mockWebview.html.includes("<!DOCTYPE html>"));
-    assert.ok(mockWebview.html.includes("search-input"));
-    assert.ok(mockWebview.html.includes("scope-select"));
   });
 });

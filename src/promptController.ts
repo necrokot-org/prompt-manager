@@ -2,25 +2,32 @@ import * as vscode from "vscode";
 import { PromptRepository } from "./promptRepository";
 import { PromptStructure, PromptFile } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
+import {
+  ExtensionEventBus,
+  EventBuilder,
+  EventSubscription,
+} from "./core/EventSystem";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
- * It uses PromptRepository for data operations and raises tree refresh events.
+ * It uses PromptRepository for data operations and publishes UI events.
+ * Now integrated with the centralized event system.
  */
 export class PromptController {
   private repository: PromptRepository;
-  private _onDidChangeTreeData: vscode.EventEmitter<void> =
-    new vscode.EventEmitter<void>();
-  public readonly onDidChangeTreeData: vscode.Event<void> =
-    this._onDidChangeTreeData.event;
+  private eventBus: ExtensionEventBus;
+  private subscriptions: EventSubscription[] = [];
 
-  constructor(repository?: PromptRepository) {
-    this.repository = repository || new PromptRepository();
+  constructor(eventBus: ExtensionEventBus, repository?: PromptRepository) {
+    this.eventBus = eventBus;
+    this.repository = repository || new PromptRepository(eventBus);
 
-    // Listen to repository changes and refresh tree
-    this.repository.onStructureChanged(() => {
-      this.refresh();
-    });
+    // Subscribe to filesystem structure changes
+    this.subscriptions.push(
+      this.eventBus.subscribe("filesystem.structure.changed", () => {
+        this.publishTreeRefreshEvent("file-change");
+      })
+    );
   }
 
   /**
@@ -41,10 +48,21 @@ export class PromptController {
   }
 
   /**
-   * Refresh the tree view
+   * Refresh the tree view by publishing a tree refresh event
    */
   public refresh(): void {
-    this._onDidChangeTreeData.fire();
+    this.publishTreeRefreshEvent("manual");
+  }
+
+  /**
+   * Publish a tree refresh event
+   */
+  private publishTreeRefreshEvent(
+    reason: "manual" | "file-change" | "search-change"
+  ): void {
+    this.eventBus.publishSync(
+      EventBuilder.ui.treeRefreshRequested(reason, "PromptController")
+    );
   }
 
   /**
@@ -294,6 +312,9 @@ export class PromptController {
    */
   public dispose(): void {
     this.repository.dispose();
-    this._onDidChangeTreeData.dispose();
+
+    // Unsubscribe from all event subscriptions
+    this.subscriptions.forEach((subscription) => subscription.unsubscribe());
+    this.subscriptions = [];
   }
 }

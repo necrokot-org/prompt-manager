@@ -1,6 +1,7 @@
 import * as path from "path";
 import { normalizeFileName, FileNamingPattern } from "./utils/string";
 import { getFileNamingPattern } from "./config";
+import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
 
 // Import all the focused components
 import { FileSystemManager } from "./core/FileSystemManager";
@@ -50,6 +51,7 @@ export { PromptFile, PromptFolder, PromptStructure };
  * Refactored FileManager that acts as a facade for focused component classes
  * This maintains the same interface as the original FileManager while delegating
  * responsibilities to specialized components.
+ * Now integrated with the centralized event system.
  */
 export class FileManager {
   // Core components
@@ -58,8 +60,11 @@ export class FileManager {
   private contentCache: CacheManager<string>;
   private directoryScanner: DirectoryScanner;
   private searchEngine: SearchEngine;
+  private eventBus: ExtensionEventBus;
 
-  constructor() {
+  constructor(eventBus: ExtensionEventBus) {
+    this.eventBus = eventBus;
+
     // Initialize all components
     this.fileSystemManager = new FileSystemManager();
     this.promptParser = new PromptParser();
@@ -142,6 +147,11 @@ export class FileManager {
     try {
       await this.fileSystemManager.writeFile(filePath, frontMatterContent);
 
+      // Publish file created event
+      this.eventBus.publishSync(
+        EventBuilder.fileSystem.fileCreated(filePath, "FileManager")
+      );
+
       // Invalidate cache and rebuild index since we added a new file
       this.invalidateIndex();
       await this.buildIndex();
@@ -172,6 +182,11 @@ export class FileManager {
     try {
       await this.fileSystemManager.createDirectory(folderPath);
 
+      // Publish directory created event
+      this.eventBus.publishSync(
+        EventBuilder.fileSystem.directoryCreated(folderPath, "FileManager")
+      );
+
       // Invalidate cache and rebuild index since we added a new folder
       this.invalidateIndex();
       await this.buildIndex();
@@ -186,6 +201,11 @@ export class FileManager {
   public async deletePromptFile(filePath: string): Promise<boolean> {
     try {
       await this.fileSystemManager.deleteFile(filePath);
+
+      // Publish file deleted event
+      this.eventBus.publishSync(
+        EventBuilder.fileSystem.fileDeleted(filePath, "FileManager")
+      );
 
       // Invalidate cache and rebuild index since we deleted a file
       this.invalidateIndex();

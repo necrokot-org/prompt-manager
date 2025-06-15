@@ -9,6 +9,11 @@ import {
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { getShowDescriptionInTree } from "./config";
+import {
+  ExtensionEventBus,
+  EventSubscription,
+  SearchEvents,
+} from "./core/EventSystem";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
   constructor(
@@ -117,16 +122,40 @@ export class PromptTreeProvider
 
   private _currentSearchCriteria: SearchCriteria | null = null;
   private _searchService: SearchService;
+  private subscriptions: EventSubscription[] = [];
 
-  constructor(private promptController: PromptController) {
+  constructor(
+    private promptController: PromptController,
+    private eventBus: ExtensionEventBus
+  ) {
     this._searchService = new SearchService(
-      this.promptController.getRepository().getFileManager()
+      this.promptController.getRepository().getFileManager(),
+      this.eventBus
     );
 
-    // Listen to changes from PromptController
-    this.promptController.onDidChangeTreeData(() => {
-      this.refresh();
-    });
+    // Subscribe to tree refresh events
+    this.subscriptions.push(
+      this.eventBus.subscribe("ui.tree.refresh.requested", () => {
+        this.refresh();
+      })
+    );
+
+    // Subscribe to search events
+    this.subscriptions.push(
+      this.eventBus.subscribe("search.criteria.changed", (event) => {
+        const searchEvent = event as SearchEvents.SearchCriteriaChanged;
+        const { query, scope, caseSensitive, isActive } = searchEvent.payload;
+        this.setSearchCriteria(
+          isActive ? { query, scope, caseSensitive, isActive } : null
+        );
+      })
+    );
+
+    this.subscriptions.push(
+      this.eventBus.subscribe("search.cleared", () => {
+        this.setSearchCriteria(null);
+      })
+    );
   }
 
   refresh(): void {
@@ -392,5 +421,14 @@ export class PromptTreeProvider
       // Fallback to simple text matching
       return this._searchService.matchesTextFallback(prompt, criteria);
     }
+  }
+
+  /**
+   * Dispose of resources and event subscriptions
+   */
+  public dispose(): void {
+    this.subscriptions.forEach((subscription) => subscription.unsubscribe());
+    this.subscriptions = [];
+    this._onDidChangeTreeData.dispose();
   }
 }

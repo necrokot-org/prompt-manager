@@ -10,6 +10,22 @@ export interface MockWorkspaceSetup {
 }
 
 /**
+ * Creates a temporary directory for testing
+ */
+export async function createTempDirectory(
+  testPrefix: string = "prompt-manager-test-"
+): Promise<string> {
+  return fs.mkdtempSync(path.join(os.tmpdir(), testPrefix));
+}
+
+/**
+ * Cleans up a temporary directory
+ */
+export async function cleanupTempDirectory(tempDir: string): Promise<void> {
+  await fs.promises.rm(tempDir, { recursive: true, force: true });
+}
+
+/**
  * Sets up a mock workspace with temporary directory and vscode.workspace mocking
  * for testing purposes. This extracts the common setup code used across multiple test suites.
  *
@@ -20,7 +36,7 @@ export async function setupMockWorkspace(
   testPrefix: string = "prompt-manager-test-"
 ): Promise<MockWorkspaceSetup> {
   // Create temporary directory for testing
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), testPrefix));
+  const tempDir = await createTempDirectory(testPrefix);
   const testPromptPath = path.join(tempDir, ".prompt_manager");
 
   // Mock workspace configuration
@@ -48,8 +64,7 @@ export async function setupMockWorkspace(
     tempDir,
     testPromptPath,
     cleanup: async () => {
-      // Clean up temporary directory
-      await fs.promises.rm(tempDir, { recursive: true, force: true });
+      await cleanupTempDirectory(tempDir);
     },
   };
 }

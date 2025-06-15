@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { EXTENSION_CONSTANTS } from "./config";
+import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
 
 export interface SearchCriteria {
   query: string;
@@ -18,14 +19,14 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     caseSensitive: false,
     isActive: false,
   };
+  private eventBus: ExtensionEventBus;
 
-  // Event emitter for search changes
-  private _onDidChangeSearch: vscode.EventEmitter<SearchCriteria> =
-    new vscode.EventEmitter<SearchCriteria>();
-  public readonly onDidChangeSearch: vscode.Event<SearchCriteria> =
-    this._onDidChangeSearch.event;
-
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    eventBus: ExtensionEventBus
+  ) {
+    this.eventBus = eventBus;
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -62,7 +63,17 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
   private _updateSearchCriteria(criteria: SearchCriteria) {
     this._searchCriteria = criteria;
-    this._onDidChangeSearch.fire(this._searchCriteria);
+
+    // Publish search event
+    this.eventBus.publishSync(
+      EventBuilder.search.criteriaChanged(
+        criteria.query,
+        criteria.scope,
+        criteria.caseSensitive,
+        criteria.isActive,
+        "SearchPanelProvider"
+      )
+    );
   }
 
   private _clearSearch() {
@@ -72,7 +83,11 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       caseSensitive: false,
       isActive: false,
     };
-    this._onDidChangeSearch.fire(this._searchCriteria);
+
+    // Publish search cleared event
+    this.eventBus.publishSync(
+      EventBuilder.search.cleared("SearchPanelProvider")
+    );
 
     // Update the webview
     if (this._view) {

@@ -7,9 +7,12 @@ import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
 import { PromptFile } from "./fileManager";
 import { SearchService } from "./searchService";
-import { EXTENSION_CONSTANTS, setupConfigWatcher } from "./config";
+import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
+import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
 
 // Global instances
+let eventBus: ExtensionEventBus | undefined;
+let configService: ConfigurationService | undefined;
 let promptController: PromptController | undefined;
 let treeProvider: PromptTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
@@ -60,18 +63,24 @@ async function initializeExtension(
 ): Promise<void> {
   // Initialize core components in proper order (following layered architecture)
 
+  // 0. Event System
+  eventBus = new ExtensionEventBus();
+  configService = new ConfigurationService(eventBus);
+  configService.initialize();
+
   // 1. Business Logic Layer
-  promptController = new PromptController();
+  promptController = new PromptController(eventBus);
 
   // 2. Presentation Layer
-  treeProvider = new PromptTreeProvider(promptController);
-  searchProvider = new SearchPanelProvider(context.extensionUri);
+  treeProvider = new PromptTreeProvider(promptController, eventBus);
+  searchProvider = new SearchPanelProvider(context.extensionUri, eventBus);
   searchService = new SearchService(
-    promptController.getRepository().getFileManager()
+    promptController.getRepository().getFileManager(),
+    eventBus
   );
 
   // 3. Command Handler
-  commandHandler = new CommandHandler(promptController, context);
+  commandHandler = new CommandHandler(promptController, context, eventBus);
 
   // Initialize the prompt controller (creates directory structure)
   const initialized = await promptController.initialize();
@@ -95,10 +104,22 @@ async function initializeExtension(
     // Add to subscriptions
     context.subscriptions.push(treeView, searchWebviewProvider);
 
-    // Connect search provider to tree provider
-    if (searchProvider && treeProvider && promptController && searchService) {
-      searchProvider.onDidChangeSearch(async (criteria) => {
-        treeProvider!.setSearchCriteria(criteria.isActive ? criteria : null);
+    // Connect search events to search service
+    if (
+      eventBus &&
+      searchProvider &&
+      treeProvider &&
+      promptController &&
+      searchService
+    ) {
+      eventBus.subscribe("search.criteria.changed", async (event) => {
+        const searchEvent = event as any; // Type assertion for now
+        const criteria: SearchCriteria = {
+          query: searchEvent.payload.query,
+          scope: searchEvent.payload.scope,
+          caseSensitive: searchEvent.payload.caseSensitive,
+          isActive: searchEvent.payload.isActive,
+        };
 
         // Update result count in search panel
         if (criteria.isActive) {
@@ -136,8 +157,8 @@ async function initializeExtension(
     // Register all commands
     commandHandler.registerCommands();
 
-    // Set up configuration watcher
-    setupConfigWatcher(context.subscriptions);
+    // Configuration is now handled by ConfigurationService
+    // which is initialized above and automatically handles config changes
 
     // Show welcome message for new users
     await showWelcomeMessage(context);
@@ -169,6 +190,17 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
           );
         }
 
+        // Publish workspace change event if event bus exists
+        if (eventBus) {
+          eventBus.publishSync(
+            EventBuilder.config.workspaceChanged(
+              workspaceFolders,
+              "workspace-opened",
+              "extension"
+            )
+          );
+        }
+
         try {
           await initializeExtension(context);
         } catch (error) {
@@ -184,6 +216,18 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         console.log(
           "Workspace change: All workspaces/folders closed, hiding extension..."
         );
+
+        // Publish workspace change event if event bus exists
+        if (eventBus) {
+          eventBus.publishSync(
+            EventBuilder.config.workspaceChanged(
+              [],
+              "workspace-closed",
+              "extension"
+            )
+          );
+        }
+
         // Hide the view when no workspace is open
         vscode.commands.executeCommand(
           "setContext",
@@ -192,11 +236,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         );
 
         // Clean up existing instances
-        promptController = undefined;
-        treeProvider = undefined;
-        commandHandler = undefined;
-        searchProvider = undefined;
-        searchService = undefined;
+        cleanup();
       }
     }
   );
@@ -204,11 +244,39 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
   context.subscriptions.push(workspaceChangeListener);
 }
 
+/**
+ * Centralized cleanup function for proper resource disposal
+ */
+function cleanup(): void {
+  // Dispose components in reverse order of initialization
+  if (treeProvider) {
+    treeProvider.dispose();
+  }
+
+  if (commandHandler) {
+    // CommandHandler doesn't have dispose method, but context subscriptions are handled automatically
+  }
+
+  if (promptController) {
+    promptController.dispose();
+  }
+
+  if (configService) {
+    configService.dispose();
+  }
+
+  if (eventBus) {
+    eventBus.dispose();
+  }
+}
+
 // This method is called when your extension is deactivated
 export function deactivate() {
   console.log("Prompt Manager extension is being deactivated");
 
-  // Clean up resources if needed
+  // Clean up resources properly
+  cleanup();
+
   // VSCode automatically disposes of registered commands and tree views
 }
 

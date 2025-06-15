@@ -1,444 +1,363 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
-import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
-import { PromptTreeProvider } from "../promptTreeProvider";
-import { FileManager } from "../fileManager";
+import * as fs from "fs";
 import { PromptController } from "../promptController";
+import { PromptTreeProvider } from "../promptTreeProvider";
+import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
+import { PromptRepository } from "../promptRepository";
+import { FileManager } from "../fileManager";
+import { ExtensionEventBus } from "../core/EventSystem";
 import {
-  setupMockWorkspace,
   createMockExtensionUri,
-  MockWorkspaceSetup,
+  createTempDirectory,
+  cleanupTempDirectory,
 } from "./helpers";
 
-suite("Search Integration Tests", () => {
-  let searchProvider: SearchPanelProvider;
-  let treeProvider: PromptTreeProvider;
-  let fileManager: FileManager;
-  let promptController: PromptController;
-  let mockWorkspace: MockWorkspaceSetup;
+suite("Integration Tests", () => {
+  let tempDir: string;
   let mockExtensionUri: vscode.Uri;
+  let eventBus: ExtensionEventBus;
+  let fileManager: FileManager;
+  let repository: PromptRepository;
+  let controller: PromptController;
+  let treeProvider: PromptTreeProvider;
+  let searchProvider: SearchPanelProvider;
 
   suiteSetup(async () => {
-    // Set up mock workspace with temporary directory
-    mockWorkspace = await setupMockWorkspace("search-integration-test-");
-    await createIntegrationTestFiles(mockWorkspace.testPromptPath);
-
-    // Initialize components
+    tempDir = await createTempDirectory();
     mockExtensionUri = createMockExtensionUri();
-    searchProvider = new SearchPanelProvider(mockExtensionUri);
-
-    // Mock PromptController for tree provider
-    const mockPromptController = {
-      getPromptStructure: async () => ({
-        folders: [],
-        rootPrompts: [],
-      }),
-      onDidChangeTreeData: () => ({ dispose: () => {} }),
-    } as any;
-
-    treeProvider = new PromptTreeProvider(mockPromptController);
   });
 
   suiteTeardown(async () => {
-    // Clean up temporary directory
-    await mockWorkspace.cleanup();
+    await cleanupTempDirectory(tempDir);
   });
 
-  async function createIntegrationTestFiles(promptPath: string) {
-    // Create multiple test files for comprehensive integration testing
-    const files = [
-      {
-        name: "javascript-helper.md",
-        content: [
-          "---",
-          'title: "JavaScript Helper"',
-          'description: "Helpful JavaScript utilities and functions"',
-          'tags: ["javascript", "utilities", "helper"]',
-          "---",
-          "",
-          "This prompt contains JavaScript utility functions.",
-          "",
-          "```javascript",
-          "function debounce(func, wait) {",
-          "    let timeout;",
-          "    return function executedFunction(...args) {",
-          "        const later = () => {",
-          "            clearTimeout(timeout);",
-          "            func(...args);",
-          "        };",
-          "        clearTimeout(timeout);",
-          "        timeout = setTimeout(later, wait);",
-          "    };",
-          "}",
-          "```",
-        ].join("\n"),
-      },
-      {
-        name: "python-automation.md",
-        content: [
-          "---",
-          'title: "Python Automation Scripts"',
-          'description: "Collection of Python automation scripts"',
-          'tags: ["python", "automation", "scripts"]',
-          "---",
-          "",
-          "This prompt contains Python automation scripts for various tasks.",
-          "",
-          "File processing, data manipulation, and system automation.",
-          "Perfect for DevOps and data processing workflows.",
-        ].join("\n"),
-      },
-      {
-        name: "database-queries.md",
-        content: [
-          "---",
-          'title: "SQL Database Queries"',
-          'description: "Common SQL queries and database operations"',
-          'tags: ["sql", "database", "queries"]',
-          "---",
-          "",
-          "Collection of useful SQL queries:",
-          "",
-          "- SELECT statements with JOIN operations",
-          "- UPDATE and DELETE queries",
-          "- Performance optimization tips",
-          "- Index creation strategies",
-        ].join("\n"),
-      },
-      {
-        name: "react-components.md",
-        content: [
-          "---",
-          'title: "React Component Templates"',
-          'description: "Reusable React component patterns"',
-          'tags: ["react", "components", "javascript", "frontend"]',
-          "---",
-          "",
-          "React component patterns and templates:",
-          "",
-          "- Functional components with hooks",
-          "- State management patterns",
-          "- Performance optimization techniques",
-          "- Testing strategies for React components",
-        ].join("\n"),
-      },
-    ];
+  setup(() => {
+    // Initialize event bus first
+    eventBus = new ExtensionEventBus();
 
-    // Create root files
-    for (const file of files) {
-      await fs.promises.writeFile(
-        path.join(promptPath, file.name),
-        file.content
-      );
+    // Initialize components with event bus
+    fileManager = new FileManager(eventBus);
+    repository = new PromptRepository(eventBus, fileManager);
+    controller = new PromptController(eventBus, repository);
+    treeProvider = new PromptTreeProvider(controller, eventBus);
+    searchProvider = new SearchPanelProvider(mockExtensionUri, eventBus);
+  });
+
+  teardown(() => {
+    // Clean up event bus and components
+    if (treeProvider) {
+      treeProvider.dispose();
     }
-
-    // Create a subfolder with additional files
-    const subfolderPath = path.join(promptPath, "advanced");
-    await fs.promises.mkdir(subfolderPath);
-
-    const advancedFiles = [
-      {
-        name: "machine-learning.md",
-        content: [
-          "---",
-          'title: "Machine Learning Algorithms"',
-          'description: "Advanced ML algorithms and implementations"',
-          'tags: ["ml", "algorithms", "python", "advanced"]',
-          "---",
-          "",
-          "Advanced machine learning concepts:",
-          "",
-          "- Neural network architectures",
-          "- Deep learning frameworks",
-          "- Model optimization techniques",
-          "- Performance evaluation metrics",
-        ].join("\n"),
-      },
-      {
-        name: "system-design.md",
-        content: [
-          "---",
-          'title: "System Design Patterns"',
-          'description: "Scalable system design patterns and architectures"',
-          'tags: ["architecture", "design", "systems", "scalability"]',
-          "---",
-          "",
-          "System design patterns for scalable applications:",
-          "",
-          "- Microservices architecture",
-          "- Load balancing strategies",
-          "- Database sharding techniques",
-          "- Caching mechanisms and patterns",
-        ].join("\n"),
-      },
-    ];
-
-    for (const file of advancedFiles) {
-      await fs.promises.writeFile(
-        path.join(subfolderPath, file.name),
-        file.content
-      );
+    if (controller) {
+      controller.dispose();
     }
-  }
+    if (repository) {
+      repository.dispose();
+    }
+    if (eventBus) {
+      eventBus.dispose();
+    }
+  });
 
-  test("Search and Tree Provider Integration", (done) => {
-    let searchEventReceived = false;
-    let treeRefreshed = false;
-
-    // Listen for search events
-    const searchDisposable = searchProvider.onDidChangeSearch((criteria) => {
-      searchEventReceived = true;
-      assert.strictEqual(criteria.query, "test");
-      assert.strictEqual(criteria.scope, "both");
-      assert.strictEqual(criteria.isActive, true);
-
-      // Apply search criteria to tree provider
-      treeProvider.setSearchCriteria(criteria);
-    });
-
-    // Listen for tree refresh events
-    const treeDisposable = treeProvider.onDidChangeTreeData(() => {
-      treeRefreshed = true;
-
-      if (searchEventReceived && treeRefreshed) {
-        // Verify search state in tree provider
-        const currentCriteria = treeProvider.getCurrentSearchCriteria();
-        assert.ok(currentCriteria);
-        assert.strictEqual(currentCriteria.query, "test");
-
-        searchDisposable.dispose();
-        treeDisposable.dispose();
-        done();
-      }
-    });
-
-    // Mock webview to simulate user interaction
-    const mockWebview = {
-      options: {},
-      html: "",
-      onDidReceiveMessage: (handler: (message: any) => void) => {
-        setTimeout(() => {
-          handler({
-            type: "searchChanged",
-            query: "test",
-            scope: "both",
-            caseSensitive: false,
-          });
-        }, 10);
-        return { dispose: () => {} };
-      },
-      postMessage: () => Promise.resolve(true),
+  test("End-to-End Prompt Creation and Tree Display", async () => {
+    // Mock workspace folder
+    const workspaceFolder: vscode.WorkspaceFolder = {
+      uri: vscode.Uri.file(tempDir),
+      name: "test-workspace",
+      index: 0,
     };
 
-    const mockWebviewView = {
-      webview: mockWebview,
-      visible: true,
-      onDidDispose: () => ({ dispose: () => {} }),
-      onDidChangeVisibility: () => ({ dispose: () => {} }),
-      show: () => {},
-      title: "Search",
-      description: "",
+    // Override workspace folders for this test
+    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    Object.defineProperty(vscode.workspace, "workspaceFolders", {
+      value: [workspaceFolder],
+      configurable: true,
+    });
+
+    try {
+      // Initialize repository
+      const initialized = await repository.initialize();
+      assert.ok(initialized, "Repository should initialize successfully");
+
+      // Create a test prompt
+      const promptPath = await repository.createPromptFile(
+        "Test Prompt",
+        undefined
+      );
+      assert.ok(promptPath, "Prompt file should be created");
+      assert.ok(fs.existsSync(promptPath!), "Prompt file should exist on disk");
+
+      // Get prompt structure
+      const structure = await controller.getPromptStructure();
+      assert.strictEqual(
+        structure.rootPrompts.length,
+        1,
+        "Should have one root prompt"
+      );
+      assert.strictEqual(
+        structure.rootPrompts[0].title,
+        "Test Prompt",
+        "Prompt should have correct title"
+      );
+
+      // Get tree items
+      const rootItems = await treeProvider.getChildren();
+      assert.ok(rootItems.length > 0, "Tree should have items");
+
+      // Verify the prompt appears in the tree
+      const promptItems = rootItems.filter(
+        (item) => item.label === "Test Prompt"
+      );
+      assert.strictEqual(
+        promptItems.length,
+        1,
+        "Prompt should appear in tree view"
+      );
+    } finally {
+      // Restore original workspace folders
+      Object.defineProperty(vscode.workspace, "workspaceFolders", {
+        value: originalWorkspaceFolders,
+        configurable: true,
+      });
+    }
+  });
+
+  test("Search Integration with Tree Filtering", async function () {
+    this.timeout(10000); // Increase timeout for async operations
+
+    // Mock workspace folder
+    const workspaceFolder: vscode.WorkspaceFolder = {
+      uri: vscode.Uri.file(tempDir),
+      name: "test-workspace",
+      index: 0,
     };
 
-    // Initialize the search provider
-    searchProvider.resolveWebviewView(
-      mockWebviewView as any,
-      {} as any,
-      {} as any
+    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    Object.defineProperty(vscode.workspace, "workspaceFolders", {
+      value: [workspaceFolder],
+      configurable: true,
+    });
+
+    try {
+      await repository.initialize();
+
+      // Create multiple test prompts
+      await repository.createPromptFile("JavaScript Helper", undefined);
+      await repository.createPromptFile("Python Guide", undefined);
+      await repository.createPromptFile("Code Review", undefined);
+
+      // Wait a bit for file operations to complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Test search criteria event publishing
+      let searchEventReceived = false;
+      eventBus.subscribe("search.criteria.changed", (event) => {
+        searchEventReceived = true;
+        const searchEvent = event as any;
+        assert.strictEqual(searchEvent.payload.query, "JavaScript");
+        assert.strictEqual(searchEvent.payload.isActive, true);
+      });
+
+      // Simulate search via the search provider
+      const searchCriteria: SearchCriteria = {
+        query: "JavaScript",
+        scope: "both",
+        caseSensitive: false,
+        isActive: true,
+      };
+
+      // Manually trigger search criteria change event
+      eventBus.publishSync({
+        type: "search.criteria.changed",
+        source: "IntegrationTest",
+        payload: searchCriteria,
+      });
+
+      // Wait for event processing
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      assert.ok(searchEventReceived, "Search event should be received");
+
+      // Test tree filtering with search criteria
+      treeProvider.setSearchCriteria(searchCriteria);
+      const filteredItems = await treeProvider.getChildren();
+
+      // Should only show items matching "JavaScript"
+      const hasJavaScriptItem = filteredItems.some((item) => {
+        const label =
+          typeof item.label === "string" ? item.label : item.label?.label || "";
+        return label.includes("JavaScript");
+      });
+      assert.ok(hasJavaScriptItem, "Should find JavaScript-related prompts");
+
+      // Clear search and verify all items return
+      treeProvider.setSearchCriteria(null);
+      const allItems = await treeProvider.getChildren();
+      assert.ok(
+        allItems.length >= 3,
+        "Should show all prompts when search is cleared"
+      );
+    } finally {
+      Object.defineProperty(vscode.workspace, "workspaceFolders", {
+        value: originalWorkspaceFolders,
+        configurable: true,
+      });
+    }
+  });
+
+  test("Folder Creation and Organization", async () => {
+    const workspaceFolder: vscode.WorkspaceFolder = {
+      uri: vscode.Uri.file(tempDir),
+      name: "test-workspace",
+      index: 0,
+    };
+
+    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    Object.defineProperty(vscode.workspace, "workspaceFolders", {
+      value: [workspaceFolder],
+      configurable: true,
+    });
+
+    try {
+      await repository.initialize();
+
+      // Create a folder
+      const folderPath = await repository.createFolder("Test Category");
+      assert.ok(folderPath, "Folder should be created");
+      assert.ok(fs.existsSync(folderPath!), "Folder should exist on disk");
+
+      // Create a prompt in the folder
+      const promptPath = await repository.createPromptFile(
+        "Categorized Prompt",
+        folderPath!
+      );
+      assert.ok(promptPath, "Prompt should be created in folder");
+
+      // Verify structure
+      const structure = await controller.getPromptStructure();
+      assert.strictEqual(structure.folders.length, 1, "Should have one folder");
+      assert.strictEqual(
+        structure.folders[0].name,
+        "Test Category",
+        "Folder should have correct name"
+      );
+      assert.strictEqual(
+        structure.folders[0].prompts.length,
+        1,
+        "Folder should contain one prompt"
+      );
+      assert.strictEqual(
+        structure.folders[0].prompts[0].title,
+        "Categorized Prompt",
+        "Prompt should have correct title"
+      );
+
+      // Verify tree structure
+      const rootItems = await treeProvider.getChildren();
+      const folderItems = rootItems.filter(
+        (item) => item.contextValue === "promptFolder"
+      );
+      assert.strictEqual(
+        folderItems.length,
+        1,
+        "Should have one folder in tree"
+      );
+    } finally {
+      Object.defineProperty(vscode.workspace, "workspaceFolders", {
+        value: originalWorkspaceFolders,
+        configurable: true,
+      });
+    }
+  });
+
+  test("Event Bus Communication Between Components", async () => {
+    let fileCreatedEvents = 0;
+    let directoryCreatedEvents = 0;
+    let structureChangedEvents = 0;
+
+    // Subscribe to various filesystem events
+    eventBus.subscribe("filesystem.file.created", () => {
+      fileCreatedEvents++;
+    });
+
+    eventBus.subscribe("filesystem.directory.created", () => {
+      directoryCreatedEvents++;
+    });
+
+    eventBus.subscribe("filesystem.structure.changed", () => {
+      structureChangedEvents++;
+    });
+
+    const workspaceFolder: vscode.WorkspaceFolder = {
+      uri: vscode.Uri.file(tempDir),
+      name: "test-workspace",
+      index: 0,
+    };
+
+    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    Object.defineProperty(vscode.workspace, "workspaceFolders", {
+      value: [workspaceFolder],
+      configurable: true,
+    });
+
+    try {
+      await repository.initialize();
+
+      // Create folder and file to trigger events
+      await repository.createFolder("Events Test");
+      await repository.createPromptFile("Event Test Prompt", undefined);
+
+      // Wait for events to propagate
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify events were published
+      assert.ok(
+        fileCreatedEvents > 0,
+        "File created events should be published"
+      );
+      assert.ok(
+        directoryCreatedEvents > 0,
+        "Directory created events should be published"
+      );
+      assert.ok(
+        structureChangedEvents > 0,
+        "Structure changed events should be published"
+      );
+
+      // Test event bus statistics
+      const stats = eventBus.getStats();
+      assert.ok(stats.subscriberCount > 0, "Should have active subscribers");
+      assert.ok(
+        stats.eventTypes.length > 0,
+        "Should have registered event types"
+      );
+    } finally {
+      Object.defineProperty(vscode.workspace, "workspaceFolders", {
+        value: originalWorkspaceFolders,
+        configurable: true,
+      });
+    }
+  });
+
+  test("Component Disposal and Cleanup", () => {
+    // Test that all components properly dispose of their resources
+    const initialStats = eventBus.getStats();
+
+    // Dispose components
+    treeProvider.dispose();
+    controller.dispose();
+    repository.dispose();
+
+    // Verify cleanup (event bus should have fewer subscribers)
+    const finalStats = eventBus.getStats();
+    assert.ok(
+      finalStats.subscriberCount <= initialStats.subscriberCount,
+      "Subscriber count should not increase after disposal"
     );
-  });
 
-  test("Search State Persistence", () => {
-    const persistentCriteria: SearchCriteria = {
-      query: "persistent test",
-      scope: "content",
-      caseSensitive: true,
-      isActive: true,
-    };
-
-    // Set search criteria
-    treeProvider.setSearchCriteria(persistentCriteria);
-
-    // Verify persistence
-    const retrievedCriteria = treeProvider.getCurrentSearchCriteria();
-    assert.ok(retrievedCriteria);
-    assert.strictEqual(retrievedCriteria.query, "persistent test");
-    assert.strictEqual(retrievedCriteria.scope, "content");
-    assert.strictEqual(retrievedCriteria.caseSensitive, true);
-    assert.strictEqual(retrievedCriteria.isActive, true);
-  });
-
-  test("Clear Search Integration", (done) => {
-    // First set some search criteria
-    const initialCriteria: SearchCriteria = {
-      query: "test search",
-      scope: "both",
-      caseSensitive: false,
-      isActive: true,
-    };
-
-    treeProvider.setSearchCriteria(initialCriteria);
-
-    // Listen for clear events
-    const searchDisposable = searchProvider.onDidChangeSearch((criteria) => {
-      if (criteria.query === "" && !criteria.isActive) {
-        treeProvider.setSearchCriteria(null);
-
-        // Verify search was cleared
-        const currentCriteria = treeProvider.getCurrentSearchCriteria();
-        assert.strictEqual(currentCriteria, null);
-
-        searchDisposable.dispose();
-        done();
-      }
-    });
-
-    // Mock clear search message
-    const mockWebview = {
-      options: {},
-      html: "",
-      onDidReceiveMessage: (handler: (message: any) => void) => {
-        setTimeout(() => {
-          handler({ type: "clearSearch" });
-        }, 10);
-        return { dispose: () => {} };
-      },
-      postMessage: () => Promise.resolve(true),
-    };
-
-    const mockWebviewView = {
-      webview: mockWebview,
-      visible: true,
-      onDidDispose: () => ({ dispose: () => {} }),
-      onDidChangeVisibility: () => ({ dispose: () => {} }),
-      show: () => {},
-      title: "Search",
-      description: "",
-    };
-
-    searchProvider.resolveWebviewView(
-      mockWebviewView as any,
-      {} as any,
-      {} as any
-    );
-  });
-
-  test("Result Count Update Integration", () => {
-    let resultCount = -1;
-
-    // Mock result count update
-    const originalUpdateResultCount = searchProvider.updateResultCount;
-    searchProvider.updateResultCount = (count: number) => {
-      resultCount = count;
-      return originalUpdateResultCount.call(searchProvider, count);
-    };
-
-    // Test updating result count
-    searchProvider.updateResultCount(5);
-    assert.strictEqual(resultCount, 5);
-
-    // Restore original method
-    searchProvider.updateResultCount = originalUpdateResultCount;
-  });
-
-  test("Multiple Search Criteria Updates", () => {
-    const criteria1: SearchCriteria = {
-      query: "first",
-      scope: "titles",
-      caseSensitive: false,
-      isActive: true,
-    };
-
-    const criteria2: SearchCriteria = {
-      query: "second",
-      scope: "content",
-      caseSensitive: true,
-      isActive: true,
-    };
-
-    treeProvider.setSearchCriteria(criteria1);
-    let current = treeProvider.getCurrentSearchCriteria();
-    assert.strictEqual(current?.query, "first");
-
-    treeProvider.setSearchCriteria(criteria2);
-    current = treeProvider.getCurrentSearchCriteria();
-    assert.strictEqual(current?.query, "second");
-    assert.strictEqual(current?.scope, "content");
-    assert.strictEqual(current?.caseSensitive, true);
-  });
-
-  test("Search Event Handling Chain", (done) => {
-    let step = 0;
-
-    const disposable = searchProvider.onDidChangeSearch((criteria) => {
-      step++;
-
-      if (step === 1) {
-        // First search
-        assert.strictEqual(criteria.query, "step1");
-        assert.strictEqual(criteria.isActive, true);
-      } else if (step === 2) {
-        // Second search
-        assert.strictEqual(criteria.query, "step2");
-        assert.strictEqual(criteria.scope, "titles");
-      } else if (step === 3) {
-        // Clear search
-        assert.strictEqual(criteria.query, "");
-        assert.strictEqual(criteria.isActive, false);
-
-        disposable.dispose();
-        done();
-      }
-    });
-
-    // Mock sequential webview messages
-    const mockWebview = {
-      options: {},
-      html: "",
-      onDidReceiveMessage: (handler: (message: any) => void) => {
-        setTimeout(() => {
-          handler({
-            type: "searchChanged",
-            query: "step1",
-            scope: "both",
-            caseSensitive: false,
-          });
-
-          setTimeout(() => {
-            handler({
-              type: "searchChanged",
-              query: "step2",
-              scope: "titles",
-              caseSensitive: true,
-            });
-
-            setTimeout(() => {
-              handler({ type: "clearSearch" });
-            }, 5);
-          }, 5);
-        }, 10);
-        return { dispose: () => {} };
-      },
-      postMessage: () => Promise.resolve(true),
-    };
-
-    const mockWebviewView = {
-      webview: mockWebview,
-      visible: true,
-      onDidDispose: () => ({ dispose: () => {} }),
-      onDidChangeVisibility: () => ({ dispose: () => {} }),
-      show: () => {},
-      title: "Search",
-      description: "",
-    };
-
-    searchProvider.resolveWebviewView(
-      mockWebviewView as any,
-      {} as any,
-      {} as any
-    );
+    // Event bus should still be functional
+    assert.ok(!eventBus["isDisposed"], "Event bus should not be disposed yet");
   });
 });
