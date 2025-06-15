@@ -9,11 +9,8 @@ import {
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { getShowDescriptionInTree } from "./config";
-import {
-  ExtensionEventBus,
-  EventSubscription,
-  SearchEvents,
-} from "./core/EventSystem";
+import { SearchEvents } from "./core/EventSystem";
+import { subscribe } from "./core/eventBus";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
   constructor(
@@ -122,27 +119,23 @@ export class PromptTreeProvider
 
   private _currentSearchCriteria: SearchCriteria | null = null;
   private _searchService: SearchService;
-  private subscriptions: EventSubscription[] = [];
+  private subscriptions: any[] = [];
 
-  constructor(
-    private promptController: PromptController,
-    private eventBus: ExtensionEventBus
-  ) {
+  constructor(private promptController: PromptController) {
     this._searchService = new SearchService(
-      this.promptController.getRepository().getFileManager(),
-      this.eventBus
+      this.promptController.getRepository().getFileManager()
     );
 
     // Subscribe to tree refresh events
     this.subscriptions.push(
-      this.eventBus.subscribe("ui.tree.refresh.requested", () => {
+      subscribe("ui.tree.refresh.requested", () => {
         this.refresh();
       })
     );
 
     // Subscribe to search events
     this.subscriptions.push(
-      this.eventBus.subscribe("search.criteria.changed", (event) => {
+      subscribe("search.criteria.changed", (event) => {
         const searchEvent = event as SearchEvents.SearchCriteriaChanged;
         const { query, scope, caseSensitive, isActive } = searchEvent.payload;
         this.setSearchCriteria(
@@ -152,7 +145,7 @@ export class PromptTreeProvider
     );
 
     this.subscriptions.push(
-      this.eventBus.subscribe("search.cleared", () => {
+      subscribe("search.cleared", () => {
         this.setSearchCriteria(null);
       })
     );
@@ -427,7 +420,7 @@ export class PromptTreeProvider
    * Dispose of resources and event subscriptions
    */
   public dispose(): void {
-    this.subscriptions.forEach((subscription) => subscription.unsubscribe());
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
     this.subscriptions = [];
     this._onDidChangeTreeData.dispose();
   }

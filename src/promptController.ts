@@ -2,11 +2,8 @@ import * as vscode from "vscode";
 import { PromptRepository } from "./promptRepository";
 import { PromptStructure, PromptFile } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
-import {
-  ExtensionEventBus,
-  EventBuilder,
-  EventSubscription,
-} from "./core/EventSystem";
+import { subscribe, publish } from "./core/eventBus";
+import { EventBuilder } from "./core/EventSystem";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
@@ -15,16 +12,14 @@ import {
  */
 export class PromptController {
   private repository: PromptRepository;
-  private eventBus: ExtensionEventBus;
-  private subscriptions: EventSubscription[] = [];
+  private subscriptions: any[] = [];
 
-  constructor(eventBus: ExtensionEventBus, repository?: PromptRepository) {
-    this.eventBus = eventBus;
-    this.repository = repository || new PromptRepository(eventBus);
+  constructor(repository?: PromptRepository) {
+    this.repository = repository || new PromptRepository();
 
     // Subscribe to filesystem structure changes
     this.subscriptions.push(
-      this.eventBus.subscribe("filesystem.structure.changed", () => {
+      subscribe("filesystem.structure.changed", () => {
         this.publishTreeRefreshEvent("file-change");
       })
     );
@@ -60,9 +55,7 @@ export class PromptController {
   private publishTreeRefreshEvent(
     reason: "manual" | "file-change" | "search-change"
   ): void {
-    this.eventBus.publishSync(
-      EventBuilder.ui.treeRefreshRequested(reason, "PromptController")
-    );
+    publish(EventBuilder.ui.treeRefreshRequested(reason, "PromptController"));
   }
 
   /**

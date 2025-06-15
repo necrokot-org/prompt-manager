@@ -1,7 +1,8 @@
 import * as path from "path";
 import { normalizeFileName, FileNamingPattern } from "./utils/string";
 import { getFileNamingPattern } from "./config";
-import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
+import { EventBuilder } from "./core/EventSystem";
+import { publish } from "./core/eventBus";
 
 // Import all the focused components
 import { FileSystemManager } from "./core/FileSystemManager";
@@ -60,11 +61,8 @@ export class FileManager {
   private contentCache: CacheManager<string>;
   private directoryScanner: DirectoryScanner;
   private searchEngine: SearchEngine;
-  private eventBus: ExtensionEventBus;
 
-  constructor(eventBus: ExtensionEventBus) {
-    this.eventBus = eventBus;
-
+  constructor() {
     // Initialize all components
     this.fileSystemManager = new FileSystemManager();
     this.promptParser = new PromptParser();
@@ -148,9 +146,7 @@ export class FileManager {
       await this.fileSystemManager.writeFile(filePath, frontMatterContent);
 
       // Publish file created event
-      this.eventBus.publishSync(
-        EventBuilder.fileSystem.fileCreated(filePath, "FileManager")
-      );
+      this.publishFileEvent("created", filePath);
 
       // Invalidate cache and rebuild index since we added a new file
       this.invalidateIndex();
@@ -183,9 +179,7 @@ export class FileManager {
       await this.fileSystemManager.createDirectory(folderPath);
 
       // Publish directory created event
-      this.eventBus.publishSync(
-        EventBuilder.fileSystem.directoryCreated(folderPath, "FileManager")
-      );
+      this.publishDirectoryCreated(folderPath);
 
       // Invalidate cache and rebuild index since we added a new folder
       this.invalidateIndex();
@@ -203,9 +197,7 @@ export class FileManager {
       await this.fileSystemManager.deleteFile(filePath);
 
       // Publish file deleted event
-      this.eventBus.publishSync(
-        EventBuilder.fileSystem.fileDeleted(filePath, "FileManager")
-      );
+      this.publishFileEvent("deleted", filePath);
 
       // Invalidate cache and rebuild index since we deleted a file
       this.invalidateIndex();
@@ -389,5 +381,26 @@ export class FileManager {
       contentCache: this.contentCache.getStats(),
       searchCache: this.searchEngine.getCacheStats(),
     };
+  }
+
+  private publishFileEvent(
+    eventType: "created" | "deleted" | "changed",
+    filePath: string
+  ): void {
+    switch (eventType) {
+      case "created":
+        publish(EventBuilder.fileSystem.fileCreated(filePath, "FileManager"));
+        break;
+      case "deleted":
+        publish(EventBuilder.fileSystem.fileDeleted(filePath, "FileManager"));
+        break;
+      case "changed":
+        publish(EventBuilder.fileSystem.fileChanged(filePath, "FileManager"));
+        break;
+    }
+  }
+
+  private publishDirectoryCreated(dirPath: string): void {
+    publish(EventBuilder.fileSystem.directoryCreated(dirPath, "FileManager"));
   }
 }

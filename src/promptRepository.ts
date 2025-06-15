@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { FileManager, PromptStructure, PromptFile } from "./fileManager";
-import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
+import { publish } from "./core/eventBus";
+import { EventBuilder } from "./core/EventSystem";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
@@ -10,11 +11,9 @@ import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
 export class PromptRepository {
   private fileManager: FileManager;
   private fileWatcher?: vscode.FileSystemWatcher;
-  private eventBus: ExtensionEventBus;
 
-  constructor(eventBus: ExtensionEventBus, fileManager?: FileManager) {
-    this.eventBus = eventBus;
-    this.fileManager = fileManager || new FileManager(eventBus);
+  constructor(fileManager?: FileManager) {
+    this.fileManager = fileManager || new FileManager();
   }
 
   /**
@@ -89,10 +88,14 @@ export class PromptRepository {
     this.fileManager.invalidateIndex();
 
     // Publish structure changed event
-    this.eventBus.publishSync(
+    this.publishStructureChanged(reason);
+  }
+
+  private publishStructureChanged(reason: string): void {
+    publish(
       EventBuilder.fileSystem.structureChanged(
-        reason,
-        affectedPath,
+        reason as any,
+        undefined,
         "PromptRepository"
       )
     );

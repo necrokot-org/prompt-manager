@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { FileNamingPattern } from "./utils/string";
-import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
+import { publish } from "./core/eventBus";
+import { EventBuilder } from "./core/EventSystem";
 
 /**
  * Centralized configuration management for Prompt Manager
@@ -44,12 +45,7 @@ export const EXTENSION_CONSTANTS = {
  * Configuration service that integrates with the event bus
  */
 export class ConfigurationService {
-  private eventBus: ExtensionEventBus;
   private configWatcher?: vscode.Disposable;
-
-  constructor(eventBus: ExtensionEventBus) {
-    this.eventBus = eventBus;
-  }
 
   /**
    * Initialize the configuration service and start watching for changes
@@ -108,7 +104,7 @@ export class ConfigurationService {
       if (e.affectsConfiguration(`promptManager.${configKey}`)) {
         const newValue = config.get(configKey);
 
-        this.eventBus.publishSync(
+        publish(
           EventBuilder.config.configChanged(
             configKey,
             newValue,

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { EXTENSION_CONSTANTS } from "./config";
-import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
+import { publish } from "./core/eventBus";
+import { EventBuilder } from "./core/EventSystem";
 
 export interface SearchCriteria {
   query: string;
@@ -10,23 +11,17 @@ export interface SearchCriteria {
 }
 
 export class SearchPanelProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = EXTENSION_CONSTANTS.SEARCH_VIEW_TYPE;
+  public static readonly viewType = "promptManagerSearch";
 
   private _view?: vscode.WebviewView;
-  private _searchCriteria: SearchCriteria = {
+  private _criteria: SearchCriteria = {
     query: "",
     scope: "both",
     caseSensitive: false,
     isActive: false,
   };
-  private eventBus: ExtensionEventBus;
 
-  constructor(
-    private readonly _extensionUri: vscode.Uri,
-    eventBus: ExtensionEventBus
-  ) {
-    this.eventBus = eventBus;
-  }
+  constructor(private readonly _extensionUri: vscode.Uri) {}
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -43,29 +38,27 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-    // Handle messages from the webview
-    webviewView.webview.onDidReceiveMessage((data) => {
-      switch (data.type) {
-        case "searchChanged":
-          this._updateSearchCriteria({
-            query: data.query,
-            scope: data.scope,
-            caseSensitive: data.caseSensitive,
-            isActive: data.query.length > 0,
-          });
-          break;
-        case "clearSearch":
-          this._clearSearch();
-          break;
-      }
-    });
+    webviewView.webview.onDidReceiveMessage(
+      (data) => {
+        switch (data.type) {
+          case "search":
+            this.handleSearch(data.criteria);
+            break;
+          case "clear":
+            this.handleClear();
+            break;
+        }
+      },
+      undefined,
+      []
+    );
   }
 
-  private _updateSearchCriteria(criteria: SearchCriteria) {
-    this._searchCriteria = criteria;
+  private handleSearch(criteria: SearchCriteria): void {
+    this._criteria = criteria;
 
-    // Publish search event
-    this.eventBus.publishSync(
+    // Publish search criteria changed event
+    publish(
       EventBuilder.search.criteriaChanged(
         criteria.query,
         criteria.scope,
@@ -76,8 +69,8 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     );
   }
 
-  private _clearSearch() {
-    this._searchCriteria = {
+  private handleClear(): void {
+    this._criteria = {
       query: "",
       scope: "both",
       caseSensitive: false,
@@ -85,9 +78,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     };
 
     // Publish search cleared event
-    this.eventBus.publishSync(
-      EventBuilder.search.cleared("SearchPanelProvider")
-    );
+    publish(EventBuilder.search.cleared("SearchPanelProvider"));
 
     // Update the webview
     if (this._view) {
@@ -98,10 +89,10 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
   }
 
   public getCurrentSearchCriteria(): SearchCriteria {
-    return { ...this._searchCriteria };
+    return { ...this._criteria };
   }
 
-  public updateResultCount(count: number) {
+  public updateResultCount(count: number): void {
     if (this._view) {
       this._view.webview.postMessage({
         type: "updateResultCount",
@@ -286,10 +277,12 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             const isCaseSensitive = caseSensitive.checked;
 
             vscode.postMessage({
-                type: 'searchChanged',
-                query: query,
-                scope: scope,
-                caseSensitive: isCaseSensitive
+                type: 'search',
+                criteria: {
+                    query: query,
+                    scope: scope,
+                    caseSensitive: isCaseSensitive
+                }
             });
 
             // Show/hide result info
@@ -312,7 +305,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             resultInfo.classList.add('hidden');
             
             vscode.postMessage({
-                type: 'clearSearch'
+                type: 'clear'
             });
         });
 

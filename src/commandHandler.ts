@@ -5,13 +5,14 @@ import {
   FileTreeItem,
   FolderTreeItem,
 } from "./promptTreeProvider";
-import { ExtensionEventBus, EventBuilder } from "./core/EventSystem";
+import { EXTENSION_CONSTANTS } from "./config";
+import { publish } from "./core/eventBus";
+import { EventBuilder } from "./core/EventSystem";
 
 export class CommandHandler {
   constructor(
     private promptController: PromptController,
-    private context: vscode.ExtensionContext,
-    private eventBus: ExtensionEventBus
+    private context: vscode.ExtensionContext
   ) {}
 
   public registerCommands(): void {
@@ -54,9 +55,7 @@ export class CommandHandler {
   private async refreshTree(): Promise<void> {
     try {
       // Publish tree refresh event instead of directly calling controller
-      this.eventBus.publishSync(
-        EventBuilder.ui.treeRefreshRequested("manual", "CommandHandler")
-      );
+      publish(EventBuilder.ui.treeRefreshRequested("manual", "CommandHandler"));
 
       vscode.window.showInformationMessage("Prompt Manager tree refreshed");
     } catch (error) {
@@ -83,9 +82,7 @@ export class CommandHandler {
       await this.promptController.openPromptFile(filePath);
 
       // Publish prompt opened event
-      this.eventBus.publishSync(
-        EventBuilder.ui.promptOpened(filePath, "CommandHandler")
-      );
+      this.publishPromptOpened(filePath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to open prompt: ${error}`);
     }
@@ -102,9 +99,7 @@ export class CommandHandler {
       await this.promptController.deletePromptFile(filePath);
 
       // Publish file deleted event
-      this.eventBus.publishSync(
-        EventBuilder.fileSystem.fileDeleted(filePath, "CommandHandler")
-      );
+      publish(EventBuilder.fileSystem.fileDeleted(filePath, "CommandHandler"));
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
     }
@@ -173,5 +168,9 @@ export class CommandHandler {
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to copy prompt content: ${error}`);
     }
+  }
+
+  private publishPromptOpened(filePath: string): void {
+    publish(EventBuilder.ui.promptOpened(filePath, "CommandHandler"));
   }
 }
