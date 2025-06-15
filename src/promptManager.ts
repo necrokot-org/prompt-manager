@@ -272,4 +272,49 @@ export class PromptManager {
       this.refresh();
     }
   }
+
+  public async copyPromptContentToClipboard(
+    filePath: string
+  ): Promise<boolean> {
+    try {
+      const content = await this.readFileContent(filePath);
+      if (!content) {
+        vscode.window.showErrorMessage("Failed to read prompt file");
+        return false;
+      }
+
+      const contentWithoutFrontMatter = this.stripFrontMatter(content);
+      await vscode.env.clipboard.writeText(contentWithoutFrontMatter);
+      return true;
+    } catch (error) {
+      console.error(`Failed to copy content to clipboard: ${error}`);
+      vscode.window.showErrorMessage(`Failed to copy content: ${error}`);
+      return false;
+    }
+  }
+
+  private async readFileContent(filePath: string): Promise<string | null> {
+    try {
+      const fs = await import("fs");
+      return await fs.promises.readFile(filePath, "utf8");
+    } catch (error) {
+      console.error(`Failed to read file ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  private stripFrontMatter(content: string): string {
+    // Check if content starts with front matter (---)
+    const frontMatterMatch = content.match(
+      /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/
+    );
+
+    if (frontMatterMatch) {
+      // Return content after front matter, trimming leading/trailing whitespace
+      return frontMatterMatch[2].trim();
+    }
+
+    // If no front matter found, return original content
+    return content.trim();
+  }
 }

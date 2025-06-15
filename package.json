@@ -63,6 +63,11 @@
       {
         "command": "promptManager.addPromptToFolder",
         "title": "Add Prompt to Folder"
+      },
+      {
+        "command": "promptManager.copyPromptContent",
+        "title": "Copy Content",
+        "icon": "$(copy)"
       }
     ],
     "menus": {
@@ -86,6 +91,11 @@
       "view/item/context": [
         {
           "command": "promptManager.openPrompt",
+          "when": "view == promptManagerTree && viewItem == promptFile",
+          "group": "inline"
+        },
+        {
+          "command": "promptManager.copyPromptContent",
           "when": "view == promptManagerTree && viewItem == promptFile",
           "group": "inline"
         },
