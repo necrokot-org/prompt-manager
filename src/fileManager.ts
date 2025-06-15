@@ -267,39 +267,8 @@ Happy prompting!
       const stats = await fs.promises.stat(filePath);
       const content = await fs.promises.readFile(filePath, "utf8");
 
-      // Parse front matter if present
-      const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      let metadata: any = {};
-
-      if (frontMatterMatch) {
-        try {
-          // Simple YAML parsing for front matter
-          const frontMatter = frontMatterMatch[1];
-          const lines = frontMatter.split("\n");
-          for (const line of lines) {
-            const match = line.match(/^(\w+):\s*(.+)$/);
-            if (match) {
-              const [, key, value] = match;
-              if (
-                key === "tags" &&
-                value.startsWith("[") &&
-                value.endsWith("]")
-              ) {
-                // Parse tags array
-                metadata[key] = value
-                  .slice(1, -1)
-                  .split(",")
-                  .map((tag) => tag.trim().replace(/"/g, ""));
-              } else {
-                metadata[key] = value.replace(/"/g, "");
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`Failed to parse front matter in ${filePath}:`, error);
-        }
-      }
-
+      // Use the centralized YAML parsing method
+      const { frontMatter: metadata } = this.parseYamlContent(content);
       const fileName = path.basename(filePath, ".md");
 
       return {
