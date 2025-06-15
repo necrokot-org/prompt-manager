@@ -1,13 +1,14 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
+import { createMockExtensionUri } from "./helpers";
 
 suite("SearchPanelProvider Tests", () => {
   let searchProvider: SearchPanelProvider;
   let mockExtensionUri: vscode.Uri;
 
   suiteSetup(() => {
-    mockExtensionUri = vscode.Uri.file("/mock/extension/path");
+    mockExtensionUri = createMockExtensionUri();
     searchProvider = new SearchPanelProvider(mockExtensionUri);
   });
 

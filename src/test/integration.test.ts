@@ -7,45 +7,27 @@ import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
 import { PromptTreeProvider } from "../promptTreeProvider";
 import { FileManager } from "../fileManager";
 import { PromptController } from "../promptController";
+import {
+  setupMockWorkspace,
+  createMockExtensionUri,
+  MockWorkspaceSetup,
+} from "./helpers";
 
 suite("Search Integration Tests", () => {
   let searchProvider: SearchPanelProvider;
   let treeProvider: PromptTreeProvider;
   let fileManager: FileManager;
   let promptController: PromptController;
-  let tempDir: string;
+  let mockWorkspace: MockWorkspaceSetup;
   let mockExtensionUri: vscode.Uri;
 
   suiteSetup(async () => {
-    // Create temporary directory for testing
-    tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "search-integration-test-")
-    );
-    const testPromptPath = path.join(tempDir, ".prompt_manager");
-
-    // Mock workspace configuration
-    const mockConfig = {
-      get: (key: string, defaultValue: any) => {
-        if (key === "defaultPromptDirectory") {
-          return ".prompt_manager";
-        }
-        return defaultValue;
-      },
-    };
-
-    // Mock vscode.workspace
-    (vscode.workspace as any).getConfiguration = () => mockConfig;
-    Object.defineProperty(vscode.workspace, "workspaceFolders", {
-      value: [{ uri: { fsPath: tempDir } }],
-      configurable: true,
-    });
-
-    // Create test directory structure
-    await fs.promises.mkdir(testPromptPath, { recursive: true });
-    await createIntegrationTestFiles(testPromptPath);
+    // Set up mock workspace with temporary directory
+    mockWorkspace = await setupMockWorkspace("search-integration-test-");
+    await createIntegrationTestFiles(mockWorkspace.testPromptPath);
 
     // Initialize components
-    mockExtensionUri = vscode.Uri.file("/mock/extension/path");
+    mockExtensionUri = createMockExtensionUri();
     searchProvider = new SearchPanelProvider(mockExtensionUri);
 
     // Mock PromptController for tree provider
@@ -62,7 +44,7 @@ suite("Search Integration Tests", () => {
 
   suiteTeardown(async () => {
     // Clean up temporary directory
-    await fs.promises.rm(tempDir, { recursive: true, force: true });
+    await mockWorkspace.cleanup();
   });
 
   async function createIntegrationTestFiles(promptPath: string) {

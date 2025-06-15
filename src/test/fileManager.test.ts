@@ -4,38 +4,17 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { FileManager, ContentSearchResult } from "../fileManager";
+import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
 
 suite("FileManager Search Tests", () => {
   let fileManager: FileManager;
-  let tempDir: string;
-  let testPromptPath: string;
+  let mockWorkspace: MockWorkspaceSetup;
 
   suiteSetup(async () => {
-    // Create temporary directory for testing
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "prompt-manager-test-"));
-    testPromptPath = path.join(tempDir, ".prompt_manager");
-
-    // Mock workspace configuration
-    const mockConfig = {
-      get: (key: string, defaultValue: any) => {
-        if (key === "defaultPromptDirectory") {
-          return ".prompt_manager";
-        }
-        return defaultValue;
-      },
-    };
-
-    // Mock vscode.workspace
-    (vscode.workspace as any).getConfiguration = () => mockConfig;
-    Object.defineProperty(vscode.workspace, "workspaceFolders", {
-      value: [{ uri: { fsPath: tempDir } }],
-      configurable: true,
-    });
+    // Set up mock workspace with temporary directory
+    mockWorkspace = await setupMockWorkspace("prompt-manager-test-");
 
     fileManager = new FileManager();
-
-    // Create test directory structure
-    await fs.promises.mkdir(testPromptPath, { recursive: true });
 
     // Create test files
     await createTestFiles();
@@ -43,7 +22,7 @@ suite("FileManager Search Tests", () => {
 
   suiteTeardown(async () => {
     // Clean up temporary directory
-    await fs.promises.rm(tempDir, { recursive: true, force: true });
+    await mockWorkspace.cleanup();
   });
 
   async function createTestFiles() {
@@ -69,7 +48,7 @@ suite("FileManager Search Tests", () => {
     ].join("\n");
 
     await fs.promises.writeFile(
-      path.join(testPromptPath, "test-prompt.md"),
+      path.join(mockWorkspace.testPromptPath, "test-prompt.md"),
       promptWithYaml
     );
 
@@ -84,7 +63,7 @@ suite("FileManager Search Tests", () => {
     ].join("\n");
 
     await fs.promises.writeFile(
-      path.join(testPromptPath, "simple-prompt.md"),
+      path.join(mockWorkspace.testPromptPath, "simple-prompt.md"),
       promptWithoutYaml
     );
 
@@ -102,12 +81,12 @@ suite("FileManager Search Tests", () => {
     ].join("\n");
 
     await fs.promises.writeFile(
-      path.join(testPromptPath, "special-chars.md"),
+      path.join(mockWorkspace.testPromptPath, "special-chars.md"),
       promptSpecialChars
     );
 
     // Create a folder with prompts
-    const folderPath = path.join(testPromptPath, "subfolder");
+    const folderPath = path.join(mockWorkspace.testPromptPath, "subfolder");
     await fs.promises.mkdir(folderPath);
 
     const folderPrompt = [
