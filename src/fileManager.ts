@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { normalizeFileName, FileNamingPattern } from "./utils/string";
+import { getDefaultPromptDirectory, getFileNamingPattern } from "./config";
 
 export interface PromptFile {
   name: string;
@@ -76,11 +77,7 @@ export class FileManager {
     console.log(`FileManager: Using workspace root: ${workspaceRoot}`);
 
     // Use configuration setting for directory name
-    const config = vscode.workspace.getConfiguration("promptManager");
-    const dirName = config.get<string>(
-      "defaultPromptDirectory",
-      this.defaultPromptManagerDir
-    );
+    const dirName = getDefaultPromptDirectory();
 
     const promptPath = path.join(workspaceRoot, dirName);
     console.log(`FileManager: Prompt manager path: ${promptPath}`);
@@ -853,8 +850,7 @@ Write your prompt here...
    * Get sanitized filename using the configured naming pattern
    */
   private getSanitizedName(name: string): string {
-    const config = vscode.workspace.getConfiguration("promptManager");
-    const namingPattern = config.get<string>("fileNamingPattern", "kebab-case");
-    return normalizeFileName(name, namingPattern as FileNamingPattern);
+    const namingPattern = getFileNamingPattern();
+    return normalizeFileName(name, namingPattern);
   }
 }

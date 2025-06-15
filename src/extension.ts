@@ -7,6 +7,7 @@ import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
 import { PromptFile } from "./fileManager";
 import { SearchService } from "./searchService";
+import { EXTENSION_CONSTANTS, setupConfigWatcher } from "./config";
 
 // Global instances
 let promptController: PromptController | undefined;
@@ -33,7 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
       // Set context to hide the view when no workspace is open
       vscode.commands.executeCommand(
         "setContext",
-        "workspaceHasPromptManager",
+        EXTENSION_CONSTANTS.WORKSPACE_HAS_PROMPT_MANAGER,
         false
       );
 
@@ -77,10 +78,13 @@ async function initializeExtension(
 
   if (initialized) {
     // Register the tree view
-    const treeView = vscode.window.createTreeView("promptManagerTree", {
-      treeDataProvider: treeProvider,
-      showCollapseAll: true,
-    });
+    const treeView = vscode.window.createTreeView(
+      EXTENSION_CONSTANTS.TREE_VIEW_ID,
+      {
+        treeDataProvider: treeProvider,
+        showCollapseAll: true,
+      }
+    );
 
     // Register the search webview
     const searchWebviewProvider = vscode.window.registerWebviewViewProvider(
@@ -132,6 +136,9 @@ async function initializeExtension(
     // Register all commands
     commandHandler.registerCommands();
 
+    // Set up configuration watcher
+    setupConfigWatcher(context.subscriptions);
+
     // Show welcome message for new users
     await showWelcomeMessage(context);
 
@@ -180,7 +187,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         // Hide the view when no workspace is open
         vscode.commands.executeCommand(
           "setContext",
-          "workspaceHasPromptManager",
+          EXTENSION_CONSTANTS.WORKSPACE_HAS_PROMPT_MANAGER,
           false
         );
 
@@ -209,7 +216,7 @@ async function showWelcomeMessage(
   context: vscode.ExtensionContext
 ): Promise<void> {
   const hasShownWelcome = context.globalState.get(
-    "promptManager.hasShownWelcome",
+    EXTENSION_CONSTANTS.HAS_SHOWN_WELCOME,
     false
   );
 
@@ -229,6 +236,9 @@ async function showWelcomeMessage(
     }
 
     // Mark as shown
-    await context.globalState.update("promptManager.hasShownWelcome", true);
+    await context.globalState.update(
+      EXTENSION_CONSTANTS.HAS_SHOWN_WELCOME,
+      true
+    );
   }
 }

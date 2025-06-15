@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { PromptRepository } from "./promptRepository";
 import { PromptStructure, PromptFile } from "./fileManager";
+import { EXTENSION_CONSTANTS } from "./config";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
@@ -32,7 +33,7 @@ export class PromptController {
       // Set context variable to show the tree view
       vscode.commands.executeCommand(
         "setContext",
-        "workspaceHasPromptManager",
+        EXTENSION_CONSTANTS.WORKSPACE_HAS_PROMPT_MANAGER,
         true
       );
     }

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { EXTENSION_CONSTANTS } from "./config";
 
 export interface SearchCriteria {
   query: string;
@@ -8,7 +9,7 @@ export interface SearchCriteria {
 }
 
 export class SearchPanelProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = "promptManagerSearch";
+  public static readonly viewType = EXTENSION_CONSTANTS.SEARCH_VIEW_TYPE;
 
   private _view?: vscode.WebviewView;
   private _searchCriteria: SearchCriteria = {

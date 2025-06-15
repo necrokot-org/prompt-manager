@@ -8,6 +8,7 @@ import {
 } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
+import { getShowDescriptionInTree } from "./config";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
   constructor(
@@ -51,8 +52,7 @@ export class FileTreeItem extends BaseTreeItem {
   }
 
   private createDescription(): string | undefined {
-    const config = vscode.workspace.getConfiguration("promptManager");
-    const showDescription = config.get<boolean>("showDescriptionInTree", true);
+    const showDescription = getShowDescriptionInTree();
     return showDescription ? this.promptFile.description || "" : "";
   }
 }
