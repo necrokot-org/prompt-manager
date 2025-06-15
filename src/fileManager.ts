@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import { normalizeFileName, FileNamingPattern } from "./utils/string";
 
 export interface PromptFile {
   name: string;
@@ -240,27 +241,6 @@ Happy prompting!
     }
   }
 
-  private normalizeFileName(fileName: string): string {
-    const config = vscode.workspace.getConfiguration("promptManager");
-    const namingPattern = config.get<string>("fileNamingPattern", "kebab-case");
-
-    switch (namingPattern) {
-      case "snake_case":
-        return fileName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "_")
-          .replace(/^_+|_+$/g, "");
-      case "kebab-case":
-        return fileName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "");
-      case "original":
-      default:
-        return fileName;
-    }
-  }
-
   private async scanFolderPrompts(folderPath: string): Promise<PromptFile[]> {
     try {
       const items = await fs.promises.readdir(folderPath, {
@@ -352,7 +332,7 @@ Happy prompting!
     await this.ensurePromptManagerDirectory();
 
     // Sanitize filename
-    const sanitizedName = this.normalizeFileName(fileName);
+    const sanitizedName = this.getSanitizedName(fileName);
     const fullFileName = `${sanitizedName}.md`;
 
     const targetDir = folderPath || promptPath;
@@ -399,7 +379,7 @@ Write your prompt here...
 
     await this.ensurePromptManagerDirectory();
 
-    const sanitizedName = this.normalizeFileName(folderName);
+    const sanitizedName = this.getSanitizedName(folderName);
     const folderPath = path.join(promptPath, sanitizedName);
 
     if (fs.existsSync(folderPath)) {
@@ -867,5 +847,14 @@ Write your prompt here...
   public clearSearchCache(): void {
     this.contentCache.clear();
     this.cacheTimestamps.clear();
+  }
+
+  /**
+   * Get sanitized filename using the configured naming pattern
+   */
+  private getSanitizedName(name: string): string {
+    const config = vscode.workspace.getConfiguration("promptManager");
+    const namingPattern = config.get<string>("fileNamingPattern", "kebab-case");
+    return normalizeFileName(name, namingPattern as FileNamingPattern);
   }
 }
