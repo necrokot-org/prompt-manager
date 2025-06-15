@@ -47,20 +47,30 @@ export class PromptRepository implements PromptRepositoryEvents {
       new vscode.RelativePattern(promptPath, "**/*.md")
     );
 
-    this.fileWatcher.onDidCreate(() => {
-      console.log("PromptRepository: File created, invalidating index");
-      this.invalidateCache();
+    // Setup file watcher events with unified handling
+    [
+      { event: "onDidCreate" as const, handler: this.handleFileCreated },
+      { event: "onDidDelete" as const, handler: this.handleFileDeleted },
+      { event: "onDidChange" as const, handler: this.handleFileChange },
+    ].forEach(({ event, handler }) => {
+      this.fileWatcher![event](handler.bind(this));
     });
+  }
 
-    this.fileWatcher.onDidDelete(() => {
-      console.log("PromptRepository: File deleted, invalidating index");
-      this.invalidateCache();
-    });
+  /**
+   * Handle file creation events
+   */
+  private handleFileCreated(): void {
+    console.log("PromptRepository: File created, invalidating index");
+    this.invalidateCache();
+  }
 
-    this.fileWatcher.onDidChange((uri) => {
-      console.log("PromptRepository: File changed, invalidating index");
-      this.handleFileChange(uri);
-    });
+  /**
+   * Handle file deletion events
+   */
+  private handleFileDeleted(): void {
+    console.log("PromptRepository: File deleted, invalidating index");
+    this.invalidateCache();
   }
 
   /**
