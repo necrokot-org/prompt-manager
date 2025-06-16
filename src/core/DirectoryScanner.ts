@@ -257,22 +257,6 @@ export class DirectoryScanner {
   }
 
   /**
-   * Watch directory for changes and auto-rebuild index
-   */
-  public watchDirectory(dirPath: string, callback?: () => void): void {
-    // Note: This would typically use fs.watch() or similar
-    // For now, we'll provide the interface for future implementation
-    console.log(`Watching directory: ${dirPath}`);
-
-    // Placeholder for file system watching
-    // In a real implementation, this would:
-    // 1. Set up fs.watch() on the directory
-    // 2. Debounce file change events
-    // 3. Call invalidateIndex() on changes
-    // 4. Optionally trigger callback
-  }
-
-  /**
    * Invalidate the cached index - call this when files are added/removed/changed
    */
   public invalidateIndex(): void {
