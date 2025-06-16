@@ -1,3 +1,5 @@
+import matter from "gray-matter";
+
 /**
  * Markdown validation issue
  */
@@ -91,77 +93,60 @@ async function getProcessor() {
 }
 
 /**
- * Extract front matter from markdown content
+ * Extract front matter from markdown content using gray-matter
  */
 export function extractFrontMatter(content: string): {
   frontMatter?: FrontMatterData;
   body: string;
 } {
-  const frontMatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
-
-  if (!frontMatterMatch) {
-    return { body: content };
-  }
-
-  const frontMatterYaml = frontMatterMatch[1];
-  const body = content.slice(frontMatterMatch[0].length);
-
   try {
-    // Simple YAML parsing for basic front matter
+    const parsed = matter(content);
+
+    // Extract only the fields we care about from the parsed data
     const frontMatter: FrontMatterData = {};
-    const lines = frontMatterYaml.split("\n");
+    let hasValidFields = false;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) {
-        continue;
-      }
+    // Extract fields that are defined in the FrontMatterData interface
+    for (const field of FRONT_MATTER_FIELDS) {
+      if (parsed.data && field in parsed.data) {
+        const value = parsed.data[field];
 
-      const colonIndex = trimmed.indexOf(":");
-      if (colonIndex === -1) {
-        continue;
-      }
-
-      const key = trimmed.slice(0, colonIndex).trim();
-      let value = trimmed.slice(colonIndex + 1).trim();
-
-      // Only extract fields that are defined in the FrontMatterData interface
-      if (!FRONT_MATTER_FIELDS.includes(key as FrontMatterFieldName)) {
-        continue; // Ignore unknown fields
-      }
-
-      // Remove quotes if present
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-
-      // Handle specific field types
-      if (key === "title" || key === "description") {
-        frontMatter[key] = value;
-      } else if (key === "tags") {
-        // Handle tags as array (comma-separated values or arrays)
-        if (value.includes(",")) {
-          frontMatter.tags = value.split(",").map((tag) => tag.trim());
-        } else if (value.startsWith("[") && value.endsWith("]")) {
-          // Handle array format: [tag1, tag2, tag3]
-          const arrayContent = value.slice(1, -1);
-          frontMatter.tags = arrayContent
-            .split(",")
-            .map((tag) => tag.trim().replace(/^["']|["']$/g, ""))
-            .filter((tag) => tag.length > 0);
-        } else {
-          // Single tag
-          frontMatter.tags = [value];
+        if (field === "title" || field === "description") {
+          if (typeof value === "string" && value.trim().length > 0) {
+            frontMatter[field] = value.trim();
+            hasValidFields = true;
+          }
+        } else if (field === "tags") {
+          // Handle tags - can be array or string
+          if (Array.isArray(value)) {
+            const tags = value
+              .filter((tag) => typeof tag === "string" && tag.trim().length > 0)
+              .map((tag) => tag.trim());
+            if (tags.length > 0) {
+              frontMatter.tags = tags;
+              hasValidFields = true;
+            }
+          } else if (typeof value === "string" && value.trim().length > 0) {
+            // Handle comma-separated tags
+            const tags = value
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter((tag) => tag.length > 0);
+            if (tags.length > 0) {
+              frontMatter.tags = tags;
+              hasValidFields = true;
+            }
+          }
         }
       }
     }
 
-    return { frontMatter, body };
+    return {
+      frontMatter: hasValidFields ? frontMatter : undefined,
+      body: parsed.content,
+    };
   } catch (error) {
-    // If parsing fails, treat as no front matter
+    // If gray-matter parsing fails, treat as no front matter
     return { body: content };
   }
 }

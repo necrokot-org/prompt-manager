@@ -1,4 +1,5 @@
 import { z } from "zod";
+import matter from "gray-matter";
 import {
   validateMarkdownSync,
   extractFrontMatter,
@@ -267,43 +268,37 @@ export async function parsePromptContent(
 }
 
 /**
- * Utility function to serialize prompt content with front matter
+ * Utility function to serialize prompt content with front matter using gray-matter
  */
 export function serializePromptContent(prompt: PromptContent): string {
-  let result = "";
+  // Build the data object for front matter
+  const data: any = {};
 
-  // Add front matter if present
-  if (prompt.frontMatter || prompt.title || prompt.description || prompt.tags) {
-    result += "---\n";
-
-    if (prompt.title) {
-      result += `title: "${prompt.title}"\n`;
-    }
-    if (prompt.description) {
-      result += `description: "${prompt.description}"\n`;
-    }
-    if (prompt.tags && prompt.tags.length > 0) {
-      result += `tags: [${prompt.tags.map((tag) => `"${tag}"`).join(", ")}]\n`;
-    }
-
-    // Add any additional front matter fields
-    if (prompt.frontMatter) {
-      Object.entries(prompt.frontMatter).forEach(([key, value]) => {
-        if (!FRONT_MATTER_FIELDS.includes(key as any)) {
-          if (typeof value === "string") {
-            result += `${key}: "${value}"\n`;
-          } else {
-            result += `${key}: ${JSON.stringify(value)}\n`;
-          }
-        }
-      });
-    }
-
-    result += "---\n\n";
+  // Add title, description, and tags from top-level properties or frontMatter
+  if (prompt.title) {
+    data.title = prompt.title;
+  }
+  if (prompt.description) {
+    data.description = prompt.description;
+  }
+  if (prompt.tags && prompt.tags.length > 0) {
+    data.tags = prompt.tags;
   }
 
-  // Add content
-  result += prompt.content;
+  // Add any additional front matter fields
+  if (prompt.frontMatter) {
+    Object.entries(prompt.frontMatter).forEach(([key, value]) => {
+      if (!FRONT_MATTER_FIELDS.includes(key as any)) {
+        data[key] = value;
+      }
+    });
+  }
 
-  return result;
+  // Use gray-matter to stringify with front matter if we have any data
+  if (Object.keys(data).length > 0) {
+    return matter.stringify(prompt.content, data);
+  }
+
+  // If no front matter, just return the content
+  return prompt.content;
 }
