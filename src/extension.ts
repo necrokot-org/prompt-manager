@@ -86,7 +86,7 @@ async function initializeExtension(
     searchService
   ) {
     // Register tree view
-    vscode.window.createTreeView("promptManager", {
+    vscode.window.createTreeView("promptManagerTree", {
       treeDataProvider: treeProvider,
       showCollapseAll: true,
     });

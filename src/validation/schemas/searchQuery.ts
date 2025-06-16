@@ -1,5 +1,4 @@
 import { z } from "zod";
-import RE2 from "re2";
 import safeRegex from "safe-regex2";
 
 /**
@@ -37,7 +36,7 @@ const DANGEROUS_REGEX_PATTERNS = [
 ];
 
 /**
- * Validate regex syntax and security using safe-regex2 and RE2
+ * Validate regex syntax and security using safe-regex2 and standard RegExp
  */
 function validateRegex(query: string): { valid: boolean; error?: string } {
   try {
@@ -49,8 +48,8 @@ function validateRegex(query: string): { valid: boolean; error?: string } {
       };
     }
 
-    // Validate with RE2 engine (safer than standard RegExp)
-    new RE2(query);
+    // Validate with standard RegExp
+    new RegExp(query);
     return { valid: true };
   } catch (error) {
     return {

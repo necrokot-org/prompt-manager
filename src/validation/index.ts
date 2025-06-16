@@ -1,5 +1,5 @@
 /**
- * New validation system using Zod, sanitize-filename, re2, and remark
+ * New validation system using Zod, sanitize-filename, safe-regex2, and remark
  *
  * This replaces the old home-grown validators with proven open-source libraries.
  */
