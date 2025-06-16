@@ -1,6 +1,6 @@
 import * as path from "path";
 
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 import { publish } from "./core/eventBus";
 
 // Import all the focused components
@@ -404,18 +404,18 @@ export class FileManager {
   ): void {
     switch (eventType) {
       case "created":
-        publish(EventBuilder.fileSystem.fileCreated(filePath, "FileManager"));
+        publish(Events.fileCreated(filePath, "FileManager"));
         break;
       case "deleted":
-        publish(EventBuilder.fileSystem.fileDeleted(filePath, "FileManager"));
+        publish(Events.fileDeleted(filePath, "FileManager"));
         break;
       case "changed":
-        publish(EventBuilder.fileSystem.fileChanged(filePath, "FileManager"));
+        publish(Events.fileChanged(filePath, "FileManager"));
         break;
     }
   }
 
   private publishDirectoryCreated(dirPath: string): void {
-    publish(EventBuilder.fileSystem.directoryCreated(dirPath, "FileManager"));
+    publish(Events.directoryCreated(dirPath, "FileManager"));
   }
 }

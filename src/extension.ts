@@ -9,7 +9,7 @@ import { PromptFile } from "./fileManager";
 import { SearchService } from "./searchService";
 import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
 import { publish, subscribe } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 
 // Global instances
 let configService: ConfigurationService | undefined;
@@ -154,7 +154,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
 
         // Publish workspace change event
         publish(
-          EventBuilder.config.workspaceChanged(
+          Events.workspaceChanged(
             workspaceFolders,
             "workspace-opened",
             "extension"
@@ -178,13 +178,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         );
 
         // Publish workspace change event
-        publish(
-          EventBuilder.config.workspaceChanged(
-            [],
-            "workspace-closed",
-            "extension"
-          )
-        );
+        publish(Events.workspaceChanged([], "workspace-closed", "extension"));
 
         // Hide the view when no workspace is open
         vscode.commands.executeCommand(

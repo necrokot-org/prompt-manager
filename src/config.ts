@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { FileNamingPattern } from "./utils/string";
 import { publish } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 
 /**
  * Centralized configuration management for Prompt Manager
@@ -105,7 +105,7 @@ export class ConfigurationService {
         const newValue = config.get(configKey);
 
         publish(
-          EventBuilder.config.configChanged(
+          Events.configChanged(
             configKey,
             newValue,
             undefined, // We don't track old values currently

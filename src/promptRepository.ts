@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { FileManager, PromptStructure } from "./fileManager";
 import { publish } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
 import * as fs from "fs";
@@ -96,11 +96,7 @@ export class PromptRepository {
 
   private publishStructureChanged(reason: string): void {
     publish(
-      EventBuilder.fileSystem.structureChanged(
-        reason as any,
-        undefined,
-        "PromptRepository"
-      )
+      Events.structureChanged(reason as any, undefined, "PromptRepository")
     );
   }
 

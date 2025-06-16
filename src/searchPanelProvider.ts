@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { EXTENSION_CONSTANTS } from "./config";
 import { publish } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 
 export interface SearchCriteria {
   query: string;
@@ -59,7 +59,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
     // Publish search criteria changed event
     publish(
-      EventBuilder.search.criteriaChanged(
+      Events.searchCriteriaChanged(
         criteria.query,
         criteria.scope,
         criteria.caseSensitive,
@@ -78,7 +78,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     };
 
     // Publish search cleared event
-    publish(EventBuilder.search.cleared("SearchPanelProvider"));
+    publish(Events.searchCleared("SearchPanelProvider"));
 
     // Update the webview
     if (this._view) {

@@ -9,7 +9,7 @@ import {
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { getShowDescriptionInTree } from "./config";
-import { SearchEvents } from "./core/EventSystem";
+import { ExtensionEvent } from "./core/EventSystem";
 import { subscribe } from "./core/eventBus";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
@@ -136,11 +136,12 @@ export class PromptTreeProvider
     // Subscribe to search events
     this.subscriptions.push(
       subscribe("search.criteria.changed", (event) => {
-        const searchEvent = event as SearchEvents.SearchCriteriaChanged;
-        const { query, scope, caseSensitive, isActive } = searchEvent.payload;
-        this.setSearchCriteria(
-          isActive ? { query, scope, caseSensitive, isActive } : null
-        );
+        if (event.type === "search.criteria.changed") {
+          const { query, scope, caseSensitive, isActive } = event.payload;
+          this.setSearchCriteria(
+            isActive ? { query, scope, caseSensitive, isActive } : null
+          );
+        }
       })
     );
 

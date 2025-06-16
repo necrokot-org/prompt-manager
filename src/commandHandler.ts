@@ -7,7 +7,7 @@ import {
 } from "./promptTreeProvider";
 import { EXTENSION_CONSTANTS } from "./config";
 import { publish } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 
 export class CommandHandler {
   constructor(
@@ -55,7 +55,7 @@ export class CommandHandler {
   private async refreshTree(): Promise<void> {
     try {
       // Publish tree refresh event instead of directly calling controller
-      publish(EventBuilder.ui.treeRefreshRequested("manual", "CommandHandler"));
+      publish(Events.treeRefreshRequested("manual", "CommandHandler"));
 
       vscode.window.showInformationMessage("Prompt Manager tree refreshed");
     } catch (error) {
@@ -99,7 +99,7 @@ export class CommandHandler {
       await this.promptController.deletePromptFile(filePath);
 
       // Publish file deleted event
-      publish(EventBuilder.fileSystem.fileDeleted(filePath, "CommandHandler"));
+      publish(Events.fileDeleted(filePath, "CommandHandler"));
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
     }
@@ -171,6 +171,6 @@ export class CommandHandler {
   }
 
   private publishPromptOpened(filePath: string): void {
-    publish(EventBuilder.ui.promptOpened(filePath, "CommandHandler"));
+    publish(Events.promptOpened(filePath, "CommandHandler"));
   }
 }

@@ -3,7 +3,7 @@ import { PromptRepository } from "./promptRepository";
 import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
 import { subscribe, publish } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 import {
   validateFileName,
   sanitizeFileName,
@@ -61,7 +61,7 @@ export class PromptController {
   private publishTreeRefreshEvent(
     reason: "manual" | "file-change" | "search-change"
   ): void {
-    publish(EventBuilder.ui.treeRefreshRequested(reason, "PromptController"));
+    publish(Events.treeRefreshRequested(reason, "PromptController"));
   }
 
   /**
