@@ -220,26 +220,6 @@ export const FileNameSchema = createFileNameSchema({
 });
 
 /**
- * Strict file name schema for security-sensitive contexts
- */
-export const StrictFileNameSchema = createFileNameSchema({
-  namingPattern: "kebab-case",
-  maxLength: 100,
-  allowSpaces: false,
-  allowUnicode: false,
-});
-
-/**
- * Flexible file name schema for user content
- */
-export const FlexibleFileNameSchema = createFileNameSchema({
-  namingPattern: "original",
-  maxLength: 255,
-  allowSpaces: true,
-  allowUnicode: true,
-});
-
-/**
  * Type inference
  */
 export type ValidFileName = z.infer<typeof FileNameSchema>;

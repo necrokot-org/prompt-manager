@@ -9,33 +9,6 @@ export const SearchQueryType = z
   .default("simple");
 
 /**
- * Injection patterns to detect potentially dangerous input
- */
-const INJECTION_PATTERNS = [
-  /['";]|--|\||\|\||&&/g, // SQL injection attempts
-  /<script|javascript:|data:/gi, // XSS attempts
-  /\$\{|\#\{/g, // Template injection
-  /eval\(|exec\(|system\(/gi, // Code execution attempts
-  /\.\./g, // Path traversal
-];
-
-/**
- * Dangerous regex patterns that should be avoided
- */
-const DANGEROUS_REGEX_PATTERNS = [
-  /\(\?\#.*\)/g, // Comments in regex
-  /\(\?\{/g, // Code execution attempts
-  /\\x[0-9a-fA-F]{2}/g, // Hex escapes
-  /\\u[0-9a-fA-F]{4}/g, // Unicode escapes
-  /\(\?\=/g, // Positive lookahead
-  /\(\?\!/g, // Negative lookahead
-  /\(\?\<\=/g, // Positive lookbehind
-  /\(\?\<\!/g, // Negative lookbehind
-  /\(\?\>/g, // Atomic groups
-  /\(\?\&/g, // Conditional patterns
-];
-
-/**
  * Validate regex syntax and security using safe-regex2 and standard RegExp
  */
 function validateRegex(query: string): { valid: boolean; error?: string } {
@@ -57,20 +30,6 @@ function validateRegex(query: string): { valid: boolean; error?: string } {
       error: `Invalid regular expression: ${(error as Error).message}`,
     };
   }
-}
-
-/**
- * Check for injection attempts
- */
-function hasInjectionPatterns(query: string): boolean {
-  return INJECTION_PATTERNS.some((pattern) => pattern.test(query));
-}
-
-/**
- * Check for dangerous regex patterns
- */
-function hasDangerousPatterns(query: string): boolean {
-  return DANGEROUS_REGEX_PATTERNS.some((pattern) => pattern.test(query));
 }
 
 /**
@@ -106,7 +65,6 @@ export interface SearchQueryOptions {
   minLength?: number;
   allowRegex?: boolean;
   allowWildcards?: boolean;
-  preventInjection?: boolean;
   allowedOperators?: string[];
   bannedTerms?: string[];
 }
@@ -120,7 +78,6 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
     minLength = 1,
     allowRegex = true,
     allowWildcards = true,
-    preventInjection = true,
     allowedOperators = ["AND", "OR", "NOT", "+", "-", '"', "*", "?"],
     bannedTerms = [],
   } = options;
@@ -130,9 +87,6 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
       .string()
       .min(minLength, `Search query must be at least ${minLength} characters`)
       .max(maxLength, `Search query cannot exceed ${maxLength} characters`)
-      .refine((val) => !preventInjection || !hasInjectionPatterns(val), {
-        message: "Search query contains potentially dangerous patterns",
-      })
       .refine(
         (val) =>
           bannedTerms.length === 0 ||
@@ -145,9 +99,6 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
           )}`,
         }
       )
-      .refine((val) => !/\0/.test(val), {
-        message: "Search query contains null bytes",
-      })
       .transform((val) => val.trim().replace(/\s+/g, " ")), // Normalize whitespace
 
     type: SearchQueryType,
@@ -171,16 +122,7 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
           break;
         }
 
-        // Check for dangerous patterns first
-        if (hasDangerousPatterns(query)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Regex contains potentially dangerous patterns",
-            path: ["query"],
-          });
-        }
-
-        // Validate regex syntax and safety with safe-regex2
+        // Simple regex validation - let RegExp constructor handle the rest
         const regexValidation = validateRegex(query);
         if (!regexValidation.valid) {
           ctx.addIssue({
@@ -197,26 +139,6 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
             code: z.ZodIssueCode.custom,
             message: "Wildcard queries are not allowed",
             path: ["type"],
-          });
-          break;
-        }
-
-        // Check for too many wildcards
-        const wildcardCount = (query.match(/[*?]/g) || []).length;
-        if (wildcardCount > 10) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Too many wildcards may affect performance",
-            path: ["query"],
-          });
-        }
-
-        // Warn about leading wildcards
-        if (query.startsWith("*") || query.startsWith("?")) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Leading wildcards can significantly slow down searches",
-            path: ["query"],
           });
         }
         break;
@@ -248,46 +170,6 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
           });
         }
         break;
-
-      case "simple":
-      default:
-        // Check for very short terms that might return too many results
-        const terms = query.split(/\s+/).filter((term) => term.length > 0);
-        const shortTerms = terms.filter(
-          (term) => term.length < 3 && !/[*?]/.test(term)
-        );
-
-        if (shortTerms.length > 0 && terms.length === shortTerms.length) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message:
-              "All search terms are very short, this might return too many results",
-            path: ["query"],
-          });
-        }
-        break;
-    }
-
-    // Performance checks for all types
-    if (query.length > 500) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Very long search queries may impact performance",
-        path: ["query"],
-      });
-    }
-
-    // Check for excessive special characters (except for regex type which naturally has many special chars)
-    if (type !== "regex") {
-      const specialCharRatio =
-        (query.match(/[^\w\s]/g) || []).length / query.length;
-      if (specialCharRatio > 0.7) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Query contains excessive special characters",
-          path: ["query"],
-        });
-      }
     }
   });
 }
@@ -306,4 +188,4 @@ export type SearchQueryTypeValue = z.infer<typeof SearchQueryType>;
 /**
  * Utility functions
  */
-export { validateRegex, hasInjectionPatterns };
+export { validateRegex };
