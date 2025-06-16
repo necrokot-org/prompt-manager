@@ -1,6 +1,6 @@
 import { z } from "zod";
 import sanitizeFilename from "sanitize-filename";
-import { kebabCase, snakeCase } from "change-case";
+import slugify from "@sindresorhus/slugify";
 import validFilename from "valid-filename";
 import { trim } from "lodash";
 
@@ -26,7 +26,7 @@ function removeExtension(fileName: string): string {
 }
 
 /**
- * Format name according to the specified pattern using change-case library
+ * Format name according to the specified pattern using @sindresorhus/slugify
  * @param pattern - The naming pattern to apply
  * @param raw - The raw filename to transform
  * @returns Promise that resolves to the formatted filename
@@ -39,37 +39,14 @@ export async function formatName(
   const extension = getExtension(raw);
   const nameWithoutExt = removeExtension(raw);
 
-  let transformedName: string;
-
-  switch (pattern) {
-    case "kebab-case": {
-      transformedName = kebabCase(nameWithoutExt);
-      break;
-    }
-    case "snake_case": {
-      transformedName = snakeCase(nameWithoutExt);
-      break;
-    }
-    case "original":
-    default:
-      transformedName = nameWithoutExt;
-      break;
+  if (pattern === "original") {
+    return nameWithoutExt + extension;
   }
 
-  return transformedName + extension;
-}
+  const separator = pattern === "snake_case" ? "_" : "-";
+  const transformedName = slugify(nameWithoutExt, { separator });
 
-/**
- * Synchronous format name function using change-case
- * @param pattern - The naming pattern to apply
- * @param raw - The raw filename to transform
- * @returns The formatted filename
- */
-async function formatNameAsync(
-  pattern: FileNamingPattern,
-  raw: string
-): Promise<string> {
-  return formatName(pattern, raw);
+  return transformedName + extension;
 }
 
 /**
@@ -193,7 +170,7 @@ export function createFileNameSchema(options: FileNameOptions = {}) {
           )}`,
         }
       )
-      // Apply formatting using change-case
+      // Apply formatting using @sindresorhus/slugify
       .transform(async (val) => await formatName(namingPattern, val))
       // Warning for suspicious extensions (non-blocking)
       .refine(

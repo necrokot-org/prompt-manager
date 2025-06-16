@@ -1,42 +1,24 @@
 /**
  * String utility functions for the Prompt Manager extension
  */
-import { kebabCase, snakeCase } from "change-case";
+import slugify from "@sindresorhus/slugify";
 
 export type FileNamingPattern = "snake_case" | "kebab-case" | "original";
 
 /**
- * Normalize a filename according to the specified naming pattern using change-case
+ * Normalize a filename according to the specified naming pattern using @sindresorhus/slugify
  * @param fileName - The original filename to normalize
  * @param namingPattern - The naming pattern to apply
- * @returns Promise that resolves to the normalized filename
+ * @returns The normalized filename
  */
-export async function normalizeFileName(
+export function normalizeFileName(
   fileName: string,
   namingPattern: FileNamingPattern = "kebab-case"
-): Promise<string> {
-  return normalizeFileNameAsync(fileName, namingPattern);
-}
-
-/**
- * Async version using change-case library for transformation
- * @param fileName - The original filename to normalize
- * @param namingPattern - The naming pattern to apply
- * @returns Promise that resolves to the normalized filename
- */
-export async function normalizeFileNameAsync(
-  fileName: string,
-  namingPattern: FileNamingPattern = "kebab-case"
-): Promise<string> {
-  switch (namingPattern) {
-    case "snake_case": {
-      return snakeCase(fileName);
-    }
-    case "original":
-      return fileName;
-    case "kebab-case":
-    default: {
-      return kebabCase(fileName);
-    }
+): string {
+  if (namingPattern === "original") {
+    return fileName;
   }
+
+  const separator = namingPattern === "snake_case" ? "_" : "-";
+  return slugify(fileName, { separator });
 }
