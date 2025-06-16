@@ -1,5 +1,6 @@
 import { z } from "zod";
 import RE2 from "re2";
+import safeRegex from "safe-regex2";
 
 /**
  * Search query types
@@ -20,17 +21,6 @@ const INJECTION_PATTERNS = [
 ];
 
 /**
- * ReDoS (Regular Expression Denial of Service) patterns
- */
-const REDOS_PATTERNS = [
-  /\([^)]*\+[^)]*\+[^)]*\)/g, // Nested quantifiers
-  /\([^)]*\*[^)]*\*[^)]*\)/g, // Multiple wildcards
-  /\([^)]*\{[0-9,]+\}.*\{[0-9,]+\}[^)]*\)/g, // Multiple range quantifiers
-  /\(\.\*\){2,}/g, // Multiple .* patterns
-  /\(\.\+\){2,}/g, // Multiple .+ patterns
-];
-
-/**
  * Dangerous regex patterns that should be avoided
  */
 const DANGEROUS_REGEX_PATTERNS = [
@@ -47,65 +37,26 @@ const DANGEROUS_REGEX_PATTERNS = [
 ];
 
 /**
- * Calculate regex complexity score
- */
-function calculateComplexity(query: string): number {
-  let complexity = 0;
-
-  // Base complexity from length
-  complexity += Math.min(query.length / 10, 20);
-
-  // Add complexity for special characters
-  complexity += (query.match(/[.*+?^${}()|[\]\\]/g) || []).length * 2;
-
-  // Add complexity for quantifiers
-  complexity += (query.match(/[*+?{]/g) || []).length * 3;
-
-  // Add complexity for alternations
-  complexity += (query.match(/\|/g) || []).length * 2;
-
-  // Add complexity for lookarounds
-  complexity += (query.match(/\(\?\[!=<]/g) || []).length * 5;
-
-  // Count nested groups
-  let maxDepth = 0;
-  let currentDepth = 0;
-  for (let i = 0; i < query.length; i++) {
-    if (query[i] === "(" && (i === 0 || query[i - 1] !== "\\")) {
-      currentDepth++;
-      maxDepth = Math.max(maxDepth, currentDepth);
-    } else if (query[i] === ")" && (i === 0 || query[i - 1] !== "\\")) {
-      currentDepth--;
-    }
-  }
-  complexity += maxDepth * 3;
-
-  return Math.round(complexity);
-}
-
-/**
- * Validate regex syntax and security
+ * Validate regex syntax and security using safe-regex2 and RE2
  */
 function validateRegex(query: string): { valid: boolean; error?: string } {
   try {
-    // Try to compile with RE2 first (safer)
+    // First check if the regex is safe using safe-regex2
+    if (!safeRegex(query)) {
+      return {
+        valid: false,
+        error: "Regex pattern is potentially unsafe (ReDoS vulnerability)",
+      };
+    }
+
+    // Validate with RE2 engine (safer than standard RegExp)
     new RE2(query);
     return { valid: true };
   } catch (error) {
-    // If RE2 fails, try with standard RegExp for error message
-    try {
-      new RegExp(query);
-      return {
-        valid: false,
-        error:
-          "Regex is valid but not supported by RE2 engine (potentially unsafe)",
-      };
-    } catch (regexError) {
-      return {
-        valid: false,
-        error: `Invalid regular expression: ${(regexError as Error).message}`,
-      };
-    }
+    return {
+      valid: false,
+      error: `Invalid regular expression: ${(error as Error).message}`,
+    };
   }
 }
 
@@ -114,13 +65,6 @@ function validateRegex(query: string): { valid: boolean; error?: string } {
  */
 function hasInjectionPatterns(query: string): boolean {
   return INJECTION_PATTERNS.some((pattern) => pattern.test(query));
-}
-
-/**
- * Check for ReDoS patterns
- */
-function hasReDoSPatterns(query: string): boolean {
-  return REDOS_PATTERNS.some((pattern) => pattern.test(query));
 }
 
 /**
@@ -164,7 +108,6 @@ export interface SearchQueryOptions {
   allowRegex?: boolean;
   allowWildcards?: boolean;
   preventInjection?: boolean;
-  maxComplexity?: number;
   allowedOperators?: string[];
   bannedTerms?: string[];
 }
@@ -179,7 +122,6 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
     allowRegex = true,
     allowWildcards = true,
     preventInjection = true,
-    maxComplexity = 100,
     allowedOperators = ["AND", "OR", "NOT", "+", "-", '"', "*", "?"],
     bannedTerms = [],
   } = options;
@@ -239,31 +181,12 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
           });
         }
 
-        // Check for ReDoS patterns
-        if (hasReDoSPatterns(query)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Regex may cause performance issues (ReDoS vulnerability)",
-            path: ["query"],
-          });
-        }
-
-        // Validate regex syntax with RE2
+        // Validate regex syntax and safety with safe-regex2
         const regexValidation = validateRegex(query);
         if (!regexValidation.valid) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: regexValidation.error || "Invalid regular expression",
-            path: ["query"],
-          });
-        }
-
-        // Check complexity
-        const complexity = calculateComplexity(query);
-        if (complexity > maxComplexity) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Regex is too complex (score: ${complexity}, max: ${maxComplexity})`,
             path: ["query"],
           });
         }
@@ -355,15 +278,17 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
       });
     }
 
-    // Check for excessive special characters
-    const specialCharRatio =
-      (query.match(/[^\w\s]/g) || []).length / query.length;
-    if (specialCharRatio > 0.5) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Query contains excessive special characters",
-        path: ["query"],
-      });
+    // Check for excessive special characters (except for regex type which naturally has many special chars)
+    if (type !== "regex") {
+      const specialCharRatio =
+        (query.match(/[^\w\s]/g) || []).length / query.length;
+      if (specialCharRatio > 0.7) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Query contains excessive special characters",
+          path: ["query"],
+        });
+      }
     }
   });
 }
@@ -382,4 +307,4 @@ export type SearchQueryTypeValue = z.infer<typeof SearchQueryType>;
 /**
  * Utility functions
  */
-export { validateRegex, calculateComplexity, hasInjectionPatterns };
+export { validateRegex, hasInjectionPatterns };

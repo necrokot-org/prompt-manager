@@ -204,6 +204,7 @@
     "remark-preset-lint-recommended": "^7.0.1",
     "remark-stringify": "^11.0.0",
     "rxjs": "^7.8.2",
+    "safe-regex2": "^5.0.0",
     "sanitize-filename": "^1.6.3",
     "zod": "^3.25.64"
   }
