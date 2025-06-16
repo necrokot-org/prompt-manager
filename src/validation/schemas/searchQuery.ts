@@ -5,9 +5,16 @@ import { trim } from "lodash";
 /**
  * Search query types
  */
+export enum QueryKind {
+  Simple = "simple",
+  Regex = "regex",
+  Wildcard = "wildcard",
+  Boolean = "boolean",
+}
+
 export const SearchQueryType = z
-  .enum(["simple", "regex", "wildcard", "boolean"])
-  .default("simple");
+  .nativeEnum(QueryKind)
+  .default(QueryKind.Simple);
 
 /**
  * Validate regex syntax and security using safe-regex2 and standard RegExp
