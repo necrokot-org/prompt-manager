@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
 import { PromptRepository } from "./promptRepository";
-import { PromptStructure, PromptFile } from "./fileManager";
+import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
 import { subscribe, publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
+import { validate, sanitize, getFirstError } from "./validation/index.js";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
@@ -249,14 +250,26 @@ export class PromptController {
       prompt: "Enter the name for your new prompt",
       placeHolder: "e.g., Code Review Helper",
       validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Prompt name cannot be empty";
+        const result = validate.fileName(value, {
+          requiredExtension: ".md",
+          allowSpaces: false,
+        });
+
+        if (!result.success) {
+          return getFirstError(result) || "Invalid file name";
         }
+
         return undefined;
       },
     });
 
-    return fileName?.trim();
+    if (fileName) {
+      // Sanitize the file name before returning
+      const sanitized = sanitize.fileName(fileName + ".md");
+      return sanitized.replace(/\.md$/, ""); // Remove extension for display
+    }
+
+    return undefined;
   }
 
   /**
@@ -267,14 +280,25 @@ export class PromptController {
       prompt: "Enter the name for the new folder",
       placeHolder: "e.g., coding, writing, templates",
       validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Folder name cannot be empty";
+        const result = validate.fileName(value, {
+          allowSpaces: false,
+          namingPattern: "kebab-case",
+        });
+
+        if (!result.success) {
+          return getFirstError(result) || "Invalid folder name";
         }
+
         return undefined;
       },
     });
 
-    return folderName?.trim();
+    if (folderName) {
+      // Sanitize the folder name before returning
+      return sanitize.fileName(folderName);
+    }
+
+    return undefined;
   }
 
   /**

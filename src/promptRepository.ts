@@ -1,7 +1,10 @@
 import * as vscode from "vscode";
-import { FileManager, PromptStructure, PromptFile } from "./fileManager";
+import { FileManager, PromptStructure } from "./fileManager";
 import { publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
+import { validate, getErrorMessages } from "./validation/index.js";
+import { PromptParser } from "./core/PromptParser.js";
+import * as fs from "fs";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
@@ -152,7 +155,6 @@ export class PromptRepository {
    */
   public async readFileContent(filePath: string): Promise<string | null> {
     try {
-      const fs = await import("fs");
       return await fs.promises.readFile(filePath, "utf8");
     } catch (error) {
       console.error(`Failed to read file ${filePath}:`, error);
@@ -161,34 +163,38 @@ export class PromptRepository {
   }
 
   /**
-   * Validate prompt content
+   * Validate prompt content using the new validation layer
    */
-  public validatePromptContent(content: string): {
+  public async validatePromptContent(content: string): Promise<{
     isValid: boolean;
     errors: string[];
-  } {
-    const errors: string[] = [];
+    warnings: string[];
+  }> {
+    // Parse the content to extract structured data
+    const parser = new PromptParser();
+    const parsed = parser.parsePromptContent(content);
 
-    if (!content || content.trim().length === 0) {
-      errors.push("Prompt content cannot be empty");
-    }
+    // Create PromptContent structure for validation
+    const promptContent = {
+      content: parsed.content,
+      frontMatter: parsed.frontMatter,
+      title: parsed.title,
+      description: parsed.description,
+      tags: parsed.tags,
+    };
 
-    if (content.length > 500000) {
-      errors.push("Prompt content is too large (max 500KB)");
-    }
-
-    // Validate front matter if present
-    const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (frontMatterMatch) {
-      const frontMatter = frontMatterMatch[1];
-      if (!frontMatter.includes("title:")) {
-        errors.push("Front matter must include a title field");
-      }
-    }
+    // Validate using the new Zod-based validator
+    const result = validate.prompt(promptContent, {
+      requireTitle: false,
+      requireDescription: false,
+      maxContentLength: 500000,
+      strictMode: false,
+    });
 
     return {
-      isValid: errors.length === 0,
-      errors,
+      isValid: result.success,
+      errors: getErrorMessages(result),
+      warnings: [], // Zod doesn't distinguish warnings, all are errors
     };
   }
 

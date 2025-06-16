@@ -195,6 +195,14 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "rxjs": "^7.8.2"
+    "re2": "^1.22.1",
+    "remark": "^15.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-lint": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "rxjs": "^7.8.2",
+    "sanitize-filename": "^1.6.3",
+    "zod": "^3.25.64"
   }
 }

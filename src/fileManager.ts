@@ -1,16 +1,11 @@
 import * as path from "path";
-import { normalizeFileName, FileNamingPattern } from "./utils/string";
-import { getFileNamingPattern } from "./config";
+
 import { EventBuilder } from "./core/EventSystem";
 import { publish } from "./core/eventBus";
 
 // Import all the focused components
 import { FileSystemManager } from "./core/FileSystemManager";
-import {
-  PromptParser,
-  ParsedPromptContent,
-  PromptMetadata,
-} from "./core/PromptParser";
+import { PromptParser, PromptMetadata } from "./core/PromptParser";
 import { CacheManager } from "./core/CacheManager";
 import {
   DirectoryScanner,
@@ -24,6 +19,8 @@ import {
   SearchResult,
   FileContent,
 } from "./core/SearchEngine";
+
+import { sanitize } from "./validation/index";
 
 // Legacy interfaces for backward compatibility
 export interface SearchablePromptFile extends PromptFile {
@@ -118,7 +115,7 @@ export class FileManager {
     await this.ensurePromptManagerDirectory();
 
     // Sanitize filename
-    const sanitizedName = this.getSanitizedName(fileName);
+    const sanitizedName = sanitize.fileName(fileName);
     const fullFileName = `${sanitizedName}.md`;
 
     const targetDir = folderPath || promptPath;
@@ -167,7 +164,7 @@ export class FileManager {
 
     await this.ensurePromptManagerDirectory();
 
-    const sanitizedName = this.getSanitizedName(folderName);
+    const sanitizedName = sanitize.fileName(folderName);
     const folderPath = path.join(promptPath, sanitizedName);
 
     if (this.fileSystemManager.fileExists(folderPath)) {
@@ -286,11 +283,6 @@ export class FileManager {
   }
 
   // Private helper methods
-
-  private getSanitizedName(name: string): string {
-    const namingPattern = getFileNamingPattern();
-    return normalizeFileName(name, namingPattern);
-  }
 
   private async getFileContentsForSearch(): Promise<FileContent[]> {
     const allFiles = await this.directoryScanner.getAllPromptFiles();
