@@ -13,12 +13,8 @@ import {
   PromptFolder,
   PromptStructure,
 } from "./core/DirectoryScanner";
-import {
-  SearchEngine,
-  SearchCriteria,
-  SearchResult,
-  FileContent,
-} from "./core/SearchEngine";
+import { SearchCriteria, SearchResult, FileContent } from "./core/SearchEngine";
+import { searchEngine } from "./searchEngine";
 
 import { sanitizeFileName } from "./validation/index";
 
@@ -57,7 +53,6 @@ export class FileManager {
   private promptParser: PromptParser;
   private contentCache: LRUCache<string, string>;
   private directoryScanner: DirectoryScanner;
-  private searchEngine: SearchEngine;
 
   constructor() {
     // Initialize all components
@@ -68,7 +63,6 @@ export class FileManager {
       ttl: 5 * 60 * 1000, // 5 minutes
     });
     this.directoryScanner = new DirectoryScanner(this.fileSystemManager);
-    this.searchEngine = new SearchEngine();
   }
 
   // File system operations (delegate to FileSystemManager)
@@ -228,7 +222,7 @@ export class FileManager {
       isActive: true,
     };
 
-    const results = await this.searchEngine.searchFiles(files, searchCriteria);
+    const results = await searchEngine.searchFiles(files, searchCriteria);
 
     // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
     const contentResults: ContentSearchResult[] = [];
@@ -260,7 +254,7 @@ export class FileManager {
       isActive: true,
     };
 
-    const results = await this.searchEngine.searchFiles(files, searchCriteria);
+    const results = await searchEngine.searchFiles(files, searchCriteria);
 
     // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
     const contentResults: ContentSearchResult[] = [];
@@ -278,7 +272,7 @@ export class FileManager {
   // Cache management
 
   public clearSearchCache(): void {
-    this.searchEngine.clearCache();
+    searchEngine.clearCache();
     this.contentCache.clear();
   }
 
@@ -364,8 +358,8 @@ export class FileManager {
     return this.directoryScanner;
   }
 
-  public getSearchEngine(): SearchEngine {
-    return this.searchEngine;
+  public getSearchEngine() {
+    return searchEngine;
   }
 
   private publishFileEvent(

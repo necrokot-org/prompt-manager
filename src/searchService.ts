@@ -1,17 +1,16 @@
 import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
-import { SearchEngine, FileContent } from "./core/SearchEngine";
+import { FileContent } from "./core/SearchEngine";
+import { searchEngine } from "./searchEngine";
 import { publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
 import { trim } from "lodash";
 
 export class SearchService {
-  private searchEngine: SearchEngine;
   private fileManager: FileManager;
 
   constructor(fileManager: FileManager) {
     this.fileManager = fileManager;
-    this.searchEngine = new SearchEngine();
   }
 
   /**
@@ -33,10 +32,7 @@ export class SearchService {
     };
 
     try {
-      const results = await this.searchEngine.searchFiles(
-        files,
-        searchCriteria
-      );
+      const results = await searchEngine.searchFiles(files, searchCriteria);
 
       // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
       const contentResults: ContentSearchResult[] = [];
@@ -79,7 +75,7 @@ export class SearchService {
         content,
       };
 
-      return await this.searchEngine.fileMatches(fileContent, criteria);
+      return await searchEngine.fileMatches(fileContent, criteria);
     } catch (error) {
       console.error("Error checking file match:", error);
       // Fallback to simple text matching
@@ -135,7 +131,7 @@ export class SearchService {
    * Clear search caches
    */
   clearCache(): void {
-    this.searchEngine.clearCache();
+    searchEngine.clearCache();
   }
 
   async publishResultsUpdated(
