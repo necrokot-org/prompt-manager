@@ -18,6 +18,7 @@ import { SearchCriteria, SearchResult, FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
 
 import { sanitizeFileName } from "./validation/index";
+import { searchResultToPromptFile } from "./utils";
 
 // Legacy interfaces for backward compatibility
 export interface SearchablePromptFile extends PromptFile {
@@ -347,39 +348,11 @@ export class FileManager {
   private async searchResultToPromptFile(
     result: SearchResult
   ): Promise<PromptFile> {
-    // Try to find the file in our directory scanner
+    // Get all files from directory scanner
     const allFiles = await this.directoryScanner.getAllPromptFiles();
-    const file = allFiles.find((f) => f.path === result.filePath);
 
-    if (file) {
-      return file;
-    }
-
-    // Fallback: create a PromptFile from the search result
-    try {
-      const stats = await this.fileSystemManager.getFileStats(result.filePath);
-      return {
-        name: result.fileName,
-        title: result.title,
-        path: result.filePath,
-        description: undefined,
-        tags: [],
-        fileSize: stats.size,
-        isDirectory: false,
-      };
-    } catch (error) {
-      console.error(`Failed to get file stats for ${result.filePath}:`, error);
-      // Return minimal file info
-      return {
-        name: result.fileName,
-        title: result.title,
-        path: result.filePath,
-        description: undefined,
-        tags: [],
-        fileSize: 0,
-        isDirectory: false,
-      };
-    }
+    // Use shared utility function
+    return searchResultToPromptFile(result, allFiles, this.fileSystemManager);
   }
 
   // Component access methods (for advanced usage)

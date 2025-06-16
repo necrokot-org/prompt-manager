@@ -7,6 +7,7 @@ import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
 import { DI_TOKENS } from "./core/di-container";
 import { trim } from "lodash";
+import { searchResultToPromptFile } from "./utils";
 
 @injectable()
 export class SearchService {
@@ -142,45 +143,18 @@ export class SearchService {
   private async convertSearchResultToPromptFile(
     result: any
   ): Promise<PromptFile> {
-    // Try to find the file in our directory scanner
+    // Get all files from file manager
     const structure = await this.fileManager.scanPrompts();
     const allFiles: PromptFile[] = [
       ...structure.rootPrompts,
       ...structure.folders.flatMap((folder) => folder.prompts),
     ];
 
-    const file = allFiles.find((f) => f.path === result.filePath);
-
-    if (file) {
-      return file;
-    }
-
-    // Create a PromptFile from the search result
-    try {
-      const stats = await this.fileManager
-        .getFileSystemManager()
-        .getFileStats(result.filePath);
-      return {
-        name: result.fileName,
-        title: result.title,
-        path: result.filePath,
-        description: undefined,
-        tags: [],
-        fileSize: stats.size,
-        isDirectory: false,
-      };
-    } catch (error) {
-      console.error(`Failed to get file stats for ${result.filePath}:`, error);
-      // Return minimal file info
-      return {
-        name: result.fileName,
-        title: result.title,
-        path: result.filePath,
-        description: undefined,
-        tags: [],
-        fileSize: 0,
-        isDirectory: false,
-      };
-    }
+    // Use shared utility function
+    return searchResultToPromptFile(
+      result,
+      allFiles,
+      this.fileManager.getFileSystemManager()
+    );
   }
 }
