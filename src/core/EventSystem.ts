@@ -1,234 +1,98 @@
 // Event System for Prompt Manager Extension
 import * as vscode from "vscode";
 
-// Base event interface
-export interface BaseEvent {
-  type: string;
+// Generic event interface with discriminated union support
+export interface BaseExtensionEvent<
+  TType extends string = string,
+  TPayload = any
+> {
+  type: TType;
+  payload: TPayload;
   timestamp: number;
   source?: string;
 }
 
-// Event payload interfaces organized by category
-export namespace FileSystemEvents {
-  export interface FileCreated extends BaseEvent {
-    type: "filesystem.file.created";
-    payload: {
-      filePath: string;
-      fileName: string;
-    };
-  }
-
-  export interface FileDeleted extends BaseEvent {
-    type: "filesystem.file.deleted";
-    payload: {
-      filePath: string;
-      fileName: string;
-    };
-  }
-
-  export interface FileChanged extends BaseEvent {
-    type: "filesystem.file.changed";
-    payload: {
-      filePath: string;
-      fileName: string;
-    };
-  }
-
-  export interface DirectoryCreated extends BaseEvent {
-    type: "filesystem.directory.created";
-    payload: {
-      dirPath: string;
-      dirName: string;
-    };
-  }
-
-  export interface StructureChanged extends BaseEvent {
-    type: "filesystem.structure.changed";
-    payload: {
-      reason:
-        | "file-created"
-        | "file-deleted"
-        | "file-changed"
-        | "directory-created"
-        | "manual-refresh";
-      affectedPath?: string;
-    };
-  }
+// Helper type to extract payload type from an event creator
+type EventCreator<T> = T extends (...args: any[]) => {
+  type: infer TType;
+  payload: infer TPayload;
 }
+  ? TType extends string
+    ? BaseExtensionEvent<TType, TPayload>
+    : never
+  : never;
 
-export namespace SearchEvents {
-  export interface SearchCriteriaChanged extends BaseEvent {
-    type: "search.criteria.changed";
-    payload: {
-      query: string;
-      scope: "titles" | "content" | "both";
-      caseSensitive: boolean;
-      isActive: boolean;
-    };
-  }
-
-  export interface SearchResultsUpdated extends BaseEvent {
-    type: "search.results.updated";
-    payload: {
-      resultCount: number;
-      query: string;
-    };
-  }
-
-  export interface SearchCleared extends BaseEvent {
-    type: "search.cleared";
-    payload: {};
-  }
-}
-
-export namespace UIEvents {
-  export interface TreeRefreshRequested extends BaseEvent {
-    type: "ui.tree.refresh.requested";
-    payload: {
-      reason: "manual" | "file-change" | "search-change";
-    };
-  }
-
-  export interface TreeItemSelected extends BaseEvent {
-    type: "ui.tree.item.selected";
-    payload: {
-      itemType: "file" | "folder";
-      itemPath: string;
-      itemName: string;
-    };
-  }
-
-  export interface PromptOpened extends BaseEvent {
-    type: "ui.prompt.opened";
-    payload: {
-      filePath: string;
-      fileName: string;
-    };
-  }
-
-  export interface PromptCreated extends BaseEvent {
-    type: "ui.prompt.created";
-    payload: {
-      filePath: string;
-      fileName: string;
-      folderPath?: string;
-    };
-  }
-}
-
-export namespace ConfigurationEvents {
-  export interface ConfigChanged extends BaseEvent {
-    type: "config.changed";
-    payload: {
-      configKey: string;
-      oldValue?: any;
-      newValue: any;
-    };
-  }
-
-  export interface WorkspaceChanged extends BaseEvent {
-    type: "config.workspace.changed";
-    payload: {
-      workspaceFolders: readonly vscode.WorkspaceFolder[];
-      reason:
-        | "folder-added"
-        | "folder-removed"
-        | "workspace-opened"
-        | "workspace-closed";
-    };
-  }
-}
-
-// Union type of all possible events
-export type ExtensionEvent =
-  | FileSystemEvents.FileCreated
-  | FileSystemEvents.FileDeleted
-  | FileSystemEvents.FileChanged
-  | FileSystemEvents.DirectoryCreated
-  | FileSystemEvents.StructureChanged
-  | SearchEvents.SearchCriteriaChanged
-  | SearchEvents.SearchResultsUpdated
-  | SearchEvents.SearchCleared
-  | UIEvents.TreeRefreshRequested
-  | UIEvents.TreeItemSelected
-  | UIEvents.PromptOpened
-  | UIEvents.PromptCreated
-  | ConfigurationEvents.ConfigChanged
-  | ConfigurationEvents.WorkspaceChanged;
-
-// Event builder utilities
-export class EventBuilder {
-  static fileSystem = {
-    fileCreated: (
-      filePath: string,
-      source?: string
-    ): Omit<FileSystemEvents.FileCreated, "timestamp"> => ({
+// Event creators using `as const` for strong typing
+export const Events = {
+  // Filesystem Events
+  fileCreated: (filePath: string, source?: string) =>
+    ({
       type: "filesystem.file.created",
       source,
       payload: {
         filePath,
         fileName: filePath.split(/[/\\]/).pop() || filePath,
       },
-    }),
+    } as const),
 
-    fileDeleted: (
-      filePath: string,
-      source?: string
-    ): Omit<FileSystemEvents.FileDeleted, "timestamp"> => ({
+  fileDeleted: (filePath: string, source?: string) =>
+    ({
       type: "filesystem.file.deleted",
       source,
       payload: {
         filePath,
         fileName: filePath.split(/[/\\]/).pop() || filePath,
       },
-    }),
+    } as const),
 
-    fileChanged: (
-      filePath: string,
-      source?: string
-    ): Omit<FileSystemEvents.FileChanged, "timestamp"> => ({
+  fileChanged: (filePath: string, source?: string) =>
+    ({
       type: "filesystem.file.changed",
       source,
       payload: {
         filePath,
         fileName: filePath.split(/[/\\]/).pop() || filePath,
       },
-    }),
+    } as const),
 
-    directoryCreated: (
-      dirPath: string,
-      source?: string
-    ): Omit<FileSystemEvents.DirectoryCreated, "timestamp"> => ({
+  directoryCreated: (dirPath: string, source?: string) =>
+    ({
       type: "filesystem.directory.created",
       source,
       payload: {
         dirPath,
         dirName: dirPath.split(/[/\\]/).pop() || dirPath,
       },
-    }),
+    } as const),
 
-    structureChanged: (
-      reason: FileSystemEvents.StructureChanged["payload"]["reason"],
-      affectedPath?: string,
-      source?: string
-    ): Omit<FileSystemEvents.StructureChanged, "timestamp"> => ({
+  structureChanged: (
+    reason:
+      | "file-created"
+      | "file-deleted"
+      | "file-changed"
+      | "directory-created"
+      | "manual-refresh",
+    affectedPath?: string,
+    source?: string
+  ) =>
+    ({
       type: "filesystem.structure.changed",
       source,
       payload: {
         reason,
         affectedPath,
       },
-    }),
-  };
+    } as const),
 
-  static search = {
-    criteriaChanged: (
-      query: string,
-      scope: "titles" | "content" | "both",
-      caseSensitive: boolean,
-      isActive: boolean,
-      source?: string
-    ): Omit<SearchEvents.SearchCriteriaChanged, "timestamp"> => ({
+  // Search Events
+  searchCriteriaChanged: (
+    query: string,
+    scope: "titles" | "content" | "both",
+    caseSensitive: boolean,
+    isActive: boolean,
+    source?: string
+  ) =>
+    ({
       type: "search.criteria.changed",
       source,
       payload: {
@@ -237,59 +101,66 @@ export class EventBuilder {
         caseSensitive,
         isActive,
       },
-    }),
+    } as const),
 
-    resultsUpdated: (
-      resultCount: number,
-      query: string,
-      source?: string
-    ): Omit<SearchEvents.SearchResultsUpdated, "timestamp"> => ({
+  searchResultsUpdated: (resultCount: number, query: string, source?: string) =>
+    ({
       type: "search.results.updated",
       source,
       payload: {
         resultCount,
         query,
       },
-    }),
+    } as const),
 
-    cleared: (
-      source?: string
-    ): Omit<SearchEvents.SearchCleared, "timestamp"> => ({
+  searchCleared: (source?: string) =>
+    ({
       type: "search.cleared",
       source,
       payload: {},
-    }),
-  };
+    } as const),
 
-  static ui = {
-    treeRefreshRequested: (
-      reason: UIEvents.TreeRefreshRequested["payload"]["reason"],
-      source?: string
-    ): Omit<UIEvents.TreeRefreshRequested, "timestamp"> => ({
+  // UI Events
+  treeRefreshRequested: (
+    reason: "manual" | "file-change" | "search-change",
+    source?: string
+  ) =>
+    ({
       type: "ui.tree.refresh.requested",
       source,
       payload: {
         reason,
       },
-    }),
+    } as const),
 
-    promptOpened: (
-      filePath: string,
-      source?: string
-    ): Omit<UIEvents.PromptOpened, "timestamp"> => ({
+  treeItemSelected: (
+    itemType: "file" | "folder",
+    itemPath: string,
+    itemName: string,
+    source?: string
+  ) =>
+    ({
+      type: "ui.tree.item.selected",
+      source,
+      payload: {
+        itemType,
+        itemPath,
+        itemName,
+      },
+    } as const),
+
+  promptOpened: (filePath: string, source?: string) =>
+    ({
       type: "ui.prompt.opened",
       source,
       payload: {
         filePath,
         fileName: filePath.split(/[/\\]/).pop() || filePath,
       },
-    }),
+    } as const),
 
-    promptCreated: (
-      filePath: string,
-      folderPath?: string,
-      source?: string
-    ): Omit<UIEvents.PromptCreated, "timestamp"> => ({
+  promptCreated: (filePath: string, folderPath?: string, source?: string) =>
+    ({
       type: "ui.prompt.created",
       source,
       payload: {
@@ -297,16 +168,16 @@ export class EventBuilder {
         fileName: filePath.split(/[/\\]/).pop() || filePath,
         folderPath,
       },
-    }),
-  };
+    } as const),
 
-  static config = {
-    configChanged: (
-      configKey: string,
-      newValue: any,
-      oldValue?: any,
-      source?: string
-    ): Omit<ConfigurationEvents.ConfigChanged, "timestamp"> => ({
+  // Configuration Events
+  configChanged: (
+    configKey: string,
+    newValue: any,
+    oldValue?: any,
+    source?: string
+  ) =>
+    ({
       type: "config.changed",
       source,
       payload: {
@@ -314,19 +185,96 @@ export class EventBuilder {
         oldValue,
         newValue,
       },
-    }),
+    } as const),
 
-    workspaceChanged: (
-      workspaceFolders: readonly vscode.WorkspaceFolder[],
-      reason: ConfigurationEvents.WorkspaceChanged["payload"]["reason"],
-      source?: string
-    ): Omit<ConfigurationEvents.WorkspaceChanged, "timestamp"> => ({
+  workspaceChanged: (
+    workspaceFolders: readonly vscode.WorkspaceFolder[],
+    reason:
+      | "folder-added"
+      | "folder-removed"
+      | "workspace-opened"
+      | "workspace-closed",
+    source?: string
+  ) =>
+    ({
       type: "config.workspace.changed",
       source,
       payload: {
         workspaceFolders,
         reason,
       },
-    }),
-  };
+    } as const),
+};
+
+// Extract all possible event types from the Events object
+export type AllExtensionEvents = {
+  [K in keyof typeof Events]: EventCreator<(typeof Events)[K]>;
+}[keyof typeof Events];
+
+// Union type of all possible events (maintains compatibility)
+export type ExtensionEvent = AllExtensionEvents;
+
+// Namespace-organized type aliases for backward compatibility (if needed)
+export namespace FileSystemEvents {
+  export type FileCreated = EventCreator<typeof Events.fileCreated>;
+  export type FileDeleted = EventCreator<typeof Events.fileDeleted>;
+  export type FileChanged = EventCreator<typeof Events.fileChanged>;
+  export type DirectoryCreated = EventCreator<typeof Events.directoryCreated>;
+  export type StructureChanged = EventCreator<typeof Events.structureChanged>;
 }
+
+export namespace SearchEvents {
+  export type SearchCriteriaChanged = EventCreator<
+    typeof Events.searchCriteriaChanged
+  >;
+  export type SearchResultsUpdated = EventCreator<
+    typeof Events.searchResultsUpdated
+  >;
+  export type SearchCleared = EventCreator<typeof Events.searchCleared>;
+}
+
+export namespace UIEvents {
+  export type TreeRefreshRequested = EventCreator<
+    typeof Events.treeRefreshRequested
+  >;
+  export type TreeItemSelected = EventCreator<typeof Events.treeItemSelected>;
+  export type PromptOpened = EventCreator<typeof Events.promptOpened>;
+  export type PromptCreated = EventCreator<typeof Events.promptCreated>;
+}
+
+export namespace ConfigurationEvents {
+  export type ConfigChanged = EventCreator<typeof Events.configChanged>;
+  export type WorkspaceChanged = EventCreator<typeof Events.workspaceChanged>;
+}
+
+// Legacy EventBuilder for backward compatibility (deprecated)
+/**
+ * @deprecated Use `Events` object directly instead. Will be removed in a future version.
+ *
+ * Example migration:
+ * - Before: EventBuilder.fileSystem.fileCreated(path, source)
+ * - After: Events.fileCreated(path, source)
+ */
+export const EventBuilder = {
+  fileSystem: {
+    fileCreated: Events.fileCreated,
+    fileDeleted: Events.fileDeleted,
+    fileChanged: Events.fileChanged,
+    directoryCreated: Events.directoryCreated,
+    structureChanged: Events.structureChanged,
+  },
+  search: {
+    criteriaChanged: Events.searchCriteriaChanged,
+    resultsUpdated: Events.searchResultsUpdated,
+    cleared: Events.searchCleared,
+  },
+  ui: {
+    treeRefreshRequested: Events.treeRefreshRequested,
+    promptOpened: Events.promptOpened,
+    promptCreated: Events.promptCreated,
+  },
+  config: {
+    configChanged: Events.configChanged,
+    workspaceChanged: Events.workspaceChanged,
+  },
+};

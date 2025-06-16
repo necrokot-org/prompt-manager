@@ -3,7 +3,7 @@ import { SearchCriteria } from "./searchPanelProvider";
 import { FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
 import { publish } from "./core/eventBus";
-import { EventBuilder } from "./core/EventSystem";
+import { Events } from "./core/EventSystem";
 import { trim } from "lodash";
 
 export class SearchService {
@@ -98,13 +98,11 @@ export class SearchService {
     resultCount: number,
     query: string
   ): Promise<void> {
-    publish(
-      EventBuilder.search.resultsUpdated(resultCount, query, "SearchService")
-    );
+    publish(Events.searchResultsUpdated(resultCount, query, "SearchService"));
   }
 
   async publishCleared(): Promise<void> {
-    publish(EventBuilder.search.cleared("SearchService"));
+    publish(Events.searchCleared("SearchService"));
   }
 
   // Private helper methods
