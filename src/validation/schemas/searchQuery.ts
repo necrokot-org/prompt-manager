@@ -1,6 +1,6 @@
 import { z } from "zod";
 import safeRegex from "safe-regex2";
-import { trim } from "lodash";
+import parseLucene from "lucene-query-parser";
 
 /**
  * Search query types
@@ -38,31 +38,6 @@ function validateRegex(query: string): { valid: boolean; error?: string } {
       error: `Invalid regular expression: ${(error as Error).message}`,
     };
   }
-}
-
-/**
- * Validate boolean search syntax
- */
-function validateBooleanSyntax(query: string): {
-  valid: boolean;
-  errors: string[];
-} {
-  const errors: string[] = [];
-
-  // Check for unbalanced quotes
-  const quoteCount = (query.match(/"/g) || []).length;
-  if (quoteCount % 2 !== 0) {
-    errors.push("Unbalanced quotes in search query");
-  }
-
-  // Check for unbalanced parentheses
-  const openParens = (query.match(/\(/g) || []).length;
-  const closeParens = (query.match(/\)/g) || []).length;
-  if (openParens !== closeParens) {
-    errors.push("Unbalanced parentheses in search query");
-  }
-
-  return { valid: errors.length === 0, errors };
 }
 
 /**
@@ -107,7 +82,7 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
           )}`,
         }
       )
-      .transform((val) => trim(val).replace(/\s+/g, " ")), // Normalize whitespace
+      .transform((val) => val.trim().replace(/\s+/g, " ")), // Normalize whitespace
 
     type: SearchQueryType,
     caseSensitive: z.boolean().optional().default(false),
@@ -152,18 +127,18 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
         break;
 
       case "boolean":
-        const booleanValidation = validateBooleanSyntax(query);
-        if (!booleanValidation.valid) {
-          booleanValidation.errors.forEach((error) => {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: error,
-              path: ["query"],
-            });
+        // Use lucene-query-parser for robust boolean query validation
+        try {
+          parseLucene(query); // throws SyntaxError if invalid
+        } catch (e) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: (e as Error).message,
+            path: ["query"],
           });
         }
 
-        // Check for disallowed operators
+        // Check for disallowed operators (optional - may want to remove this as lucene handles syntax)
         const usedOperators = query.match(/\b(?:AND|OR|NOT)\b|[+\-"*?]/g) || [];
         const disallowedOperators = usedOperators.filter(
           (op) => !allowedOperators.includes(op)
