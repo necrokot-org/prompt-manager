@@ -5,6 +5,7 @@ import {
   extractFrontMatter,
   FRONT_MATTER_FIELDS,
 } from "../markdown.js";
+import { compact, uniq, trim } from "lodash";
 
 /**
  * Front matter schema for prompt metadata
@@ -29,13 +30,11 @@ export const FrontMatterSchema = z
       .max(20, "Too many tags (max 20)")
       .optional()
       .transform((tags) => {
-        // Remove duplicates and empty tags
+        // Remove duplicates and empty tags using lodash
         if (!tags) {
           return undefined;
         }
-        const uniqueTags = [
-          ...new Set(tags.filter((tag) => tag.trim().length > 0)),
-        ];
+        const uniqueTags = uniq(compact(tags.map(trim)));
         return uniqueTags.length > 0 ? uniqueTags : undefined;
       }),
   })
@@ -50,7 +49,7 @@ export const PromptContentSchema = z
       .string()
       .min(1, "Prompt content cannot be empty")
       .max(500000, "Prompt content is too large (max 500KB)")
-      .refine((content) => content.trim().length > 0, {
+      .refine((content) => trim(content).length > 0, {
         message: "Prompt content cannot be only whitespace",
       }),
 
@@ -110,7 +109,7 @@ export function createPromptSchema(options: PromptValidationOptions = {}) {
         maxContentLength,
         `Prompt content exceeds maximum length of ${maxContentLength} characters`
       )
-      .refine((content) => content.trim().length > 0, {
+      .refine((content) => trim(content).length > 0, {
         message: "Prompt content cannot be only whitespace",
       }),
 
@@ -212,9 +211,12 @@ export function createPromptSchema(options: PromptValidationOptions = {}) {
       }
 
       // Check minimum content quality
-      const lines = data.content
-        .split("\n")
-        .filter((line) => line.trim().length > 0);
+      const lines = compact(
+        data.content
+          .split("\n")
+          .map(trim)
+          .filter((line) => line.length > 0)
+      );
       if (lines.length < 3) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

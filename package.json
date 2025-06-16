@@ -183,6 +183,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.17",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.96.0",
@@ -198,6 +199,7 @@
   "dependencies": {
     "change-case": "^5.4.4",
     "gray-matter": "^4.0.3",
+    "lodash": "^4.17.21",
     "remark": "^15.0.1",
     "remark-frontmatter": "^5.0.0",
     "remark-lint": "^10.0.1",

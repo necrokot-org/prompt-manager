@@ -1,4 +1,5 @@
 import matter from "gray-matter";
+import { compact, trim } from "lodash";
 
 /**
  * Markdown validation issue
@@ -119,26 +120,32 @@ export function extractFrontMatter(content: string): {
         const value = parsed.data[field];
 
         if (field === "title" || field === "description") {
-          if (typeof value === "string" && value.trim().length > 0) {
-            frontMatter[field] = value.trim();
+          if (typeof value === "string" && trim(value).length > 0) {
+            frontMatter[field] = trim(value);
             hasValidFields = true;
           }
         } else if (field === "tags") {
           // Handle tags - can be array or string
           if (Array.isArray(value)) {
-            const tags = value
-              .filter((tag) => typeof tag === "string" && tag.trim().length > 0)
-              .map((tag) => tag.trim());
+            const tags = compact(
+              value
+                .filter(
+                  (tag) => typeof tag === "string" && trim(tag).length > 0
+                )
+                .map(trim)
+            );
             if (tags.length > 0) {
               frontMatter.tags = tags;
               hasValidFields = true;
             }
-          } else if (typeof value === "string" && value.trim().length > 0) {
+          } else if (typeof value === "string" && trim(value).length > 0) {
             // Handle comma-separated tags
-            const tags = value
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter((tag) => tag.length > 0);
+            const tags = compact(
+              value
+                .split(",")
+                .map(trim)
+                .filter((tag) => tag.length > 0)
+            );
             if (tags.length > 0) {
               frontMatter.tags = tags;
               hasValidFields = true;

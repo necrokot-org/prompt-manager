@@ -5,6 +5,7 @@ import { EXTENSION_CONSTANTS } from "./config";
 import { subscribe, publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
 import { validate, sanitize, getFirstError } from "./validation/index.js";
+import { trim } from "lodash";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
@@ -235,11 +236,11 @@ export class PromptController {
 
     if (frontMatterMatch) {
       // Return content after front matter, trimming leading/trailing whitespace
-      return frontMatterMatch[2].trim();
+      return trim(frontMatterMatch[2]);
     }
 
     // If no front matter found, return original content
-    return content.trim();
+    return trim(content);
   }
 
   /**

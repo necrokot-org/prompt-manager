@@ -1,5 +1,6 @@
 import { PromptParser, ParsedPromptContent } from "./PromptParser";
 import { CacheManager } from "./CacheManager";
+import { trim } from "lodash";
 
 export interface SearchCriteria {
   query: string;
@@ -59,7 +60,7 @@ export class SearchEngine {
     files: FileContent[],
     criteria: SearchCriteria
   ): Promise<SearchResult[]> {
-    if (!criteria.isActive || !criteria.query.trim()) {
+    if (!criteria.isActive || !trim(criteria.query)) {
       return [];
     }
 

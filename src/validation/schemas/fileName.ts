@@ -2,6 +2,7 @@ import { z } from "zod";
 import sanitizeFilename from "sanitize-filename";
 import { kebabCase, snakeCase } from "change-case";
 import validFilename from "valid-filename";
+import { trim } from "lodash";
 
 /**
  * File naming patterns
@@ -155,7 +156,7 @@ export function createFileNameSchema(options: FileNameOptions = {}) {
     z
       .string()
       .min(1, "File name cannot be empty")
-      .transform((val) => sanitizeFilename(val.trim(), { replacement: "_" }))
+      .transform((val) => sanitizeFilename(trim(val), { replacement: "_" }))
       .refine((val) => val.length > 0, {
         message: "File name cannot be empty after sanitization",
       })

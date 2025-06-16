@@ -1,3 +1,5 @@
+import { compact, trim } from "lodash";
+
 export interface ParsedPromptContent {
   frontMatter: any;
   content: string;
@@ -39,7 +41,7 @@ export class PromptParser {
         tags = frontMatter.tags;
       } else if (typeof frontMatter.tags === "string") {
         // Handle comma-separated tags as string
-        tags = frontMatter.tags.split(",").map((tag: string) => tag.trim());
+        tags = compact(frontMatter.tags.split(",").map(trim));
       }
     }
 
@@ -78,8 +80,8 @@ export class PromptParser {
           for (const line of yamlLines) {
             const colonIndex = line.indexOf(":");
             if (colonIndex > 0) {
-              const key = line.substring(0, colonIndex).trim();
-              let value = line.substring(colonIndex + 1).trim();
+              const key = trim(line.substring(0, colonIndex));
+              let value = trim(line.substring(colonIndex + 1));
 
               // Remove quotes if present
               if (
@@ -104,7 +106,7 @@ export class PromptParser {
 
           return {
             frontMatter,
-            content: bodyLines.join("\n").trim(),
+            content: trim(bodyLines.join("\n")),
           };
         } catch (error) {
           console.warn("Failed to parse YAML front matter:", error);
@@ -114,7 +116,7 @@ export class PromptParser {
 
     return {
       frontMatter: {},
-      content: content.trim(),
+      content: trim(content),
     };
   }
 

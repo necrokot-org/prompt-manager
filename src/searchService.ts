@@ -3,6 +3,7 @@ import { SearchCriteria } from "./searchPanelProvider";
 import { SearchEngine, FileContent } from "./core/SearchEngine";
 import { publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
+import { trim } from "lodash";
 
 export class SearchService {
   private searchEngine: SearchEngine;
@@ -17,7 +18,7 @@ export class SearchService {
    * Centralized search method that handles scope routing
    */
   async search(criteria: SearchCriteria): Promise<ContentSearchResult[]> {
-    if (!criteria.isActive || !criteria.query.trim()) {
+    if (!criteria.isActive || !trim(criteria.query)) {
       return [];
     }
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import safeRegex from "safe-regex2";
+import { trim } from "lodash";
 
 /**
  * Search query types
@@ -99,7 +100,7 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
           )}`,
         }
       )
-      .transform((val) => val.trim().replace(/\s+/g, " ")), // Normalize whitespace
+      .transform((val) => trim(val).replace(/\s+/g, " ")), // Normalize whitespace
 
     type: SearchQueryType,
     caseSensitive: z.boolean().optional().default(false),
