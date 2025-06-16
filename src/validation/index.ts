@@ -4,16 +4,25 @@
  * This replaces the old home-grown validators with proven open-source libraries.
  */
 
-// Export schemas
-export * from "./schemas/config.js";
-export * from "./schemas/fileName.js";
-export * from "./schemas/searchQuery.js";
-export * from "./schemas/prompt.js";
+// Re-export all schemas directly for consumers to use
+export { ExtensionConfigSchema } from "./schemas/config.js";
+export { FileNameSchema, createFileNameSchema } from "./schemas/fileName.js";
+export {
+  SearchQuerySchema,
+  createSearchQuerySchema,
+} from "./schemas/searchQuery.js";
+export { PromptSchema, createPromptSchema } from "./schemas/prompt.js";
+export { validateMarkdown } from "./markdown.js";
+export { z } from "zod";
+
+// Re-export types
+export type { ExtensionConfig } from "./schemas/config.js";
+export type { PromptContent, FrontMatter } from "./schemas/prompt.js";
 
 // Export markdown utilities
 export * from "./markdown.js";
 
-// Re-export for convenience
+// Import schemas for validation functions
 import { ExtensionConfigSchema } from "./schemas/config.js";
 import { FileNameSchema, createFileNameSchema } from "./schemas/fileName.js";
 import {
@@ -25,162 +34,107 @@ import { validateMarkdown } from "./markdown.js";
 import { z } from "zod";
 
 /**
- * Centralized validation service with direct Zod integration
+ * Validate extension configuration
  */
-export class ValidationService {
-  /**
-   * Validate extension configuration
-   */
-  validateConfig(config: unknown) {
-    return ExtensionConfigSchema.safeParse(config);
-  }
-
-  /**
-   * Validate and sanitize file name
-   */
-  validateFileName(
-    fileName: string,
-    options?: Parameters<typeof createFileNameSchema>[0]
-  ) {
-    const schema = options ? createFileNameSchema(options) : FileNameSchema;
-    return schema.safeParse(fileName);
-  }
-
-  /**
-   * Validate search query
-   */
-  validateSearchQuery(
-    query: unknown,
-    options?: Parameters<typeof createSearchQuerySchema>[0]
-  ) {
-    const schema = options
-      ? createSearchQuerySchema(options)
-      : SearchQuerySchema;
-    return schema.safeParse(query);
-  }
-
-  /**
-   * Validate prompt content (synchronous)
-   */
-  validatePrompt(
-    prompt: unknown,
-    options?: Parameters<typeof createPromptSchema>[0]
-  ) {
-    const schema = options ? createPromptSchema(options) : PromptSchema;
-    return schema.safeParse(prompt);
-  }
-
-  /**
-   * Validate prompt content with full markdown processing (async)
-   */
-  async validatePromptWithMarkdown(
-    content: string,
-    options?: Parameters<typeof createPromptSchema>[0]
-  ) {
-    const schema = options ? createPromptSchema(options) : PromptSchema;
-
-    // Validate the prompt structure
-    const promptResult = schema.safeParse({ content });
-
-    // Also run full markdown validation
-    const markdownResult = await validateMarkdown(content);
-
-    return {
-      prompt: promptResult,
-      markdown: markdownResult,
-    };
-  }
-
-  /**
-   * Quick validation methods that return boolean results
-   */
-  isValidConfig(config: unknown): boolean {
-    return this.validateConfig(config).success;
-  }
-
-  isValidFileName(fileName: string): boolean {
-    return this.validateFileName(fileName).success;
-  }
-
-  isValidSearchQuery(query: unknown): boolean {
-    return this.validateSearchQuery(query).success;
-  }
-
-  isValidPrompt(prompt: unknown): boolean {
-    return this.validatePrompt(prompt).success;
-  }
-
-  /**
-   * Sanitization methods that return cleaned values
-   */
-  sanitizeConfig(config: unknown): any {
-    const result = this.validateConfig(config);
-    return result.success ? result.data : config;
-  }
-
-  sanitizeFileName(fileName: string): string {
-    const result = this.validateFileName(fileName);
-    return result.success ? result.data : fileName;
-  }
-
-  sanitizeSearchQuery(query: unknown): any {
-    const result = this.validateSearchQuery(query);
-    return result.success ? result.data : query;
-  }
-
-  sanitizePrompt(prompt: unknown): any {
-    const result = this.validatePrompt(prompt);
-    return result.success ? result.data : prompt;
-  }
+export function validateConfig(config: unknown) {
+  return ExtensionConfigSchema.safeParse(config);
 }
 
 /**
- * Global validation service instance
+ * Validate and sanitize file name
  */
-export const validationService = new ValidationService();
+export function validateFileName(
+  fileName: string,
+  options?: Parameters<typeof createFileNameSchema>[0]
+) {
+  const schema = options ? createFileNameSchema(options) : FileNameSchema;
+  return schema.safeParse(fileName);
+}
 
 /**
- * Convenience functions for quick validation
+ * Validate search query
  */
-export const validate = {
-  config: (config: unknown) => validationService.validateConfig(config),
-  fileName: (
-    fileName: string,
-    options?: Parameters<typeof createFileNameSchema>[0]
-  ) => validationService.validateFileName(fileName, options),
-  searchQuery: (
-    query: unknown,
-    options?: Parameters<typeof createSearchQuerySchema>[0]
-  ) => validationService.validateSearchQuery(query, options),
-  prompt: (
-    prompt: unknown,
-    options?: Parameters<typeof createPromptSchema>[0]
-  ) => validationService.validatePrompt(prompt, options),
-  promptWithMarkdown: (
-    content: string,
-    options?: Parameters<typeof createPromptSchema>[0]
-  ) => validationService.validatePromptWithMarkdown(content, options),
-};
+export function validateSearchQuery(
+  query: unknown,
+  options?: Parameters<typeof createSearchQuerySchema>[0]
+) {
+  const schema = options ? createSearchQuerySchema(options) : SearchQuerySchema;
+  return schema.safeParse(query);
+}
 
 /**
- * Convenience functions for quick sanitization
+ * Validate prompt content (synchronous)
  */
-export const sanitize = {
-  config: (config: unknown) => validationService.sanitizeConfig(config),
-  fileName: (fileName: string) => validationService.sanitizeFileName(fileName),
-  searchQuery: (query: unknown) => validationService.sanitizeSearchQuery(query),
-  prompt: (prompt: unknown) => validationService.sanitizePrompt(prompt),
-};
+export function validatePrompt(
+  prompt: unknown,
+  options?: Parameters<typeof createPromptSchema>[0]
+) {
+  const schema = options ? createPromptSchema(options) : PromptSchema;
+  return schema.safeParse(prompt);
+}
 
 /**
- * Convenience functions for quick validation checks
+ * Validate prompt content with full markdown processing (async)
  */
-export const isValid = {
-  config: (config: unknown) => validationService.isValidConfig(config),
-  fileName: (fileName: string) => validationService.isValidFileName(fileName),
-  searchQuery: (query: unknown) => validationService.isValidSearchQuery(query),
-  prompt: (prompt: unknown) => validationService.isValidPrompt(prompt),
-};
+export async function validatePromptWithMarkdown(
+  content: string,
+  options?: Parameters<typeof createPromptSchema>[0]
+) {
+  const schema = options ? createPromptSchema(options) : PromptSchema;
+
+  // Validate the prompt structure
+  const promptResult = schema.safeParse({ content });
+
+  // Also run full markdown validation
+  const markdownResult = await validateMarkdown(content);
+
+  return {
+    prompt: promptResult,
+    markdown: markdownResult,
+  };
+}
+
+/**
+ * Quick validation functions that return boolean results
+ */
+export function isValidConfig(config: unknown): boolean {
+  return validateConfig(config).success;
+}
+
+export function isValidFileName(fileName: string): boolean {
+  return validateFileName(fileName).success;
+}
+
+export function isValidSearchQuery(query: unknown): boolean {
+  return validateSearchQuery(query).success;
+}
+
+export function isValidPrompt(prompt: unknown): boolean {
+  return validatePrompt(prompt).success;
+}
+
+/**
+ * Sanitization functions that return cleaned values
+ */
+export function sanitizeConfig(config: unknown): any {
+  const result = validateConfig(config);
+  return result.success ? result.data : config;
+}
+
+export function sanitizeFileName(fileName: string): string {
+  const result = validateFileName(fileName);
+  return result.success ? result.data : fileName;
+}
+
+export function sanitizeSearchQuery(query: unknown): any {
+  const result = validateSearchQuery(query);
+  return result.success ? result.data : query;
+}
+
+export function sanitizePrompt(prompt: unknown): any {
+  const result = validatePrompt(prompt);
+  return result.success ? result.data : prompt;
+}
 
 /**
  * Utility functions for working with Zod results
@@ -194,33 +148,44 @@ export function getErrorMessages(
   return result.error.errors.map((err) => err.message);
 }
 
-export function getFirstError(
-  result: z.SafeParseReturnType<any, any>
-): string | undefined {
-  if (result.success) {
-    return undefined;
-  }
-  return result.error.errors[0]?.message;
-}
-
-export function formatZodError(
-  result: z.SafeParseReturnType<any, any>
-): string {
-  if (result.success) {
-    return "";
-  }
-  return result.error.errors
-    .map((err) => {
-      const path = err.path.length > 0 ? `${err.path.join(".")}: ` : "";
-      return `${path}${err.message}`;
-    })
-    .join("; ");
+/**
+ * Parse a value with error handling
+ */
+export function parseWithSchema<T>(schema: z.ZodSchema<T>, value: unknown): T {
+  return schema.parse(value);
 }
 
 /**
- * Type aliases for backward compatibility
+ * Safe parse a value (no exceptions)
  */
-export type ExtensionConfiguration =
-  import("./schemas/config.js").ExtensionConfig;
+export function safeParseWithSchema<T>(
+  schema: z.ZodSchema<T>,
+  value: unknown
+): z.SafeParseReturnType<unknown, T> {
+  return schema.safeParse(value);
+}
+
+/**
+ * Legacy compatibility - object with all validation functions
+ * @deprecated Use individual functions directly instead
+ */
+export const validationService = {
+  validateConfig,
+  validateFileName,
+  validateSearchQuery,
+  validatePrompt,
+  validatePromptWithMarkdown,
+  isValidConfig,
+  isValidFileName,
+  isValidSearchQuery,
+  isValidPrompt,
+  sanitizeConfig,
+  sanitizeFileName,
+  sanitizeSearchQuery,
+  sanitizePrompt,
+};
+
+/**
+ * Additional type exports for backward compatibility
+ */
 export type SearchQuery = import("./schemas/searchQuery.js").SearchQuery;
-export type PromptContent = import("./schemas/prompt.js").PromptContent;
