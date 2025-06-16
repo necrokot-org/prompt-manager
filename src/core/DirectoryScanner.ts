@@ -1,4 +1,5 @@
 import * as path from "path";
+import fg from "fast-glob";
 import { FileSystemManager } from "./FileSystemManager";
 import { PromptParser, ParsedPromptContent } from "./PromptParser";
 
@@ -27,6 +28,7 @@ export interface ScanOptions {
   includeHidden?: boolean;
   maxDepth?: number;
   fileExtensions?: string[];
+  excludePatterns?: string[];
 }
 
 export class DirectoryScanner {
@@ -71,7 +73,7 @@ export class DirectoryScanner {
   }
 
   /**
-   * Scan a specific directory for prompts
+   * Scan a specific directory for prompts using fast-glob
    */
   public async scanDirectory(
     dirPath: string,
@@ -81,46 +83,74 @@ export class DirectoryScanner {
       includeHidden = false,
       maxDepth = 10,
       fileExtensions = [".md"],
+      excludePatterns = [],
     } = options;
 
     try {
+      if (!this.fileSystemManager.fileExists(dirPath)) {
+        return { folders: [], rootPrompts: [] };
+      }
+
+      // Build glob patterns for file extensions
+      const patterns = fileExtensions.map((ext) =>
+        ext.startsWith(".") ? `**/*${ext}` : `**/*.${ext}`
+      );
+
+      // Default ignore patterns plus user excludes
+      const ignore = ["**/README.md", ...excludePatterns];
+
+      // Get all matching files using fast-glob
+      const entries = await fg(patterns, {
+        cwd: dirPath,
+        dot: includeHidden,
+        deep: maxDepth,
+        ignore,
+        onlyFiles: true,
+        absolute: false, // We'll resolve paths ourselves for consistency
+      });
+
+      // Parse all found files into PromptFile objects
+      const allPromptFiles: PromptFile[] = [];
+      for (const relativePath of entries) {
+        const fullPath = path.join(dirPath, relativePath);
+        const promptFile = await this.parsePromptFile(fullPath);
+        if (promptFile) {
+          allPromptFiles.push(promptFile);
+        }
+      }
+
+      // Organize files into folders and root prompts
       const folders: PromptFolder[] = [];
       const rootPrompts: PromptFile[] = [];
+      const folderMap = new Map<string, PromptFile[]>();
 
-      if (!this.fileSystemManager.fileExists(dirPath)) {
-        return { folders, rootPrompts };
-      }
+      for (const file of allPromptFiles) {
+        const relativePath = path.relative(dirPath, file.path);
+        const dirName = path.dirname(relativePath);
 
-      const items = await this.fileSystemManager.readDirectory(dirPath);
-
-      for (const item of items) {
-        // Skip hidden files/folders if not requested
-        if (!includeHidden && item.name.startsWith(".")) {
-          continue;
-        }
-
-        const itemPath = path.join(dirPath, item.name);
-
-        if (item.isDirectory()) {
-          const folderPrompts = await this.scanFolderPrompts(itemPath, options);
-          folders.push({
-            name: item.name,
-            path: itemPath,
-            prompts: folderPrompts,
-          });
-        } else if (
-          item.isFile() &&
-          this.isPromptFile(item.name, fileExtensions) &&
-          item.name !== "README.md"
-        ) {
-          const promptFile = await this.parsePromptFile(itemPath);
-          if (promptFile) {
-            rootPrompts.push(promptFile);
+        if (dirName === "." || dirName === "") {
+          // File is in root directory
+          rootPrompts.push(file);
+        } else {
+          // File is in a subdirectory
+          const topLevelDir = dirName.split(path.sep)[0];
+          if (!folderMap.has(topLevelDir)) {
+            folderMap.set(topLevelDir, []);
           }
+          folderMap.get(topLevelDir)!.push(file);
         }
       }
 
-      // Sort folders alphabetically, files by title
+      // Convert folder map to PromptFolder array
+      for (const [folderName, prompts] of folderMap) {
+        folders.push({
+          name: folderName,
+          path: path.join(dirPath, folderName),
+          prompts: prompts.sort((a, b) => a.title.localeCompare(b.title)),
+        });
+      }
+
+      // Sort results
       folders.sort((a, b) => a.name.localeCompare(b.name));
       rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
 
@@ -162,7 +192,7 @@ export class DirectoryScanner {
   }
 
   /**
-   * Scan a specific folder for prompts
+   * Scan a specific folder for prompts - now simplified using fast-glob
    */
   public async scanFolderPrompts(
     folderPath: string,
@@ -170,16 +200,26 @@ export class DirectoryScanner {
   ): Promise<PromptFile[]> {
     try {
       const { fileExtensions = [".md"] } = options;
-      const items = await this.fileSystemManager.readDirectory(folderPath);
-      const prompts: PromptFile[] = [];
 
-      for (const item of items) {
-        if (item.isFile() && this.isPromptFile(item.name, fileExtensions)) {
-          const itemPath = path.join(folderPath, item.name);
-          const promptFile = await this.parsePromptFile(itemPath);
-          if (promptFile) {
-            prompts.push(promptFile);
-          }
+      // Use fast-glob to get files in this specific folder (depth 1)
+      const patterns = fileExtensions.map((ext) =>
+        ext.startsWith(".") ? `*${ext}` : `*.${ext}`
+      );
+
+      const entries = await fg(patterns, {
+        cwd: folderPath,
+        dot: options.includeHidden || false,
+        deep: 1, // Only direct children, no subdirectories
+        onlyFiles: true,
+        absolute: false,
+      });
+
+      const prompts: PromptFile[] = [];
+      for (const fileName of entries) {
+        const fullPath = path.join(folderPath, fileName);
+        const promptFile = await this.parsePromptFile(fullPath);
+        if (promptFile) {
+          prompts.push(promptFile);
         }
       }
 
@@ -198,7 +238,7 @@ export class DirectoryScanner {
       const stats = await this.fileSystemManager.getFileStats(filePath);
       const content = await this.fileSystemManager.readFile(filePath);
 
-      const fileName = path.basename(filePath, ".md");
+      const fileName = path.basename(filePath, path.extname(filePath));
       const parsed = this.parser.parsePromptContent(content, fileName);
 
       return {
@@ -304,10 +344,5 @@ export class DirectoryScanner {
       this.cachedStructure = { folders: [], rootPrompts: [] };
       this.indexBuilt = true;
     }
-  }
-
-  private isPromptFile(fileName: string, extensions: string[]): boolean {
-    const ext = path.extname(fileName).toLowerCase();
-    return extensions.includes(ext);
   }
 }
