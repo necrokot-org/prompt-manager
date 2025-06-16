@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { EXTENSION_CONSTANTS } from "./config";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
+import { DI_TOKENS } from "./core/di-container";
 
 export interface SearchCriteria {
   query: string;
@@ -10,6 +12,7 @@ export interface SearchCriteria {
   isActive: boolean;
 }
 
+@injectable()
 export class SearchPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "promptManagerSearch";
 
@@ -21,7 +24,15 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     isActive: false,
   };
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(
+    @inject(DI_TOKENS.ExtensionContext)
+    private readonly _context: vscode.ExtensionContext
+  ) {
+    // Get extension URI from context
+    this._extensionUri = _context.extensionUri;
+  }
+
+  private readonly _extensionUri: vscode.Uri;
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,

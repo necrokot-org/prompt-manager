@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { injectable } from "tsyringe";
 import { FileNamingPattern } from "./utils/string";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
@@ -7,7 +8,7 @@ import { Events } from "./core/EventSystem";
  * Centralized configuration management for Prompt Manager
  * This module provides type-safe access to all configuration values
  * and eliminates string literal duplication and typos.
- * Now integrated with the centralized event system.
+ * Now integrated with the centralized event system and dependency injection.
  */
 
 // Get the base configuration object
@@ -42,8 +43,9 @@ export const EXTENSION_CONSTANTS = {
 } as const;
 
 /**
- * Configuration service that integrates with the event bus
+ * Configuration service that integrates with the event bus and dependency injection
  */
+@injectable()
 export class ConfigurationService {
   private configWatcher?: vscode.Disposable;
 

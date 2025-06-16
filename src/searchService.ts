@@ -1,15 +1,18 @@
+import { injectable, inject } from "tsyringe";
 import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 import { FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
+import { DI_TOKENS } from "./core/di-container";
 import { trim } from "lodash";
 
+@injectable()
 export class SearchService {
   private fileManager: FileManager;
 
-  constructor(fileManager: FileManager) {
+  constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
     this.fileManager = fileManager;
   }
 

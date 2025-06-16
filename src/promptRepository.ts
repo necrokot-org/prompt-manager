@@ -1,22 +1,25 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { FileManager, PromptStructure } from "./fileManager";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
+import { DI_TOKENS } from "./core/di-container";
 import * as fs from "fs";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
  * for the prompt manager. It's designed to be testable without VSCode stubs.
- * Now integrated with the centralized event system.
+ * Now integrated with the centralized event system and dependency injection.
  */
+@injectable()
 export class PromptRepository {
   private fileManager: FileManager;
   private fileWatcher?: vscode.FileSystemWatcher;
 
-  constructor(fileManager?: FileManager) {
-    this.fileManager = fileManager || new FileManager();
+  constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
+    this.fileManager = fileManager;
   }
 
   /**

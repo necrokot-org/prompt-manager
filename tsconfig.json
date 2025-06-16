@@ -11,6 +11,8 @@
 		"strict": true, /* enable all strict type-checking options */
 		"esModuleInterop": true, /* enable compatibility with CommonJS modules */
 		"skipLibCheck": false, /* ensure generated zod types stay accurate */
+		"experimentalDecorators": true, /* Enable experimental decorator support */
+		"emitDecoratorMetadata": true, /* Emit design-type metadata for decorated declarations */
 		/* Additional Checks */
 		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
 		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */

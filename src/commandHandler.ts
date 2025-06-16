@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { PromptController } from "./promptController";
 import {
   PromptTreeItem,
@@ -8,11 +9,14 @@ import {
 import { EXTENSION_CONSTANTS } from "./config";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
+import { DI_TOKENS } from "./core/di-container";
 
+@injectable()
 export class CommandHandler {
   constructor(
+    @inject(DI_TOKENS.PromptController)
     private promptController: PromptController,
-    private context: vscode.ExtensionContext
+    @inject(DI_TOKENS.ExtensionContext) private context: vscode.ExtensionContext
   ) {}
 
   public registerCommands(): void {

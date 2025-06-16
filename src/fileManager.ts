@@ -1,4 +1,5 @@
 import * as path from "path";
+import { injectable } from "tsyringe";
 
 import { Events } from "./core/EventSystem";
 import { publish } from "./core/eventBus";
@@ -45,8 +46,9 @@ export { PromptFile, PromptFolder, PromptStructure };
  * Refactored FileManager that acts as a facade for focused component classes
  * This maintains the same interface as the original FileManager while delegating
  * responsibilities to specialized components.
- * Now integrated with the centralized event system.
+ * Now integrated with the centralized event system and dependency injection.
  */
+@injectable()
 export class FileManager {
   // Core components
   private fileSystemManager: FileSystemManager;

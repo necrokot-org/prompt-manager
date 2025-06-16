@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { PromptRepository } from "./promptRepository";
 import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
@@ -10,18 +11,22 @@ import {
   getErrorMessages,
 } from "./validation/index.js";
 import { trim } from "lodash";
+import { DI_TOKENS } from "./core/di-container";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
  * It uses PromptRepository for data operations and publishes UI events.
- * Now integrated with the centralized event system.
+ * Now integrated with the centralized event system and dependency injection.
  */
+@injectable()
 export class PromptController {
   private repository: PromptRepository;
   private subscriptions: any[] = [];
 
-  constructor(repository?: PromptRepository) {
-    this.repository = repository || new PromptRepository();
+  constructor(
+    @inject(DI_TOKENS.PromptRepository) repository: PromptRepository
+  ) {
+    this.repository = repository;
 
     // Subscribe to filesystem structure changes
     this.subscriptions.push(

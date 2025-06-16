@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { PromptController } from "./promptController";
 import {
   PromptFile,
@@ -11,6 +12,7 @@ import { SearchService } from "./searchService";
 import { getShowDescriptionInTree } from "./config";
 import { ExtensionEvent } from "./core/EventSystem";
 import { subscribe } from "./core/eventBus";
+import { DI_TOKENS } from "./core/di-container";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
   constructor(
@@ -107,6 +109,7 @@ export class EmptyStateTreeItem extends BaseTreeItem {
 
 export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
 
+@injectable()
 export class PromptTreeProvider
   implements vscode.TreeDataProvider<PromptTreeItem>
 {
@@ -121,10 +124,12 @@ export class PromptTreeProvider
   private _searchService: SearchService;
   private subscriptions: any[] = [];
 
-  constructor(private promptController: PromptController) {
-    this._searchService = new SearchService(
-      this.promptController.getRepository().getFileManager()
-    );
+  constructor(
+    @inject(DI_TOKENS.PromptController)
+    private promptController: PromptController,
+    @inject(DI_TOKENS.SearchService) searchService: SearchService
+  ) {
+    this._searchService = searchService;
 
     // Subscribe to tree refresh events
     this.subscriptions.push(

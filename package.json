@@ -186,6 +186,7 @@
     "@types/lodash": "^4.17.17",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/reflect-metadata": "^0.0.5",
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
@@ -204,6 +205,7 @@
     "lodash": "^4.17.21",
     "lru-cache": "^11.1.0",
     "lucene-query-parser": "^1.2.0",
+    "reflect-metadata": "^0.2.2",
     "remark": "^15.0.1",
     "remark-frontmatter": "^5.0.0",
     "remark-lint": "^10.0.1",
@@ -213,6 +215,7 @@
     "rxjs": "^7.8.2",
     "safe-regex2": "^5.0.0",
     "sanitize-filename": "^1.6.3",
+    "tsyringe": "^4.10.0",
     "valid-filename": "^4.0.0",
     "zod": "^3.25.64"
   }

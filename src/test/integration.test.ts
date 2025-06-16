@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { PromptController } from "../promptController";
@@ -6,6 +7,12 @@ import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
 import { FileManager } from "../fileManager";
 import { PromptRepository } from "../promptRepository";
 import { subscribe, publish } from "../core/eventBus";
+import {
+  configureDependencies,
+  resolve,
+  disposeDependencies,
+  DI_TOKENS,
+} from "../core/di-container";
 
 suite("Integration Tests", () => {
   let controller: PromptController;
@@ -13,18 +20,41 @@ suite("Integration Tests", () => {
   let searchProvider: SearchPanelProvider;
   let fileManager: FileManager;
   let repository: PromptRepository;
-  let mockExtensionUri: vscode.Uri;
+  let mockContext: vscode.ExtensionContext;
 
   setup(async () => {
-    // Create mock extension URI
-    mockExtensionUri = vscode.Uri.file("/test/extension");
+    // Create mock extension context
+    mockContext = {
+      extensionUri: vscode.Uri.file("/test/extension"),
+      subscriptions: [],
+      workspaceState: {} as any,
+      globalState: {} as any,
+      secrets: {} as any,
+      extensionMode: vscode.ExtensionMode.Test,
+      extension: {} as any,
+      storageUri: vscode.Uri.file("/test/storage"),
+      globalStorageUri: vscode.Uri.file("/test/globalStorage"),
+      logUri: vscode.Uri.file("/test/log"),
+      environmentVariableCollection: {} as any,
+      extensionPath: "/test/extension",
+      asAbsolutePath: (path: string) => path,
+      storagePath: "/test/storage",
+      globalStoragePath: "/test/globalStorage",
+      logPath: "/test/log",
+      languageModelAccessInformation: {} as any,
+    };
 
-    // Initialize components using new API
-    fileManager = new FileManager();
-    repository = new PromptRepository(fileManager);
-    controller = new PromptController(repository);
-    treeProvider = new PromptTreeProvider(controller);
-    searchProvider = new SearchPanelProvider(mockExtensionUri);
+    // Configure DI container with mock context
+    configureDependencies(mockContext);
+
+    // Resolve services from DI container
+    fileManager = resolve<FileManager>(DI_TOKENS.FileManager);
+    repository = resolve<PromptRepository>(DI_TOKENS.PromptRepository);
+    controller = resolve<PromptController>(DI_TOKENS.PromptController);
+    treeProvider = resolve<PromptTreeProvider>(DI_TOKENS.PromptTreeProvider);
+    searchProvider = resolve<SearchPanelProvider>(
+      DI_TOKENS.SearchPanelProvider
+    );
 
     // Initialize controller
     await controller.initialize();
@@ -38,6 +68,8 @@ suite("Integration Tests", () => {
     if (controller) {
       controller.dispose();
     }
+    // Clean up DI container
+    disposeDependencies();
   });
 
   test("should initialize all components correctly", () => {

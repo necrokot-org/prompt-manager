@@ -1,5 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
+import "reflect-metadata";
 import * as vscode from "vscode";
 import { PromptController } from "./promptController";
 import { PromptTreeProvider } from "./promptTreeProvider";
@@ -10,8 +11,14 @@ import { SearchService } from "./searchService";
 import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
 import { publish, subscribe } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
+import {
+  configureDependencies,
+  resolve,
+  disposeDependencies,
+  DI_TOKENS,
+} from "./core/di-container";
 
-// Global instances
+// Global instances - now resolved from DI container
 let configService: ConfigurationService | undefined;
 let promptController: PromptController | undefined;
 let treeProvider: PromptTreeProvider | undefined;
@@ -56,24 +63,23 @@ export async function activate(context: vscode.ExtensionContext) {
 async function initializeExtension(
   context: vscode.ExtensionContext
 ): Promise<void> {
-  // Initialize core components in proper order (following layered architecture)
+  // Configure dependency injection container with all services
+  configureDependencies(context);
 
-  // 0. Event System (RxJS-based - no instantiation needed)
-  configService = new ConfigurationService();
+  // Resolve services from DI container (they will be singletons)
+  configService = resolve<ConfigurationService>(DI_TOKENS.ConfigurationService);
   configService.initialize();
 
-  // 1. Business Logic Layer
-  promptController = new PromptController();
+  // Resolve business logic layer
+  promptController = resolve<PromptController>(DI_TOKENS.PromptController);
 
-  // 2. Presentation Layer
-  treeProvider = new PromptTreeProvider(promptController);
-  searchProvider = new SearchPanelProvider(context.extensionUri);
-  searchService = new SearchService(
-    promptController.getRepository().getFileManager()
-  );
+  // Resolve presentation layer
+  treeProvider = resolve<PromptTreeProvider>(DI_TOKENS.PromptTreeProvider);
+  searchProvider = resolve<SearchPanelProvider>(DI_TOKENS.SearchPanelProvider);
+  searchService = resolve<SearchService>(DI_TOKENS.SearchService);
 
-  // 3. Command Handler
-  commandHandler = new CommandHandler(promptController, context);
+  // Resolve command handler
+  commandHandler = resolve<CommandHandler>(DI_TOKENS.CommandHandler);
 
   // Initialize the prompt controller (creates directory structure)
   const initialized = await promptController.initialize();
@@ -216,6 +222,17 @@ function cleanup(): void {
   if (configService) {
     configService.dispose();
   }
+
+  // Dispose the DI container to clean up all singletons
+  disposeDependencies();
+
+  // Clear global references
+  configService = undefined;
+  promptController = undefined;
+  treeProvider = undefined;
+  commandHandler = undefined;
+  searchProvider = undefined;
+  searchService = undefined;
 }
 
 // This method is called when your extension is deactivated
