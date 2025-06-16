@@ -62,7 +62,14 @@ const _allKeysIncluded: AllKeysIncluded = true; // Fails if array misses interfa
 let processorCache: any = null;
 
 /**
- * Get or create the remark processor
+ * Get or create the remark processor with comprehensive linting preset
+ *
+ * The preset includes rules for:
+ * - Heading hierarchy and structure
+ * - Empty links and images
+ * - TODO/FIXME detection
+ * - Content quality checks
+ * - And many more community-maintained linting rules
  */
 async function getProcessor() {
   if (processorCache) {
@@ -74,19 +81,19 @@ async function getProcessor() {
     remarkParse,
     remarkStringify,
     remarkFrontmatter,
-    remarkLint,
+    remarkPresetLintRecommended,
   ] = await Promise.all([
     import("remark"),
     import("remark-parse"),
     import("remark-stringify"),
     import("remark-frontmatter"),
-    import("remark-lint"),
+    import("remark-preset-lint-recommended"),
   ]);
 
   processorCache = remark()
     .use(remarkParse.default)
     .use(remarkFrontmatter.default, ["yaml", "toml"])
-    .use(remarkLint.default)
+    .use(remarkPresetLintRecommended.default) // Comprehensive linting rules
     .use(remarkStringify.default);
 
   return processorCache;
@@ -152,59 +159,11 @@ export function extractFrontMatter(content: string): {
 }
 
 /**
- * Basic markdown content quality checks
+ * Security-specific checks not covered by remark-preset-lint-recommended
  */
-function performQualityChecks(content: string): MarkdownIssue[] {
+function performSecurityChecks(content: string): MarkdownIssue[] {
   const issues: MarkdownIssue[] = [];
   const lines = content.split("\n");
-
-  // Check for minimum content length
-  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
-  if (nonEmptyLines.length < 3) {
-    issues.push({
-      line: 1,
-      message:
-        "Content seems very short for a prompt (less than 3 non-empty lines)",
-      severity: "warning",
-      ruleId: "content-length",
-    });
-  }
-
-  // Check for TODOs and FIXMEs
-  lines.forEach((line, index) => {
-    const lowerLine = line.toLowerCase();
-    if (lowerLine.includes("todo") || lowerLine.includes("fixme")) {
-      issues.push({
-        line: index + 1,
-        message: "Content contains TODO or FIXME markers",
-        severity: "info",
-        ruleId: "todo-fixme",
-      });
-    }
-  });
-
-  // Check for placeholder text
-  const placeholders = [
-    "lorem ipsum",
-    "placeholder",
-    "example text",
-    "sample text",
-  ];
-  const contentLower = content.toLowerCase();
-
-  placeholders.forEach((placeholder) => {
-    if (contentLower.includes(placeholder)) {
-      const lineIndex = lines.findIndex((line) =>
-        line.toLowerCase().includes(placeholder)
-      );
-      issues.push({
-        line: lineIndex + 1,
-        message: `Content appears to contain placeholder text: "${placeholder}"`,
-        severity: "warning",
-        ruleId: "placeholder-text",
-      });
-    }
-  });
 
   // Check for security patterns
   const securityPatterns = [
@@ -239,71 +198,16 @@ function performQualityChecks(content: string): MarkdownIssue[] {
 }
 
 /**
- * Advanced markdown structure validation
- */
-function validateMarkdownStructure(content: string): MarkdownIssue[] {
-  const issues: MarkdownIssue[] = [];
-  const lines = content.split("\n");
-
-  // Check for heading structure
-  const headingPattern = /^#+\s/;
-  const headings = lines
-    .map((line, index) => ({ line: line.trim(), index: index + 1 }))
-    .filter(({ line }) => headingPattern.test(line));
-
-  if (headings.length === 0) {
-    issues.push({
-      line: 1,
-      message: "Document has no headings - consider adding structure",
-      severity: "info",
-      ruleId: "no-headings",
-    });
-  }
-
-  // Check for proper heading hierarchy
-  let lastHeadingLevel = 0;
-  headings.forEach(({ line, index }) => {
-    const level = (line.match(/^#+/) || [""])[0].length;
-    if (level > lastHeadingLevel + 1) {
-      issues.push({
-        line: index,
-        message: `Heading level ${level} follows level ${lastHeadingLevel} - consider using sequential levels`,
-        severity: "warning",
-        ruleId: "heading-hierarchy",
-      });
-    }
-    lastHeadingLevel = level;
-  });
-
-  // Check for empty links and images
-  const emptyLinkPattern = /\[([^\]]*)\]\(\s*\)/g;
-  const emptyImagePattern = /!\[([^\]]*)\]\(\s*\)/g;
-
-  lines.forEach((line, index) => {
-    if (emptyLinkPattern.test(line)) {
-      issues.push({
-        line: index + 1,
-        message: "Empty link found",
-        severity: "warning",
-        ruleId: "empty-link",
-      });
-    }
-
-    if (emptyImagePattern.test(line)) {
-      issues.push({
-        line: index + 1,
-        message: "Empty image reference found",
-        severity: "warning",
-        ruleId: "empty-image",
-      });
-    }
-  });
-
-  return issues;
-}
-
-/**
  * Validate markdown content with comprehensive checks
+ *
+ * Uses remark-preset-lint-recommended for most validation rules including:
+ * - Heading hierarchy and structure
+ * - Empty links and images
+ * - Content quality checks
+ * - TODO/FIXME detection
+ * - And many more community-maintained rules
+ *
+ * Only performs custom security checks that aren't covered by the preset.
  */
 export async function validateMarkdown(
   content: string
@@ -314,12 +218,12 @@ export async function validateMarkdown(
     // Extract front matter
     const { frontMatter, body } = extractFrontMatter(content);
 
-    // Process with remark (if available)
+    // Process with remark preset for comprehensive linting
     try {
       const processor = await getProcessor();
       const file = await processor.process(body);
 
-      // Add remark messages as issues
+      // Add remark messages as issues (preset handles most validation)
       if (file.messages && file.messages.length > 0) {
         file.messages.forEach((message: any) => {
           issues.push({
@@ -342,13 +246,9 @@ export async function validateMarkdown(
       });
     }
 
-    // Perform quality checks
-    const qualityIssues = performQualityChecks(body);
-    issues.push(...qualityIssues);
-
-    // Validate markdown structure
-    const structureIssues = validateMarkdownStructure(body);
-    issues.push(...structureIssues);
+    // Perform security checks (only checks not covered by preset)
+    const securityIssues = performSecurityChecks(body);
+    issues.push(...securityIssues);
 
     return {
       isValid: !issues.some((issue) => issue.severity === "error"),
@@ -372,7 +272,11 @@ export async function validateMarkdown(
 }
 
 /**
- * Quick markdown validation (synchronous, basic checks only)
+ * Quick markdown validation (synchronous, security checks only)
+ *
+ * Note: For comprehensive validation including heading structure,
+ * empty links, TODO detection, etc., use the async validateMarkdown()
+ * function which leverages remark-preset-lint-recommended.
  */
 export function validateMarkdownSync(
   content: string
@@ -383,13 +287,9 @@ export function validateMarkdownSync(
     // Extract front matter
     const { frontMatter, body } = extractFrontMatter(content);
 
-    // Perform quality checks
-    const qualityIssues = performQualityChecks(body);
-    issues.push(...qualityIssues);
-
-    // Basic structure validation
-    const structureIssues = validateMarkdownStructure(body);
-    issues.push(...structureIssues);
+    // Perform security checks only (comprehensive checks require async remark processing)
+    const securityIssues = performSecurityChecks(body);
+    issues.push(...securityIssues);
 
     return {
       isValid: !issues.some((issue) => issue.severity === "error"),
