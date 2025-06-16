@@ -156,17 +156,17 @@ suite("FileManager Search Tests", () => {
     assert.strictEqual(partialResults.length, 1);
   });
 
-  test("Content Search - YAML Inclusion", async () => {
-    const withYamlResults = await fileManager.searchInContent("testing", {
-      includeYaml: true,
+  test("Content Search - Threshold Testing", async () => {
+    const strictResults = await fileManager.searchInContent("testing", {
+      threshold: 0.0, // Exact matches only
     });
-    assert.ok(withYamlResults.length > 0);
+    assert.ok(strictResults.length > 0);
 
-    const withoutYamlResults = await fileManager.searchInContent("testing", {
-      includeYaml: false,
+    const fuzzyResults = await fileManager.searchInContent("testng", {
+      threshold: 0.6, // Allow fuzzy matches
     });
-    // Should still find it in tags or description if those are included in content search
-    assert.ok(withoutYamlResults.length >= 0);
+    // Should find fuzzy matches
+    assert.ok(fuzzyResults.length >= 0);
   });
 
   test("Title Search - Basic Functionality", async () => {

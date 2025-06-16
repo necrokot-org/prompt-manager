@@ -110,33 +110,8 @@ async function initializeExtension(
 
         // Update result count in search panel
         if (criteria.isActive) {
-          try {
-            const count = await searchService!.countMatches(criteria);
-            searchProvider!.updateResultCount(count);
-          } catch (error) {
-            console.error("Error counting search results:", error);
-            // Fallback to simple count
-            const structure = await promptController!.getPromptStructure();
-            let count = 0;
-
-            // Count matching root prompts
-            for (const prompt of structure.rootPrompts) {
-              if (searchService!.matchesTextFallback(prompt, criteria)) {
-                count++;
-              }
-            }
-
-            // Count matching prompts in folders
-            for (const folder of structure.folders) {
-              for (const prompt of folder.prompts) {
-                if (searchService!.matchesTextFallback(prompt, criteria)) {
-                  count++;
-                }
-              }
-            }
-
-            searchProvider!.updateResultCount(count);
-          }
+          const count = await searchService!.countMatches(criteria);
+          searchProvider!.updateResultCount(count);
         }
       });
     }

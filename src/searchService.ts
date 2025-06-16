@@ -14,7 +14,7 @@ export class SearchService {
   }
 
   /**
-   * Centralized search method that handles scope routing
+   * Centralized search method using fuse.js
    */
   async search(criteria: SearchCriteria): Promise<ContentSearchResult[]> {
     if (!criteria.isActive || !trim(criteria.query)) {
@@ -24,38 +24,24 @@ export class SearchService {
     // Get file contents for search
     const files = await this.getFileContentsForSearch();
 
-    // Convert to our SearchEngine's criteria format
-    const searchCriteria = {
-      ...criteria,
-      exact: false, // Can be made configurable later
-      includeYaml: false, // Can be made configurable later
-    };
+    // Use the streamlined SearchEngine
+    const results = await searchEngine.search(files, criteria);
 
-    try {
-      const results = await searchEngine.searchFiles(files, searchCriteria);
-
-      // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
-      const contentResults: ContentSearchResult[] = [];
-      for (const result of results) {
-        const file = await this.convertSearchResultToPromptFile(result);
-        contentResults.push({
-          file,
-          score: result.score,
-          matches: result.matches,
-        });
-      }
-
-      const sortedResults = contentResults.sort((a, b) => b.score - a.score);
-
-      // Publish search results updated event
-      await this.publishResultsUpdated(sortedResults.length, criteria.query);
-
-      return sortedResults;
-    } catch (error) {
-      console.error("Search failed:", error);
-      // Fallback to simple text matching
-      return this.fallbackSearch(criteria);
+    // Convert SearchResult[] to ContentSearchResult[]
+    const contentResults: ContentSearchResult[] = [];
+    for (const result of results) {
+      const file = await this.convertSearchResultToPromptFile(result);
+      contentResults.push({
+        file,
+        score: result.score,
+        matches: result.matches,
+      });
     }
+
+    // Publish search results updated event
+    await this.publishResultsUpdated(contentResults.length, criteria.query);
+
+    return contentResults;
   }
 
   /**
@@ -65,66 +51,32 @@ export class SearchService {
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    try {
-      // Create a FileContent object for the single file
-      const content = await this.fileManager
-        .getFileSystemManager()
-        .readFile(prompt.path);
-      const fileContent: FileContent = {
-        path: prompt.path,
-        content,
-      };
-
-      return await searchEngine.fileMatches(fileContent, criteria);
-    } catch (error) {
-      console.error("Error checking file match:", error);
-      // Fallback to simple text matching
-      return this.matchesTextFallback(prompt, criteria);
+    if (!criteria.isActive || !trim(criteria.query)) {
+      return false;
     }
+
+    // Create a FileContent object for the single file
+    const content = await this.fileManager
+      .getFileSystemManager()
+      .readFile(prompt.path);
+    const fileContent: FileContent = {
+      path: prompt.path,
+      content,
+    };
+
+    return await searchEngine.matches(fileContent, criteria);
   }
 
   /**
    * Count total matches for search criteria
    */
   async countMatches(criteria: SearchCriteria): Promise<number> {
-    const results = await this.search(criteria);
-    return results.length;
-  }
-
-  /**
-   * Fallback text matching for when enhanced search fails
-   */
-  matchesTextFallback(prompt: PromptFile, criteria: SearchCriteria): boolean {
-    const query = criteria.caseSensitive
-      ? criteria.query
-      : criteria.query.toLowerCase();
-
-    switch (criteria.scope) {
-      case "titles":
-        return this.matchesText(prompt.title, query, criteria.caseSensitive);
-      case "content":
-        // Search in description and tags as fallback
-        const searchableContent = [
-          prompt.description || "",
-          ...(prompt.tags || []),
-        ].join(" ");
-        return this.matchesText(
-          searchableContent,
-          query,
-          criteria.caseSensitive
-        );
-      case "both":
-        return (
-          this.matchesText(prompt.title, query, criteria.caseSensitive) ||
-          this.matchesText(
-            [prompt.description || "", ...(prompt.tags || [])].join(" "),
-            query,
-            criteria.caseSensitive
-          )
-        );
-      default:
-        return false;
+    if (!criteria.isActive || !trim(criteria.query)) {
+      return 0;
     }
+
+    const files = await this.getFileContentsForSearch();
+    return await searchEngine.count(files, criteria);
   }
 
   /**
@@ -132,6 +84,14 @@ export class SearchService {
    */
   clearCache(): void {
     searchEngine.clearCache();
+  }
+
+  /**
+   * Get available search scopes
+   * #TODO:UI must rely on this to show the correct scopes
+   */
+  getAvailableScopes(): Array<SearchCriteria["scope"]> {
+    return searchEngine.getAvailableScopes();
   }
 
   async publishResultsUpdated(
@@ -194,7 +154,7 @@ export class SearchService {
       return file;
     }
 
-    // Fallback: create a PromptFile from the search result
+    // Create a PromptFile from the search result
     try {
       const stats = await this.fileManager
         .getFileSystemManager()
@@ -221,48 +181,5 @@ export class SearchService {
         isDirectory: false,
       };
     }
-  }
-
-  private async fallbackSearch(
-    criteria: SearchCriteria
-  ): Promise<ContentSearchResult[]> {
-    const structure = await this.fileManager.scanPrompts();
-    const allFiles: PromptFile[] = [
-      ...structure.rootPrompts,
-      ...structure.folders.flatMap((folder) => folder.prompts),
-    ];
-
-    const results: ContentSearchResult[] = [];
-
-    for (const file of allFiles) {
-      if (this.matchesTextFallback(file, criteria)) {
-        results.push({
-          file,
-          score: 50, // Default score for fallback matches
-          matches: [
-            {
-              type: "title",
-              position: 0,
-              length: criteria.query.length,
-              context: file.title,
-            },
-          ],
-        });
-      }
-    }
-
-    // Publish search results updated event for fallback search too
-    await this.publishResultsUpdated(results.length, criteria.query);
-
-    return results;
-  }
-
-  private matchesText(
-    text: string,
-    query: string,
-    caseSensitive: boolean
-  ): boolean {
-    const searchText = caseSensitive ? text : text.toLowerCase();
-    return searchText.includes(query);
   }
 }

@@ -208,7 +208,7 @@ export class FileManager {
     options: {
       caseSensitive?: boolean;
       exact?: boolean;
-      includeYaml?: boolean;
+      threshold?: number;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const files = await this.getFileContentsForSearch();
@@ -218,13 +218,13 @@ export class FileManager {
       scope: "content",
       caseSensitive: options.caseSensitive || false,
       exact: options.exact || false,
-      includeYaml: options.includeYaml || false,
+      threshold: options.threshold,
       isActive: true,
     };
 
-    const results = await searchEngine.searchFiles(files, searchCriteria);
+    const results = await searchEngine.search(files, searchCriteria);
 
-    // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
+    // Convert SearchResult[] to ContentSearchResult[]
     const contentResults: ContentSearchResult[] = [];
     for (const result of results) {
       const file = await this.searchResultToPromptFile(result);
@@ -242,6 +242,7 @@ export class FileManager {
     options: {
       caseSensitive?: boolean;
       exact?: boolean;
+      threshold?: number;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const files = await this.getFileContentsForSearch();
@@ -251,12 +252,47 @@ export class FileManager {
       scope: "titles",
       caseSensitive: options.caseSensitive || false,
       exact: options.exact || false,
+      threshold: options.threshold,
       isActive: true,
     };
 
-    const results = await searchEngine.searchFiles(files, searchCriteria);
+    const results = await searchEngine.search(files, searchCriteria);
 
-    // Convert SearchResult[] to ContentSearchResult[] for backward compatibility
+    // Convert SearchResult[] to ContentSearchResult[]
+    const contentResults: ContentSearchResult[] = [];
+    for (const result of results) {
+      const file = await this.searchResultToPromptFile(result);
+      contentResults.push({
+        file,
+        score: result.score,
+        matches: result.matches,
+      });
+    }
+    return contentResults;
+  }
+
+  public async searchBoth(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const files = await this.getFileContentsForSearch();
+
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "both",
+      caseSensitive: options.caseSensitive || false,
+      exact: options.exact || false,
+      threshold: options.threshold,
+      isActive: true,
+    };
+
+    const results = await searchEngine.search(files, searchCriteria);
+
+    // Convert SearchResult[] to ContentSearchResult[]
     const contentResults: ContentSearchResult[] = [];
     for (const result of results) {
       const file = await this.searchResultToPromptFile(result);

@@ -1,13 +1,14 @@
 import { PromptParser, ParsedPromptContent } from "./PromptParser";
 import { LRUCache } from "lru-cache";
 import { trim } from "lodash";
+import Fuse, { IFuseOptions, FuseResult } from "fuse.js";
 
 export interface SearchCriteria {
   query: string;
   scope: "titles" | "content" | "both";
   caseSensitive?: boolean;
   exact?: boolean;
-  includeYaml?: boolean;
+  threshold?: number; // Expose fuse.js threshold directly
   isActive: boolean;
 }
 
@@ -27,23 +28,26 @@ export interface SearchResult {
   snippet?: string;
 }
 
-export interface SearchOptions {
-  caseSensitive?: boolean;
-  exact?: boolean;
-  includeYaml?: boolean;
-  maxResults?: number;
-  contextSize?: number;
-}
-
 export interface FileContent {
   path: string;
   content: string;
   parsed?: ParsedPromptContent;
 }
 
+interface SearchableContent {
+  filePath: string;
+  fileName: string;
+  parsed: ParsedPromptContent;
+  fullContent: string;
+}
+
 export class SearchEngine {
   private parser: PromptParser;
   private contentCache: LRUCache<string, ParsedPromptContent>;
+  private searchableContent: SearchableContent[] = [];
+  private fuse: Fuse<SearchableContent> | null = null;
+  private lastIndexTime = 0;
+  private readonly INDEX_TTL = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
     this.parser = new PromptParser();
@@ -54,9 +58,9 @@ export class SearchEngine {
   }
 
   /**
-   * Execute search across file contents
+   * Execute search across file contents using fuse.js
    */
-  public async searchFiles(
+  public async search(
     files: FileContent[],
     criteria: SearchCriteria
   ): Promise<SearchResult[]> {
@@ -64,275 +68,291 @@ export class SearchEngine {
       return [];
     }
 
-    const results: SearchResult[] = [];
-    const searchOptions = this.createSearchOptions(criteria);
+    // Build or refresh the search index if needed
+    await this.ensureIndex(files);
 
-    for (const file of files) {
-      const searchResult = await this.searchSingleFile(
-        file,
-        criteria.query,
-        searchOptions
-      );
-
-      if (searchResult && this.matchesScope(searchResult, criteria.scope)) {
-        results.push(searchResult);
-      }
+    if (!this.fuse) {
+      return [];
     }
 
-    // Sort by relevance score (highest first)
-    return results.sort((a, b) => b.score - a.score);
-  }
+    // Configure fuse search options based on criteria
+    const fuseOptions: IFuseOptions<SearchableContent> = {
+      threshold: criteria.threshold ?? (criteria.exact ? 0.0 : 0.3),
+      includeMatches: true,
+      includeScore: true,
+      ignoreLocation: true,
+      keys: this.getSearchKeys(criteria.scope),
+      isCaseSensitive: criteria.caseSensitive || false,
+    };
 
-  /**
-   * Search within a single file
-   */
-  public async searchSingleFile(
-    file: FileContent,
-    query: string,
-    options: SearchOptions
-  ): Promise<SearchResult | null> {
-    try {
-      // Get parsed content (cached if available)
-      const parsed = this.getParsedContent(file);
+    // Create a new fuse instance with updated options for this search
+    const searchFuse = new Fuse(this.searchableContent, fuseOptions);
 
-      const matches: SearchMatch[] = [];
+    // Perform the search
+    const fuseResults = searchFuse.search(criteria.query);
 
-      // Search in title
-      if (parsed.title) {
-        const titleMatches = this.findTextMatches(
-          parsed.title,
-          query,
-          "title",
-          options
-        );
-        matches.push(...titleMatches);
-      }
+    // Convert fuse results to our SearchResult format
+    const searchResults: SearchResult[] = [];
 
-      // Search in description
-      if (parsed.description) {
-        const descMatches = this.findTextMatches(
-          parsed.description,
-          query,
-          "description",
-          options
-        );
-        matches.push(...descMatches);
-      }
+    for (const fuseResult of fuseResults) {
+      const item = fuseResult.item;
+      const score = this.convertFuseScore(fuseResult.score || 0);
+      const matches = this.extractMatches(fuseResult, criteria.query);
+      const snippet = this.createSnippet(matches);
 
-      // Search in tags
-      if (parsed.tags.length > 0) {
-        const tagsText = parsed.tags.join(" ");
-        const tagMatches = this.findTextMatches(
-          tagsText,
-          query,
-          "tags",
-          options
-        );
-        matches.push(...tagMatches);
-      }
-
-      // Search in content body
-      if (parsed.content) {
-        const contentMatches = this.findTextMatches(
-          parsed.content,
-          query,
-          "content",
-          options
-        );
-        matches.push(...contentMatches);
-      }
-
-      // Search in YAML front matter if requested
-      if (options.includeYaml && parsed.frontMatter) {
-        const yamlText = JSON.stringify(parsed.frontMatter);
-        const yamlMatches = this.findTextMatches(
-          yamlText,
-          query,
-          "content",
-          options
-        );
-        matches.push(...yamlMatches);
-      }
-
-      if (matches.length === 0) {
-        return null;
-      }
-
-      const score = this.calculateSearchScore(matches, query);
-      const snippet = this.createSearchSnippet(matches);
-
-      return {
-        filePath: file.path,
-        fileName: this.getFileNameFromPath(file.path),
-        title: parsed.title,
+      searchResults.push({
+        filePath: item.filePath,
+        fileName: item.fileName,
+        title: item.parsed.title,
         score,
         matches,
         snippet,
-      };
-    } catch (error) {
-      console.error(`Search failed for file ${file.path}:`, error);
-      return null;
+      });
     }
-  }
 
-  /**
-   * Simple text matching for fallback scenarios
-   */
-  public matchesTextFallback(
-    text: string,
-    query: string,
-    options: SearchOptions = {}
-  ): boolean {
-    const searchText = options.caseSensitive ? text : text.toLowerCase();
-    const searchQuery = options.caseSensitive ? query : query.toLowerCase();
-
-    if (options.exact) {
-      // Word boundary matching
-      const regex = new RegExp(
-        `\\b${this.escapeRegex(searchQuery)}\\b`,
-        options.caseSensitive ? "g" : "gi"
-      );
-      return regex.test(searchText);
-    } else {
-      // Simple substring matching
-      return searchText.includes(searchQuery);
-    }
-  }
-
-  /**
-   * Count matches for search criteria
-   */
-  public async countMatches(
-    files: FileContent[],
-    criteria: SearchCriteria
-  ): Promise<number> {
-    const results = await this.searchFiles(files, criteria);
-    return results.length;
+    return searchResults;
   }
 
   /**
    * Check if a specific file matches search criteria
    */
-  public async fileMatches(
+  public async matches(
     file: FileContent,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    const searchOptions = this.createSearchOptions(criteria);
-    const result = await this.searchSingleFile(
-      file,
-      criteria.query,
-      searchOptions
-    );
-    return result !== null && this.matchesScope(result, criteria.scope);
+    if (!criteria.isActive || !trim(criteria.query)) {
+      return false;
+    }
+
+    const result = await this.searchSingle(file, criteria);
+    return result !== null;
   }
 
   /**
-   * Clear search cache
+   * Search within a single file
+   */
+  public async searchSingle(
+    file: FileContent,
+    criteria: SearchCriteria
+  ): Promise<SearchResult | null> {
+    if (!criteria.isActive || !trim(criteria.query)) {
+      return null;
+    }
+
+    // Create a temporary searchable content for this file
+    const parsed = this.getParsedContent(file);
+    const searchableContent: SearchableContent = {
+      filePath: file.path,
+      fileName: this.getFileNameFromPath(file.path),
+      parsed,
+      fullContent: file.content,
+    };
+
+    // Create a temporary fuse instance for single file search
+    const fuseOptions: IFuseOptions<SearchableContent> = {
+      threshold: criteria.threshold ?? (criteria.exact ? 0.0 : 0.3),
+      includeMatches: true,
+      includeScore: true,
+      ignoreLocation: true,
+      keys: this.getSearchKeys(criteria.scope),
+      isCaseSensitive: criteria.caseSensitive || false,
+    };
+
+    const fuse = new Fuse([searchableContent], fuseOptions);
+    const results = fuse.search(criteria.query);
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    const fuseResult = results[0];
+    const score = this.convertFuseScore(fuseResult.score || 0);
+    const matches = this.extractMatches(fuseResult, criteria.query);
+    const snippet = this.createSnippet(matches);
+
+    return {
+      filePath: file.path,
+      fileName: this.getFileNameFromPath(file.path),
+      title: parsed.title,
+      score,
+      matches,
+      snippet,
+    };
+  }
+
+  /**
+   * Count matches for search criteria
+   */
+  public async count(
+    files: FileContent[],
+    criteria: SearchCriteria
+  ): Promise<number> {
+    const results = await this.search(files, criteria);
+    return results.length;
+  }
+
+  /**
+   * Clear all caches and indices
    */
   public clearCache(): void {
     this.contentCache.clear();
+    this.searchableContent = [];
+    this.fuse = null;
+    this.lastIndexTime = 0;
+  }
+
+  /**
+   * Get available search scopes
+   */
+  public getAvailableScopes(): Array<SearchCriteria["scope"]> {
+    return ["titles", "content", "both"];
   }
 
   // Private helper methods
 
   private getParsedContent(file: FileContent): ParsedPromptContent {
-    const cacheKey = file.path;
-
-    // Try to get from cache first
-    let parsed = this.contentCache.get(cacheKey);
-
-    if (!parsed) {
-      // Parse and cache
-      const fileName = this.getFileNameFromPath(file.path);
-      parsed = this.parser.parsePromptContent(file.content, fileName);
-      this.contentCache.set(cacheKey, parsed);
+    if (file.parsed) {
+      return file.parsed;
     }
 
+    const cacheKey = `${file.path}-${file.content.length}`;
+    const cached = this.contentCache.get(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const fileName = this.getFileNameFromPath(file.path);
+    const parsed = this.parser.parsePromptContent(file.content, fileName);
+    this.contentCache.set(cacheKey, parsed);
     return parsed;
   }
 
-  private createSearchOptions(criteria: SearchCriteria): SearchOptions {
-    return {
-      caseSensitive: criteria.caseSensitive || false,
-      exact: criteria.exact || false,
-      includeYaml: criteria.includeYaml || false,
-      maxResults: 100,
-      contextSize: 50,
-    };
+  private async ensureIndex(files: FileContent[]): Promise<void> {
+    const now = Date.now();
+
+    // Check if we need to rebuild the index
+    if (
+      this.fuse &&
+      this.searchableContent.length === files.length &&
+      now - this.lastIndexTime < this.INDEX_TTL
+    ) {
+      return; // Index is still valid
+    }
+
+    // Build searchable content
+    this.searchableContent = [];
+
+    for (const file of files) {
+      const parsed = this.getParsedContent(file);
+      this.searchableContent.push({
+        filePath: file.path,
+        fileName: this.getFileNameFromPath(file.path),
+        parsed,
+        fullContent: file.content,
+      });
+    }
+
+    // Create the fuse index with default configuration
+    this.fuse = new Fuse(this.searchableContent, {
+      threshold: 0.3,
+      includeMatches: true,
+      includeScore: true,
+      ignoreLocation: true,
+      keys: this.getAllSearchKeys(),
+    });
+
+    this.lastIndexTime = now;
   }
 
-  private matchesScope(
-    result: SearchResult,
+  private getSearchKeys(
     scope: SearchCriteria["scope"]
-  ): boolean {
+  ): Array<{ name: string; weight: number }> {
     switch (scope) {
       case "titles":
-        return result.matches.some(
-          (m) => m.type === "title" || m.type === "description"
-        );
+        return [
+          { name: "parsed.title", weight: 0.6 },
+          { name: "parsed.description", weight: 0.4 },
+        ];
       case "content":
-        return result.matches.some((m) => m.type === "content");
+        return [
+          { name: "parsed.content", weight: 0.7 },
+          { name: "parsed.tags", weight: 0.3 },
+        ];
       case "both":
-        return true;
       default:
-        return true;
+        return this.getAllSearchKeys();
     }
   }
 
-  private findTextMatches(
-    text: string,
-    query: string,
-    type: SearchMatch["type"],
-    options: SearchOptions
+  private getAllSearchKeys(): Array<{ name: string; weight: number }> {
+    return [
+      { name: "parsed.title", weight: 0.4 },
+      { name: "parsed.description", weight: 0.3 },
+      { name: "parsed.tags", weight: 0.2 },
+      { name: "parsed.content", weight: 0.1 },
+    ];
+  }
+
+  private convertFuseScore(fuseScore: number): number {
+    // Fuse scores are 0-1 where 0 is perfect match, 1 is no match
+    // Convert to our scoring system where higher is better
+    return Math.round((1 - fuseScore) * 100);
+  }
+
+  private extractMatches(
+    fuseResult: FuseResult<SearchableContent>,
+    query: string
   ): SearchMatch[] {
     const matches: SearchMatch[] = [];
-    const searchQuery = options.caseSensitive ? query : query.toLowerCase();
-    const searchText = options.caseSensitive ? text : text.toLowerCase();
 
-    if (options.exact) {
-      // Exact word matching
-      const regex = new RegExp(`\\b${this.escapeRegex(searchQuery)}\\b`, "gi");
-      let match;
+    if (!fuseResult.matches) {
+      return matches;
+    }
 
-      while ((match = regex.exec(searchText)) !== null) {
-        matches.push({
-          type,
-          position: match.index,
-          length: match[0].length,
-          context: this.extractContext(
-            text,
-            match.index,
-            match[0].length,
-            options.contextSize || 50
-          ),
-        });
+    for (const match of fuseResult.matches) {
+      if (!match.indices || match.indices.length === 0) {
+        continue;
       }
-    } else {
-      // Fuzzy matching
-      let startIndex = 0;
-      while (true) {
-        const index = searchText.indexOf(searchQuery, startIndex);
-        if (index === -1) {
-          break;
-        }
+
+      // Map fuse key to our match type
+      const type = this.mapFuseKeyToMatchType(match.key || "");
+
+      for (const [start, end] of match.indices) {
+        const matchLength = end - start + 1;
+        const context = this.extractContext(
+          match.value || "",
+          start,
+          matchLength,
+          50
+        );
 
         matches.push({
           type,
-          position: index,
-          length: searchQuery.length,
-          context: this.extractContext(
-            text,
-            index,
-            searchQuery.length,
-            options.contextSize || 50
-          ),
+          position: start,
+          length: matchLength,
+          context,
         });
-
-        startIndex = index + 1;
       }
     }
 
     return matches;
+  }
+
+  private mapFuseKeyToMatchType(fuseKey: string): SearchMatch["type"] {
+    if (fuseKey.includes("title")) {
+      return "title";
+    }
+    if (fuseKey.includes("description")) {
+      return "description";
+    }
+    if (fuseKey.includes("tags")) {
+      return "tags";
+    }
+    if (fuseKey.includes("content")) {
+      return "content";
+    }
+    return "content"; // fallback
   }
 
   private extractContext(
@@ -346,7 +366,7 @@ export class SearchEngine {
 
     let context = text.substring(start, end);
 
-    // Add ellipsis if we're not at the beginning/end
+    // Add ellipsis if we truncated
     if (start > 0) {
       context = "..." + context;
     }
@@ -357,42 +377,12 @@ export class SearchEngine {
     return context;
   }
 
-  private calculateSearchScore(matches: SearchMatch[], query: string): number {
-    let score = 0;
-
-    for (const match of matches) {
-      // Base score based on match type
-      switch (match.type) {
-        case "title":
-          score += 100;
-          break;
-        case "description":
-          score += 50;
-          break;
-        case "tags":
-          score += 75;
-          break;
-        case "content":
-          score += 25;
-          break;
-      }
-
-      // Bonus for exact matches
-      if (match.length === query.length) {
-        score += 25;
-      }
-
-      // Bonus for matches at word boundaries
-      if (match.context.includes(" " + query + " ")) {
-        score += 15;
-      }
+  private createSnippet(matches: SearchMatch[]): string {
+    if (matches.length === 0) {
+      return "";
     }
 
-    return score;
-  }
-
-  private createSearchSnippet(matches: SearchMatch[]): string {
-    // Get the highest scoring match for snippet
+    // Get the highest priority match for snippet
     const bestMatch = matches.reduce((best, current) =>
       this.getMatchTypeScore(current.type) > this.getMatchTypeScore(best.type)
         ? current
@@ -407,9 +397,9 @@ export class SearchEngine {
       case "title":
         return 100;
       case "description":
-        return 50;
-      case "tags":
         return 75;
+      case "tags":
+        return 50;
       case "content":
         return 25;
       default:
@@ -417,13 +407,7 @@ export class SearchEngine {
     }
   }
 
-  private escapeRegex(text: string): string {
-    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
   private getFileNameFromPath(filePath: string): string {
-    const parts = filePath.split(/[/\\]/);
-    const fileName = parts[parts.length - 1];
-    return fileName.replace(/\.md$/, "");
+    return filePath.split("/").pop() || filePath;
   }
 }

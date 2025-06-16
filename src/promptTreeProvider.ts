@@ -404,16 +404,7 @@ export class PromptTreeProvider
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    try {
-      return await this._searchService.matchesPrompt(prompt, criteria);
-    } catch (error) {
-      console.error(
-        "Error in enhanced search, falling back to simple search:",
-        error
-      );
-      // Fallback to simple text matching
-      return this._searchService.matchesTextFallback(prompt, criteria);
-    }
+    return await this._searchService.matchesPrompt(prompt, criteria);
   }
 
   /**
