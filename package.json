@@ -200,6 +200,7 @@
     "change-case": "^5.4.4",
     "gray-matter": "^4.0.3",
     "lodash": "^4.17.21",
+    "lru-cache": "^11.1.0",
     "remark": "^15.0.1",
     "remark-frontmatter": "^5.0.0",
     "remark-lint": "^10.0.1",

@@ -6,7 +6,7 @@ import { publish } from "./core/eventBus";
 // Import all the focused components
 import { FileSystemManager } from "./core/FileSystemManager";
 import { PromptParser, PromptMetadata } from "./core/PromptParser";
-import { CacheManager } from "./core/CacheManager";
+import { LRUCache } from "lru-cache";
 import {
   DirectoryScanner,
   PromptFile,
@@ -20,7 +20,7 @@ import {
   FileContent,
 } from "./core/SearchEngine";
 
-import { sanitize } from "./validation/index";
+import { sanitizeFileName } from "./validation/index";
 
 // Legacy interfaces for backward compatibility
 export interface SearchablePromptFile extends PromptFile {
@@ -55,7 +55,7 @@ export class FileManager {
   // Core components
   private fileSystemManager: FileSystemManager;
   private promptParser: PromptParser;
-  private contentCache: CacheManager<string>;
+  private contentCache: LRUCache<string, string>;
   private directoryScanner: DirectoryScanner;
   private searchEngine: SearchEngine;
 
@@ -63,9 +63,9 @@ export class FileManager {
     // Initialize all components
     this.fileSystemManager = new FileSystemManager();
     this.promptParser = new PromptParser();
-    this.contentCache = new CacheManager<string>({
+    this.contentCache = new LRUCache<string, string>({
+      max: 1000,
       ttl: 5 * 60 * 1000, // 5 minutes
-      maxSize: 1000,
     });
     this.directoryScanner = new DirectoryScanner(this.fileSystemManager);
     this.searchEngine = new SearchEngine();
@@ -115,7 +115,7 @@ export class FileManager {
     await this.ensurePromptManagerDirectory();
 
     // Sanitize filename
-    const sanitizedName = sanitize.fileName(fileName);
+    const sanitizedName = sanitizeFileName(fileName);
     const fullFileName = `${sanitizedName}.md`;
 
     const targetDir = folderPath || promptPath;
@@ -164,7 +164,7 @@ export class FileManager {
 
     await this.ensurePromptManagerDirectory();
 
-    const sanitizedName = sanitize.fileName(folderName);
+    const sanitizedName = sanitizeFileName(folderName);
     const folderPath = path.join(promptPath, sanitizedName);
 
     if (this.fileSystemManager.fileExists(folderPath)) {
@@ -366,13 +366,6 @@ export class FileManager {
 
   public getSearchEngine(): SearchEngine {
     return this.searchEngine;
-  }
-
-  public getCacheStats() {
-    return {
-      contentCache: this.contentCache.getStats(),
-      searchCache: this.searchEngine.getCacheStats(),
-    };
   }
 
   private publishFileEvent(

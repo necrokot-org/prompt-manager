@@ -1,5 +1,5 @@
 import { PromptParser, ParsedPromptContent } from "./PromptParser";
-import { CacheManager } from "./CacheManager";
+import { LRUCache } from "lru-cache";
 import { trim } from "lodash";
 
 export interface SearchCriteria {
@@ -43,13 +43,13 @@ export interface FileContent {
 
 export class SearchEngine {
   private parser: PromptParser;
-  private contentCache: CacheManager<ParsedPromptContent>;
+  private contentCache: LRUCache<string, ParsedPromptContent>;
 
   constructor() {
     this.parser = new PromptParser();
-    this.contentCache = new CacheManager<ParsedPromptContent>({
+    this.contentCache = new LRUCache<string, ParsedPromptContent>({
+      max: 500,
       ttl: 10 * 60 * 1000, // 10 minutes for parsed content
-      maxSize: 500,
     });
   }
 
@@ -231,13 +231,6 @@ export class SearchEngine {
    */
   public clearCache(): void {
     this.contentCache.clear();
-  }
-
-  /**
-   * Get cache statistics
-   */
-  public getCacheStats() {
-    return this.contentCache.getStats();
   }
 
   // Private helper methods

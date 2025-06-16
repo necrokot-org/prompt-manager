@@ -138,13 +138,6 @@ export class SearchService {
     this.searchEngine.clearCache();
   }
 
-  /**
-   * Get search engine statistics
-   */
-  getStats() {
-    return this.searchEngine.getCacheStats();
-  }
-
   async publishResultsUpdated(
     resultCount: number,
     query: string

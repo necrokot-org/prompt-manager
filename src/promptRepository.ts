@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { FileManager, PromptStructure } from "./fileManager";
 import { publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
-import { validate, getErrorMessages } from "./validation/index.js";
+import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
 import * as fs from "fs";
 
@@ -184,7 +184,7 @@ export class PromptRepository {
     };
 
     // Validate using the new Zod-based validator
-    const result = validate.prompt(promptContent, {
+    const result = validatePrompt(promptContent, {
       requireTitle: false,
       requireDescription: false,
       maxContentLength: 500000,

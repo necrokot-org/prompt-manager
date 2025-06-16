@@ -4,7 +4,11 @@ import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
 import { subscribe, publish } from "./core/eventBus";
 import { EventBuilder } from "./core/EventSystem";
-import { validate, sanitize, getFirstError } from "./validation/index.js";
+import {
+  validateFileName,
+  sanitizeFileName,
+  getErrorMessages,
+} from "./validation/index.js";
 import { trim } from "lodash";
 
 /**
@@ -251,13 +255,14 @@ export class PromptController {
       prompt: "Enter the name for your new prompt",
       placeHolder: "e.g., Code Review Helper",
       validateInput: (value: string) => {
-        const result = validate.fileName(value, {
+        const result = validateFileName(value, {
           requiredExtension: ".md",
           allowSpaces: false,
         });
 
         if (!result.success) {
-          return getFirstError(result) || "Invalid file name";
+          const errors = getErrorMessages(result);
+          return errors[0] || "Invalid file name";
         }
 
         return undefined;
@@ -266,7 +271,7 @@ export class PromptController {
 
     if (fileName) {
       // Sanitize the file name before returning
-      const sanitized = sanitize.fileName(fileName + ".md");
+      const sanitized = sanitizeFileName(fileName + ".md");
       return sanitized.replace(/\.md$/, ""); // Remove extension for display
     }
 
@@ -281,13 +286,14 @@ export class PromptController {
       prompt: "Enter the name for the new folder",
       placeHolder: "e.g., coding, writing, templates",
       validateInput: (value: string) => {
-        const result = validate.fileName(value, {
+        const result = validateFileName(value, {
           allowSpaces: false,
           namingPattern: "kebab-case",
         });
 
         if (!result.success) {
-          return getFirstError(result) || "Invalid folder name";
+          const errors = getErrorMessages(result);
+          return errors[0] || "Invalid folder name";
         }
 
         return undefined;
@@ -296,7 +302,7 @@ export class PromptController {
 
     if (folderName) {
       // Sanitize the folder name before returning
-      return sanitize.fileName(folderName);
+      return sanitizeFileName(folderName);
     }
 
     return undefined;
