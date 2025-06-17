@@ -11,7 +11,7 @@ import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { ConfigurationService } from "./config";
 import { ExtensionEvent } from "./core/EventSystem";
-import { subscribe } from "./core/eventBus";
+import { subscribe } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {

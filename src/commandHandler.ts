@@ -7,7 +7,7 @@ import {
   FolderTreeItem,
 } from "./promptTreeProvider";
 import { EXTENSION_CONSTANTS } from "./config";
-import { publish } from "./core/eventBus";
+import { publish } from "./core/ExtensionBus";
 import { Events } from "./core/EventSystem";
 import { DI_TOKENS } from "./core/di-tokens";
 

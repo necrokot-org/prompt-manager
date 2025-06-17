@@ -6,7 +6,7 @@ import { PromptTreeProvider } from "../promptTreeProvider";
 import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
 import { FileManager } from "../fileManager";
 import { PromptRepository } from "../promptRepository";
-import { subscribe, publish } from "../core/eventBus";
+import { subscribe, publish } from "../core/ExtensionBus";
 import {
   configureDependencies,
   resolve,

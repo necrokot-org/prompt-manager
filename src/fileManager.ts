@@ -2,7 +2,7 @@ import * as path from "path";
 import { injectable, inject } from "tsyringe";
 
 import { Events } from "./core/EventSystem";
-import { publish } from "./core/eventBus";
+import { publish } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 
 // Import all the focused components

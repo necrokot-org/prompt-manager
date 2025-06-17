@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { injectable } from "tsyringe";
 import { FileNamingPattern } from "./utils/string";
-import { publish } from "./core/eventBus";
+import { publish } from "./core/ExtensionBus";
 import { Events } from "./core/EventSystem";
 
 /**

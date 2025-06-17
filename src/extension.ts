@@ -8,7 +8,11 @@ import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
-import { publish, subscribe } from "./core/eventBus";
+import {
+  publish,
+  subscribe,
+  dispose as disposeEventBus,
+} from "./core/ExtensionBus";
 import { Events } from "./core/EventSystem";
 import {
   configureDependencies,
@@ -240,6 +244,9 @@ export function deactivate() {
 
   // Clean up resources properly
   cleanup();
+
+  // Dispose event bus subscriptions to prevent memory leaks
+  disposeEventBus();
 
   // VSCode automatically disposes of registered commands and tree views
 }

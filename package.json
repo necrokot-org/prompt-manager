@@ -198,7 +198,6 @@
     "remark-parse": "^11.0.0",
     "remark-preset-lint-recommended": "^7.0.1",
     "remark-stringify": "^11.0.0",
-    "rxjs": "^7.8.2",
     "safe-regex2": "^5.0.0",
     "sanitize-filename": "^1.6.3",
     "tsyringe": "^4.10.0",

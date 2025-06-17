@@ -3,7 +3,7 @@ import { injectable, inject } from "tsyringe";
 import { PromptRepository } from "./promptRepository";
 import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
-import { subscribe, publish } from "./core/eventBus";
+import { subscribe, publish } from "./core/ExtensionBus";
 import { Events } from "./core/EventSystem";
 import {
   validateFileName,

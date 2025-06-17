@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { SearchPanelProvider } from "../searchPanelProvider";
-import { subscribe, publish } from "../core/eventBus";
+import { subscribe, publish } from "../core/ExtensionBus";
 
 suite("SearchPanelProvider", () => {
   let searchProvider: SearchPanelProvider;

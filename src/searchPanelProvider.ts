@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { publish } from "./core/eventBus";
+import { publish } from "./core/ExtensionBus";
 import { Events } from "./core/EventSystem";
 import { DI_TOKENS } from "./core/di-tokens";
 

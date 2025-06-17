@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { FileManager, PromptStructure } from "./fileManager";
 import { SearchService } from "./searchService";
-import { publish } from "./core/eventBus";
+import { publish } from "./core/ExtensionBus";
 import { Events } from "./core/EventSystem";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
