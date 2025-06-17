@@ -1,88 +1,10 @@
 import { z } from "zod";
-import sanitizeFilename from "sanitize-filename";
-import slugify from "@sindresorhus/slugify";
-import validFilename from "valid-filename";
+import filenamify from "filenamify";
 import trim from "lodash-es/trim.js";
+import { normalizeFileName, FileNamingPattern } from "../../utils/string.js";
 
 /**
- * File naming patterns
- */
-export type FileNamingPattern = "kebab-case" | "snake_case" | "original";
-
-/**
- * Get file extension including the dot
- */
-function getExtension(fileName: string): string {
-  const lastDotIndex = fileName.lastIndexOf(".");
-  return lastDotIndex > 0 ? fileName.substring(lastDotIndex) : "";
-}
-
-/**
- * Remove file extension
- */
-function removeExtension(fileName: string): string {
-  const lastDotIndex = fileName.lastIndexOf(".");
-  return lastDotIndex > 0 ? fileName.substring(0, lastDotIndex) : fileName;
-}
-
-/**
- * Format name according to the specified pattern using @sindresorhus/slugify
- * @param pattern - The naming pattern to apply
- * @param raw - The raw filename to transform
- * @returns Promise that resolves to the formatted filename
- */
-export async function formatName(
-  pattern: FileNamingPattern,
-  raw: string
-): Promise<string> {
-  // Extract extension before transformation
-  const extension = getExtension(raw);
-  const nameWithoutExt = removeExtension(raw);
-
-  if (pattern === "original") {
-    return nameWithoutExt + extension;
-  }
-
-  const separator = pattern === "snake_case" ? "_" : "-";
-  const transformedName = slugify(nameWithoutExt, { separator });
-
-  return transformedName + extension;
-}
-
-/**
- * Comprehensive file name validation using valid-filename library
- * @param fileName - The filename to validate
- * @param options - Validation options
- * @returns Promise that resolves to validation result
- */
-async function validateFileNameSafety(
-  fileName: string,
-  options: { allowUnicode?: boolean; allowSpaces?: boolean } = {}
-): Promise<{ valid: boolean; message?: string }> {
-  if (!validFilename(fileName)) {
-    return {
-      valid: false,
-      message: "File name contains invalid characters or uses reserved names",
-    };
-  }
-
-  // Additional checks for options not covered by valid-filename
-  if (!options.allowSpaces && fileName.includes(" ")) {
-    return { valid: false, message: "File name contains spaces" };
-  }
-
-  if (!options.allowUnicode && /[^\x00-\x7F]/.test(fileName)) {
-    return {
-      valid: false,
-      message: "File name contains non-ASCII characters",
-    };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Suspicious file extensions that should be flagged
+ * Suspicious file extensions that should be flagged (non-blocking warnings)
  */
 const SUSPICIOUS_EXTENSIONS = [
   ".exe",
@@ -96,66 +18,60 @@ const SUSPICIOUS_EXTENSIONS = [
   ".jar",
 ];
 
-/**
- * Check for suspicious file extension
- */
+function getExtension(fileName: string): string {
+  const lastDotIndex = fileName.lastIndexOf(".");
+  return lastDotIndex > 0 ? fileName.substring(lastDotIndex) : "";
+}
+
+function removeExtension(fileName: string): string {
+  const lastDotIndex = fileName.lastIndexOf(".");
+  return lastDotIndex > 0 ? fileName.substring(0, lastDotIndex) : fileName;
+}
+
 function hasSuspiciousExtension(fileName: string): boolean {
   const extension = getExtension(fileName).toLowerCase();
   return SUSPICIOUS_EXTENSIONS.includes(extension);
 }
 
 /**
- * File name validation options
+ * File-name validation options – unicode/space checks have been removed as filenamify already guards against them.
  */
 export interface FileNameOptions {
   namingPattern?: FileNamingPattern;
   maxLength?: number;
-  allowSpaces?: boolean;
-  allowUnicode?: boolean;
   requiredExtension?: string;
   allowedExtensions?: string[];
 }
 
 /**
- * Create file name schema with custom options
+ * Create a Zod schema that sanitises and normalises a filename.
+ *
+ * 1. The raw input is trimmed and passed through filenamify with an underscore replacement – this handles all OS-reserved
+ *    characters, control characters, reserved words and length truncation edge-cases for us.
+ * 2. Optional pattern transformation (kebab-case / snake_case) happens *after* filenamify so we never feed unsafe strings
+ *    into slugify.
  */
 export function createFileNameSchema(options: FileNameOptions = {}) {
   const {
     namingPattern = "kebab-case",
     maxLength = 255,
-    allowSpaces = false,
-    allowUnicode = false,
     requiredExtension,
-    allowedExtensions = [],
+    allowedExtensions = [".md", ".txt", ""],
   } = options;
 
   return (
     z
       .string()
       .min(1, "File name cannot be empty")
-      .transform((val) => sanitizeFilename(trim(val), { replacement: "_" }))
+      // 1️⃣  Sanitise
+      .transform((val) => filenamify(trim(val), { replacement: "_" }))
       .refine((val) => val.length > 0, {
-        message: "File name cannot be empty after sanitization",
+        message: "File name cannot be empty after sanitisation",
       })
-      // Zod handles length validation
       .refine((val) => val.length <= maxLength, {
         message: `File name exceeds maximum length of ${maxLength} characters`,
       })
-      // File name safety validation using valid-filename library
-      .refine(
-        async (val) => {
-          const result = await validateFileNameSafety(val, {
-            allowUnicode,
-            allowSpaces,
-          });
-          return result.valid;
-        },
-        {
-          message:
-            "File name contains invalid characters or uses reserved names",
-        }
-      )
-      // Zod handles extension validation
+      // 2️⃣  Extension rules
       .refine(
         (val) => !requiredExtension || getExtension(val) === requiredExtension,
         { message: `File must have ${requiredExtension} extension` }
@@ -170,12 +86,19 @@ export function createFileNameSchema(options: FileNameOptions = {}) {
           )}`,
         }
       )
-      // Apply formatting using @sindresorhus/slugify
-      .transform(async (val) => await formatName(namingPattern, val))
-      // Warning for suspicious extensions (non-blocking)
+      // 3️⃣  Pattern transformation (kebab-case/snake_case/original)
+      .transform((val) => {
+        const extension = getExtension(val);
+        const nameWithoutExt = removeExtension(val);
+        const transformed =
+          namingPattern === "original"
+            ? nameWithoutExt
+            : normalizeFileName(nameWithoutExt, namingPattern);
+        return transformed + extension;
+      })
+      // 4️⃣  Non-blocking suspicious-extension warning
       .refine(
         (val) => {
-          // This always returns true but logs the warning
           if (hasSuspiciousExtension(val)) {
             console.warn(`File has suspicious extension: ${val}`);
           }
@@ -187,23 +110,16 @@ export function createFileNameSchema(options: FileNameOptions = {}) {
 }
 
 /**
- * Default file name schema for prompts
+ * Default schema used across the extension.
  */
-export const FileNameSchema = createFileNameSchema({
-  namingPattern: "kebab-case",
-  maxLength: 255,
-  allowSpaces: false,
-  allowUnicode: false,
-  allowedExtensions: [".md", ".txt", ""],
-});
+export const FileNameSchema = createFileNameSchema();
 
-/**
- * Type inference
- */
 export type ValidFileName = z.infer<typeof FileNameSchema>;
 
-/**
- * Utility functions for external use
- */
-export { sanitizeFilename as sanitizeFileName };
-export { getExtension, removeExtension, hasSuspiciousExtension };
+/** Convenience re-exports */
+export {
+  filenamify as sanitizeFileName,
+  getExtension,
+  removeExtension,
+  hasSuspiciousExtension,
+};

@@ -261,7 +261,6 @@ export class PromptController {
       validateInput: (value: string) => {
         const result = validateFileName(value, {
           requiredExtension: ".md",
-          allowSpaces: false,
         });
 
         if (!result.success) {
@@ -291,7 +290,6 @@ export class PromptController {
       placeHolder: "e.g., coding, writing, templates",
       validateInput: (value: string) => {
         const result = validateFileName(value, {
-          allowSpaces: false,
           namingPattern: "kebab-case",
         });
 

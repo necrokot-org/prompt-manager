@@ -191,6 +191,7 @@
     "lodash-es": "^4.17.21",
     "lru-cache": "^11.1.0",
     "lucene-query-parser": "^1.2.0",
+    "filenamify": "^6.0.0",
     "reflect-metadata": "^0.2.2",
     "remark": "^15.0.1",
     "remark-frontmatter": "^5.0.0",
@@ -199,9 +200,7 @@
     "remark-preset-lint-recommended": "^7.0.1",
     "remark-stringify": "^11.0.0",
     "safe-regex2": "^5.0.0",
-    "sanitize-filename": "^1.6.3",
     "tsyringe": "^4.10.0",
-    "valid-filename": "^4.0.0",
     "zod": "^3.25.64"
   },
   "devDependencies": {
