@@ -4,6 +4,7 @@ import * as path from "path";
 import { injectable, inject } from "tsyringe";
 import { DI_TOKENS } from "./di-tokens";
 import { ConfigurationService } from "../config";
+import { log } from "./log";
 
 export interface FileSystemOperation {
   path: string;
@@ -54,7 +55,7 @@ Happy prompting!
     const workspaceFolders = vscode.workspace.workspaceFolders;
 
     if (!workspaceFolders || workspaceFolders.length === 0) {
-      console.log("FileSystemManager: No workspace folders available");
+      log.debug("FileSystemManager: No workspace folders available");
       return undefined;
     }
 
@@ -62,19 +63,19 @@ Happy prompting!
     const workspaceName = vscode.workspace.name;
     const isWorkspaceFile = vscode.workspace.workspaceFile !== undefined;
 
-    console.log(
+    log.debug(
       `FileSystemManager: Workspace detection - Name: ${workspaceName}, IsWorkspaceFile: ${isWorkspaceFile}, Folders: ${workspaceFolders.length}`
     );
 
     // Use the first workspace folder (works for both single folder and workspace scenarios)
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    console.log(`FileSystemManager: Using workspace root: ${workspaceRoot}`);
+    log.debug(`FileSystemManager: Using workspace root: ${workspaceRoot}`);
 
     // Use configuration service for directory name
     const dirName = this.configurationService.getDefaultPromptDirectory();
 
     const promptPath = path.join(workspaceRoot, dirName);
-    console.log(`FileSystemManager: Prompt manager path: ${promptPath}`);
+    log.debug(`FileSystemManager: Prompt manager path: ${promptPath}`);
 
     return promptPath;
   }
@@ -116,7 +117,7 @@ Happy prompting!
     try {
       return await fsExtra.readFile(filePath, "utf8");
     } catch (error) {
-      console.error(`Failed to read file ${filePath}:`, error);
+      log.error(`Failed to read file ${filePath}:`, error);
       throw error;
     }
   }
@@ -128,7 +129,7 @@ Happy prompting!
     try {
       await fsExtra.outputFile(filePath, content);
     } catch (error) {
-      console.error(`Failed to write file ${filePath}:`, error);
+      log.error(`Failed to write file ${filePath}:`, error);
       throw error;
     }
   }
@@ -140,7 +141,7 @@ Happy prompting!
     try {
       await fsExtra.remove(filePath);
     } catch (error) {
-      console.error(`Failed to delete file ${filePath}:`, error);
+      log.error(`Failed to delete file ${filePath}:`, error);
       throw error;
     }
   }
@@ -152,7 +153,7 @@ Happy prompting!
     try {
       await fsExtra.ensureDir(dirPath);
     } catch (error) {
-      console.error(`Failed to create directory ${dirPath}:`, error);
+      log.error(`Failed to create directory ${dirPath}:`, error);
       throw error;
     }
   }
@@ -164,7 +165,7 @@ Happy prompting!
     try {
       return await fsExtra.stat(filePath);
     } catch (error) {
-      console.error(`Failed to get stats for ${filePath}:`, error);
+      log.error(`Failed to get stats for ${filePath}:`, error);
       throw error;
     }
   }
@@ -183,7 +184,7 @@ Happy prompting!
     try {
       return await fsExtra.readdir(dirPath, { withFileTypes: true });
     } catch (error) {
-      console.error(`Failed to read directory ${dirPath}:`, error);
+      log.error(`Failed to read directory ${dirPath}:`, error);
       throw error;
     }
   }
@@ -202,7 +203,7 @@ Happy prompting!
           const content = await this.readFile(filePath);
           return { filePath, content };
         } catch (error) {
-          console.warn(`Failed to read ${filePath}:`, error);
+          log.warn(`Failed to read ${filePath}:`, error);
           return { filePath, content: "" };
         }
       });
@@ -212,7 +213,7 @@ Happy prompting!
         results.set(filePath, content);
       });
     } catch (error) {
-      console.error("Batch read failed:", error);
+      log.error("Batch read failed:", error);
     }
 
     return results;

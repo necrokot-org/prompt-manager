@@ -164,6 +164,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show prompt descriptions in the tree view"
+        },
+        "promptManager.debugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose debug-level logging in the Prompt Manager output channel"
         }
       }
     }

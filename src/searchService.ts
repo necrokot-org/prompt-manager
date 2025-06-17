@@ -4,6 +4,7 @@ import { SearchCriteria } from "./searchPanelProvider";
 import { FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
 import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
 import { DI_TOKENS } from "./core/di-tokens";
 import trim from "lodash-es/trim.js";
 import { searchResultToPromptFile } from "./utils/promptFile";
@@ -192,10 +193,7 @@ export class SearchService {
           content,
         });
       } catch (error) {
-        console.warn(
-          `Failed to read file for search: ${promptFile.path}`,
-          error
-        );
+        log.warn(`Failed to read file for search: ${promptFile.path}`, error);
       }
     }
 

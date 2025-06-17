@@ -3,6 +3,7 @@ import fg from "fast-glob";
 import { FileSystemManager } from "./FileSystemManager";
 import { PromptParser, ParsedPromptContent } from "./PromptParser";
 import { eventBus } from "./ExtensionBus";
+import { log } from "./log";
 
 export interface PromptFile {
   name: string;
@@ -174,7 +175,7 @@ export class DirectoryScanner {
 
       return { folders, rootPrompts };
     } catch (error) {
-      console.error(`Failed to scan directory ${dirPath}:`, error);
+      log.error(`Failed to scan directory ${dirPath}:`, error);
       return { folders: [], rootPrompts: [] };
     }
   }
@@ -243,7 +244,7 @@ export class DirectoryScanner {
 
       return prompts.sort((a, b) => a.title.localeCompare(b.title));
     } catch (error) {
-      console.error(`Failed to scan folder prompts in ${folderPath}:`, error);
+      log.error(`Failed to scan folder prompts in ${folderPath}:`, error);
       return [];
     }
   }
@@ -269,7 +270,7 @@ export class DirectoryScanner {
         isDirectory: false,
       };
     } catch (error) {
-      console.error(`Failed to parse prompt file ${filePath}:`, error);
+      log.error(`Failed to parse prompt file ${filePath}:`, error);
       return null;
     }
   }
@@ -278,7 +279,7 @@ export class DirectoryScanner {
    * Invalidate the cached index - call this when files are added/removed/changed
    */
   public invalidateIndex(): void {
-    console.log("DirectoryScanner: Invalidating index cache");
+    log.debug("DirectoryScanner: Invalidating index cache");
 
     // Mark cache as stale
     this.cachedStructure = null;
@@ -298,7 +299,7 @@ export class DirectoryScanner {
         // Notify UI layer that a fresh structure is available
         eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
       } catch (error) {
-        console.error("DirectoryScanner: Failed to rebuild index", error);
+        log.error("DirectoryScanner: Failed to rebuild index", error);
       }
     }, this.rebuildDebounceMs);
   }
@@ -344,7 +345,7 @@ export class DirectoryScanner {
   // Private methods
 
   private async performIndexBuild(): Promise<void> {
-    console.log("DirectoryScanner: Building in-memory index...");
+    log.debug("DirectoryScanner: Building in-memory index...");
     const promptPath = this.fileSystemManager.getPromptManagerPath();
 
     if (!promptPath || !this.fileSystemManager.fileExists(promptPath)) {
@@ -358,11 +359,11 @@ export class DirectoryScanner {
       this.cachedStructure = structure;
       this.indexBuilt = true;
 
-      console.log(
+      log.debug(
         `DirectoryScanner: Index built - ${structure.folders.length} folders, ${structure.rootPrompts.length} root prompts`
       );
     } catch (error) {
-      console.error("Failed to build index:", error);
+      log.error("Failed to build index:", error);
       this.cachedStructure = { folders: [], rootPrompts: [] };
       this.indexBuilt = true;
     }

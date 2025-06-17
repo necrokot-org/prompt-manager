@@ -20,6 +20,7 @@ export const CONFIG_KEYS = {
   DEFAULT_PROMPT_DIRECTORY: "defaultPromptDirectory",
   FILE_NAMING_PATTERN: "fileNamingPattern",
   SHOW_DESCRIPTION_IN_TREE: "showDescriptionInTree",
+  DEBUG_LOGGING: "debugLogging",
 } as const;
 
 /**
@@ -80,6 +81,13 @@ export class ConfigurationService {
    */
   public getShowDescriptionInTree(): boolean {
     return config.get<boolean>(CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE, true);
+  }
+
+  /**
+   * Get whether verbose debug logging is enabled
+   */
+  public getDebugLogging(): boolean {
+    return config.get<boolean>(CONFIG_KEYS.DEBUG_LOGGING, false);
   }
 
   /**

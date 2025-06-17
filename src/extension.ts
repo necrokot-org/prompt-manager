@@ -15,6 +15,7 @@ import {
   disposeDependencies,
   DI_TOKENS,
 } from "./core/di-container";
+import { log } from "./core/log";
 
 // Global instances - now resolved from DI container
 let configService: ConfigurationService | undefined;
@@ -28,18 +29,18 @@ let searchService: SearchService | undefined;
  * This method is called when your extension is activated
  */
 export async function activate(context: vscode.ExtensionContext) {
-  console.log("Activating Prompt Manager extension...");
+  log.info("Activating Prompt Manager extension...");
 
   try {
     // Check if we have a workspace
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-      console.log("No workspace folder found, setting up workspace listener");
+      log.debug("No workspace folder found, setting up workspace listener");
       setupWorkspaceChangeListener(context);
       return; // Exit early, extension will be activated when workspace is opened
     }
 
-    console.log(
+    log.debug(
       `Workspace detected: ${workspaceFolders.length} folder(s), proceeding...`
     );
 
@@ -49,9 +50,9 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize extension components
     await initializeExtension(context);
 
-    console.log("Extension activated successfully");
+    log.info("Extension activated successfully");
   } catch (error) {
-    console.error("Failed to activate extension:", error);
+    log.error("Failed to activate extension:", error);
     vscode.window.showErrorMessage(
       `Failed to activate Prompt Manager: ${error}`
     );
@@ -128,17 +129,16 @@ async function initializeExtension(
     // Show welcome message for new users
     await showWelcomeMessage(context);
 
-    console.log("Prompt Manager extension activated successfully");
+    log.info("Prompt Manager extension activated successfully");
   } else {
     throw new Error("Failed to initialize Prompt Manager");
   }
 }
 
 function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
-  // Listen for workspace folder changes
   const workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(
     async (event) => {
-      console.log("Workspace folders changed:", event);
+      log.debug("Workspace folders changed:", event);
 
       const workspaceFolders = vscode.workspace.workspaceFolders;
       const workspaceName = vscode.workspace.name;
@@ -146,12 +146,12 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
 
       if (workspaceFolders && workspaceFolders.length > 0) {
         if (isWorkspaceFile) {
-          console.log(
-            `Workspace change: VS Code workspace opened/modified - Name: ${workspaceName}, Folders: ${workspaceFolders.length}`
+          log.info(
+            `Workspace opened/modified - Name: ${workspaceName}, Folders: ${workspaceFolders.length}`
           );
         } else {
-          console.log(
-            `Workspace change: Single folder opened - Path: ${workspaceFolders[0].uri.fsPath}`
+          log.info(
+            `Single folder opened - Path: ${workspaceFolders[0].uri.fsPath}`
           );
         }
 
@@ -164,7 +164,7 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         try {
           await initializeExtension(context);
         } catch (error) {
-          console.error(
+          log.error(
             "Failed to initialize extension after workspace change:",
             error
           );
@@ -173,8 +173,8 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
           );
         }
       } else {
-        console.log(
-          "Workspace change: All workspaces/folders closed, hiding extension..."
+        log.info(
+          "All workspaces/folders closed, hiding Prompt Manager views..."
         );
 
         // Publish workspace change event
@@ -203,13 +203,8 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
  * Centralized cleanup function for proper resource disposal
  */
 function cleanup(): void {
-  // Dispose components in reverse order of initialization
   if (treeProvider) {
     treeProvider.dispose();
-  }
-
-  if (commandHandler) {
-    // CommandHandler doesn't have dispose method, but context subscriptions are handled automatically
   }
 
   if (promptController) {
@@ -220,7 +215,6 @@ function cleanup(): void {
     configService.dispose();
   }
 
-  // Dispose the DI container to clean up all singletons
   disposeDependencies();
 
   // Clear global references
@@ -234,15 +228,12 @@ function cleanup(): void {
 
 // This method is called when your extension is deactivated
 export function deactivate() {
-  console.log("Prompt Manager extension is being deactivated");
+  log.info("Prompt Manager extension is being deactivated");
 
-  // Clean up resources properly
   cleanup();
 
   // Dispose event bus subscriptions to prevent memory leaks
   eventBus.dispose();
-
-  // VSCode automatically disposes of registered commands and tree views
 }
 
 async function showWelcomeMessage(
@@ -268,7 +259,6 @@ async function showWelcomeMessage(
       );
     }
 
-    // Mark as shown
     await context.globalState.update(
       EXTENSION_CONSTANTS.HAS_SHOWN_WELCOME,
       true

@@ -1,6 +1,7 @@
 import { PromptFile } from "../core/DirectoryScanner";
 import { SearchResult } from "../core/SearchEngine";
 import { FileSystemManager } from "../core/FileSystemManager";
+import { log } from "../core/log";
 
 /**
  * Convert a SearchResult to a PromptFile using provided dependencies
@@ -31,7 +32,7 @@ export async function searchResultToPromptFile(
       isDirectory: false,
     };
   } catch (error) {
-    console.error(`Failed to get file stats for ${result.filePath}:`, error);
+    log.error(`Failed to get file stats for ${result.filePath}:`, error);
     // Return minimal file info
     return {
       name: result.fileName,

@@ -6,6 +6,7 @@ import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
 import { DI_TOKENS } from "./core/di-tokens";
 import * as fs from "fs";
+import { log } from "./core/log";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
@@ -64,7 +65,7 @@ export class PromptRepository {
    * Handle file creation events
    */
   private handleFileCreated(uri: vscode.Uri): void {
-    console.log("PromptRepository: File created, invalidating index");
+    log.debug("PromptRepository: File created, invalidating index");
     this.invalidateCache();
   }
 
@@ -72,7 +73,7 @@ export class PromptRepository {
    * Handle file deletion events
    */
   private handleFileDeleted(uri: vscode.Uri): void {
-    console.log("PromptRepository: File deleted, invalidating index");
+    log.debug("PromptRepository: File deleted, invalidating index");
     this.invalidateCache();
   }
 
@@ -144,7 +145,7 @@ export class PromptRepository {
     try {
       return await fs.promises.readFile(filePath, "utf8");
     } catch (error) {
-      console.error(`Failed to read file ${filePath}:`, error);
+      log.error(`Failed to read file ${filePath}:`, error);
       return null;
     }
   }

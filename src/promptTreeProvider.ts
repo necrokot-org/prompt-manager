@@ -11,6 +11,7 @@ import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { ConfigurationService } from "./config";
 import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
 import { DI_TOKENS } from "./core/di-tokens";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
@@ -189,9 +190,9 @@ export class PromptTreeProvider
 
   private async getRootItems(): Promise<PromptTreeItem[]> {
     try {
-      console.log("getRootItems: Starting to get prompt structure");
+      log.debug("getRootItems: Starting to get prompt structure");
       const structure = await this.promptController.getPromptStructure();
-      console.log("getRootItems: Got structure", {
+      log.debug("getRootItems: Got structure", {
         foldersCount: structure?.folders?.length || 0,
         rootPromptsCount: structure?.rootPrompts?.length || 0,
         structure,
@@ -201,30 +202,30 @@ export class PromptTreeProvider
 
       // If search is active, apply filtering
       if (this._currentSearchCriteria?.isActive) {
-        console.log("getRootItems: Search is active, getting filtered items");
+        log.debug("getRootItems: Search is active, getting filtered items");
         return this.getFilteredItems(structure);
       }
 
       // Add folders
       if (structure?.folders) {
-        console.log("getRootItems: Processing folders");
+        log.debug("getRootItems: Processing folders");
         for (const folder of structure.folders) {
-          console.log("getRootItems: Processing folder:", folder);
+          log.debug("getRootItems: Processing folder:", folder);
           if (folder && folder.name) {
             const folderItem = new FolderTreeItem(folder);
             items.push(folderItem);
-            console.log("getRootItems: Added folder item:", folder.name);
+            log.debug("getRootItems: Added folder item:", folder.name);
           } else {
-            console.warn("FolderTreeItem: Skipping invalid folder:", folder);
+            log.warn("FolderTreeItem: Skipping invalid folder:", folder);
           }
         }
       }
 
       // Add root prompts
       if (structure?.rootPrompts) {
-        console.log("getRootItems: Processing root prompts");
+        log.debug("getRootItems: Processing root prompts");
         for (const prompt of structure.rootPrompts) {
-          console.log("getRootItems: Processing prompt:", prompt);
+          log.debug("getRootItems: Processing prompt:", prompt);
           if (prompt && prompt.title) {
             const promptItem = new FileTreeItem(prompt, {
               command: "promptManager.openPrompt",
@@ -232,16 +233,16 @@ export class PromptTreeProvider
               arguments: [prompt.path],
             });
             items.push(promptItem);
-            console.log("getRootItems: Added prompt item:", prompt.title);
+            log.debug("getRootItems: Added prompt item:", prompt.title);
           } else {
-            console.warn("FileTreeItem: Skipping invalid prompt:", prompt);
+            log.warn("FileTreeItem: Skipping invalid prompt:", prompt);
           }
         }
       }
 
       // If no items, show empty state message
       if (items.length === 0) {
-        console.log("getRootItems: No items found, showing empty state");
+        log.debug("getRootItems: No items found, showing empty state");
         const emptyItem = new EmptyStateTreeItem(
           "No prompts yet",
           "Click + to add your first prompt",
@@ -250,10 +251,10 @@ export class PromptTreeProvider
         items.push(emptyItem);
       }
 
-      console.log("getRootItems: Returning items", { count: items.length });
+      log.debug("getRootItems: Returning items", { count: items.length });
       return items;
     } catch (error) {
-      console.error("Error in getRootItems:", error);
+      log.error("Error in getRootItems:", error);
       vscode.window.showErrorMessage(`Error getting root items: ${error}`);
       return [
         new EmptyStateTreeItem(
@@ -269,7 +270,7 @@ export class PromptTreeProvider
     const items: PromptTreeItem[] = [];
 
     if (!folder || !folder.prompts) {
-      console.warn("getFolderItems: Invalid folder provided:", folder);
+      log.warn("getFolderItems: Invalid folder provided:", folder);
       return items;
     }
 
@@ -282,7 +283,7 @@ export class PromptTreeProvider
         });
         items.push(promptItem);
       } else {
-        console.warn("getFolderItems: Skipping invalid prompt:", prompt);
+        log.warn("getFolderItems: Skipping invalid prompt:", prompt);
       }
     }
 
@@ -331,7 +332,7 @@ export class PromptTreeProvider
 
     // Check if structure is valid
     if (!structure) {
-      console.warn("getFilteredItems: Invalid structure provided");
+      log.warn("getFilteredItems: Invalid structure provided");
       return items;
     }
 
@@ -358,7 +359,7 @@ export class PromptTreeProvider
     if (structure.folders) {
       for (const folder of structure.folders) {
         if (!folder || !folder.name) {
-          console.warn("getFilteredItems: Skipping invalid folder:", folder);
+          log.warn("getFilteredItems: Skipping invalid folder:", folder);
           continue;
         }
 

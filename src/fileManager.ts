@@ -2,6 +2,7 @@ import * as path from "path";
 import { injectable, inject } from "tsyringe";
 
 import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
 import { DI_TOKENS } from "./core/di-tokens";
 
 // Import all the focused components
@@ -118,7 +119,7 @@ export class FileManager {
 
     // Check if file already exists
     if (this.fileSystemManager.fileExists(filePath)) {
-      console.warn(`Prompt file "${fullFileName}" already exists.`);
+      log.warn(`Prompt file "${fullFileName}" already exists.`);
       return null;
     }
 
@@ -142,7 +143,7 @@ export class FileManager {
 
       return filePath;
     } catch (error) {
-      console.error(`Failed to create prompt file: ${error}`);
+      log.error(`Failed to create prompt file: ${error}`);
       return null;
     }
   }
@@ -159,7 +160,7 @@ export class FileManager {
     const folderPath = path.join(promptPath, sanitizedName);
 
     if (this.fileSystemManager.fileExists(folderPath)) {
-      console.warn(`Folder "${sanitizedName}" already exists.`);
+      log.warn(`Folder "${sanitizedName}" already exists.`);
       return null;
     }
 
@@ -171,7 +172,7 @@ export class FileManager {
 
       return folderPath;
     } catch (error) {
-      console.error(`Failed to create folder: ${error}`);
+      log.error(`Failed to create folder: ${error}`);
       return null;
     }
   }
@@ -185,7 +186,7 @@ export class FileManager {
 
       return true;
     } catch (error) {
-      console.error(`Failed to delete prompt file: ${error}`);
+      log.error(`Failed to delete prompt file: ${error}`);
       return false;
     }
   }

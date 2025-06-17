@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { container, InjectionToken } from "tsyringe";
 import * as vscode from "vscode";
 import { DI_TOKENS } from "./di-tokens";
+import { log } from "./log";
 
 // Import all services that need to be managed by DI
 import { FileManager } from "../fileManager";
@@ -42,7 +43,7 @@ export function configureDependencies(context: vscode.ExtensionContext): void {
   );
   container.registerSingleton(DI_TOKENS.CommandHandler, CommandHandler);
 
-  console.log("Dependency injection container configured successfully");
+  log.debug("Dependency injection container configured successfully");
 }
 
 /**
@@ -57,7 +58,7 @@ export function resolve<T>(token: InjectionToken<T>): T {
  */
 export function disposeDependencies(): void {
   container.clearInstances();
-  console.log("Dependency injection container cleared");
+  log.debug("Dependency injection container cleared");
 }
 
 /**

@@ -4,6 +4,7 @@ import { PromptRepository } from "./promptRepository";
 import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
 import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
 import {
   validateFileName,
   sanitizeFileName,
@@ -220,7 +221,7 @@ export class PromptController {
       await vscode.env.clipboard.writeText(contentWithoutFrontMatter);
       return true;
     } catch (error) {
-      console.error(`Failed to copy content to clipboard: ${error}`);
+      log.error(`Failed to copy content to clipboard: ${error}`);
       vscode.window.showErrorMessage(`Failed to copy content: ${error}`);
       return false;
     }

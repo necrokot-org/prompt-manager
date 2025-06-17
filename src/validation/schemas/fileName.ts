@@ -2,6 +2,7 @@ import { z } from "zod";
 import filenamify from "filenamify";
 import trim from "lodash-es/trim.js";
 import { normalizeFileName, FileNamingPattern } from "../../utils/string.js";
+import { log } from "../../core/log";
 
 /**
  * Suspicious file extensions that should be flagged (non-blocking warnings)
@@ -100,7 +101,7 @@ export function createFileNameSchema(options: FileNameOptions = {}) {
       .refine(
         (val) => {
           if (hasSuspiciousExtension(val)) {
-            console.warn(`File has suspicious extension: ${val}`);
+            log.warn(`File has suspicious extension: ${val}`);
           }
           return true;
         },
