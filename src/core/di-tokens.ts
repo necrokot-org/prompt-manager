@@ -5,6 +5,7 @@ import { InjectionToken } from "tsyringe";
 // and the DI container itself.
 export const DI_TOKENS = {
   FileManager: Symbol("FileManager"),
+  FileSystemManager: Symbol("FileSystemManager"),
   PromptRepository: Symbol("PromptRepository"),
   PromptController: Symbol("PromptController"),
   SearchService: Symbol("SearchService"),

@@ -10,6 +10,7 @@ import { PromptController } from "../promptController";
 import { SearchService } from "../searchService";
 import { SearchCriteria } from "../searchPanelProvider";
 import { PromptFile, PromptFolder } from "../fileManager";
+import { ConfigurationService } from "../config";
 
 suite("PromptTreeProvider Tests", () => {
   let treeProvider: PromptTreeProvider;
@@ -119,9 +120,13 @@ suite("PromptTreeProvider Tests", () => {
       publishCleared: async () => {},
     } as any;
 
+    // Create a mock ConfigurationService for testing
+    const mockConfigService = new ConfigurationService();
+
     treeProvider = new PromptTreeProvider(
       mockPromptController,
-      mockSearchService
+      mockSearchService,
+      mockConfigService
     );
   });
 
@@ -317,9 +322,11 @@ suite("PromptTreeProvider Tests", () => {
       onDidChangeTreeData: () => ({ dispose: () => {} }),
     } as any;
 
+    const emptyConfigService = new ConfigurationService();
     const emptyTreeProvider = new PromptTreeProvider(
       emptyPromptManager,
-      mockSearchService
+      mockSearchService,
+      emptyConfigService
     );
     const rootItems = await emptyTreeProvider.getChildren();
 

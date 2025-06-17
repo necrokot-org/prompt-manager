@@ -9,7 +9,7 @@ import {
 } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
-import { getShowDescriptionInTree } from "./config";
+import { ConfigurationService } from "./config";
 import { ExtensionEvent } from "./core/EventSystem";
 import { subscribe } from "./core/eventBus";
 import { DI_TOKENS } from "./core/di-tokens";
@@ -28,7 +28,8 @@ export abstract class BaseTreeItem extends vscode.TreeItem {
 export class FileTreeItem extends BaseTreeItem {
   constructor(
     public readonly promptFile: PromptFile,
-    command?: vscode.Command
+    command?: vscode.Command,
+    private showDescriptionInTree: boolean = true
   ) {
     if (!promptFile) {
       throw new Error("FileTreeItem: promptFile cannot be null or undefined");
@@ -56,8 +57,7 @@ export class FileTreeItem extends BaseTreeItem {
   }
 
   private createDescription(): string | undefined {
-    const showDescription = getShowDescriptionInTree();
-    return showDescription ? this.promptFile.description || "" : "";
+    return this.showDescriptionInTree ? this.promptFile.description || "" : "";
   }
 }
 
@@ -127,7 +127,9 @@ export class PromptTreeProvider
   constructor(
     @inject(DI_TOKENS.PromptController)
     private promptController: PromptController,
-    @inject(DI_TOKENS.SearchService) searchService: SearchService
+    @inject(DI_TOKENS.SearchService) searchService: SearchService,
+    @inject(DI_TOKENS.ConfigurationService)
+    private configurationService: ConfigurationService
   ) {
     this._searchService = searchService;
 
@@ -276,7 +278,7 @@ export class PromptTreeProvider
 
     for (const prompt of folder.prompts) {
       if (prompt && prompt.title) {
-        const promptItem = new FileTreeItem(prompt, {
+        const promptItem = this.createFileTreeItem(prompt, {
           command: "promptManager.openPrompt",
           title: "Open Prompt",
           arguments: [prompt.path],
@@ -309,7 +311,7 @@ export class PromptTreeProvider
     // Check root prompts
     for (const prompt of structure.rootPrompts) {
       if (prompt.path === filePath) {
-        return new FileTreeItem(prompt);
+        return this.createFileTreeItem(prompt);
       }
     }
 
@@ -317,7 +319,7 @@ export class PromptTreeProvider
     for (const folder of structure.folders) {
       for (const prompt of folder.prompts) {
         if (prompt.path === filePath) {
-          return new FileTreeItem(prompt);
+          return this.createFileTreeItem(prompt);
         }
       }
     }
@@ -344,7 +346,7 @@ export class PromptTreeProvider
           prompt.title &&
           (await this.matchesSearchCriteria(prompt, criteria))
         ) {
-          const promptItem = new FileTreeItem(prompt, {
+          const promptItem = this.createFileTreeItem(prompt, {
             command: "promptManager.openPrompt",
             title: "Open Prompt",
             arguments: [prompt.path],
@@ -416,6 +418,15 @@ export class PromptTreeProvider
   /**
    * Dispose of resources and event subscriptions
    */
+  private createFileTreeItem(
+    promptFile: PromptFile,
+    command?: vscode.Command
+  ): FileTreeItem {
+    const showDescription =
+      this.configurationService.getShowDescriptionInTree();
+    return new FileTreeItem(promptFile, command, showDescription);
+  }
+
   public dispose(): void {
     this.subscriptions.forEach((sub) => sub.unsubscribe());
     this.subscriptions = [];

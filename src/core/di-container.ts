@@ -5,6 +5,7 @@ import { DI_TOKENS } from "./di-tokens";
 
 // Import all services that need to be managed by DI
 import { FileManager } from "../fileManager";
+import { FileSystemManager } from "./FileSystemManager";
 import { PromptRepository } from "../promptRepository";
 import { PromptController } from "../promptController";
 import { SearchService } from "../searchService";
@@ -21,6 +22,7 @@ export function configureDependencies(context: vscode.ExtensionContext): void {
   container.registerInstance(DI_TOKENS.ExtensionContext, context);
 
   // Register core services as singletons to ensure single instances across the app
+  container.registerSingleton(DI_TOKENS.FileSystemManager, FileSystemManager);
   container.registerSingleton(DI_TOKENS.FileManager, FileManager);
   container.registerSingleton(
     DI_TOKENS.ConfigurationService,

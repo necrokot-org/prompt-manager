@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { getDefaultPromptDirectory } from "../config";
+import { injectable, inject } from "tsyringe";
+import { DI_TOKENS } from "./di-tokens";
+import { ConfigurationService } from "../config";
 
 export interface FileSystemOperation {
   path: string;
@@ -9,8 +11,14 @@ export interface FileSystemOperation {
   timestamp: number;
 }
 
+@injectable()
 export class FileSystemManager {
   private readonly defaultPromptManagerDir = ".prompt_manager";
+
+  constructor(
+    @inject(DI_TOKENS.ConfigurationService)
+    private configurationService: ConfigurationService
+  ) {}
 
   /**
    * Get the prompt manager directory path
@@ -35,8 +43,8 @@ export class FileSystemManager {
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     console.log(`FileSystemManager: Using workspace root: ${workspaceRoot}`);
 
-    // Use configuration setting for directory name
-    const dirName = getDefaultPromptDirectory();
+    // Use configuration service for directory name
+    const dirName = this.configurationService.getDefaultPromptDirectory();
 
     const promptPath = path.join(workspaceRoot, dirName);
     console.log(`FileSystemManager: Prompt manager path: ${promptPath}`);

@@ -4,6 +4,8 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { FileManager, ContentSearchResult } from "../fileManager";
+import { FileSystemManager } from "../core/FileSystemManager";
+import { ConfigurationService } from "../config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
 
 suite("FileManager Core Tests", () => {
@@ -14,7 +16,10 @@ suite("FileManager Core Tests", () => {
     // Set up mock workspace with temporary directory
     mockWorkspace = await setupMockWorkspace("prompt-manager-test-");
 
-    fileManager = new FileManager();
+    // Create dependencies manually for testing
+    const configService = new ConfigurationService();
+    const fileSystemManager = new FileSystemManager(configService);
+    fileManager = new FileManager(fileSystemManager);
 
     // Create test files
     await createTestFiles();

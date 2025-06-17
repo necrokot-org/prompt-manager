@@ -1,8 +1,9 @@
 import * as path from "path";
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 
 import { Events } from "./core/EventSystem";
 import { publish } from "./core/eventBus";
+import { DI_TOKENS } from "./core/di-tokens";
 
 // Import all the focused components
 import { FileSystemManager } from "./core/FileSystemManager";
@@ -53,9 +54,12 @@ export class FileManager {
   private contentCache: LRUCache<string, string>;
   private directoryScanner: DirectoryScanner;
 
-  constructor() {
+  constructor(
+    @inject(DI_TOKENS.FileSystemManager)
+    fileSystemManager: FileSystemManager
+  ) {
     // Initialize all components
-    this.fileSystemManager = new FileSystemManager();
+    this.fileSystemManager = fileSystemManager;
     this.promptParser = new PromptParser();
     this.contentCache = new LRUCache<string, string>({
       max: 1000,
