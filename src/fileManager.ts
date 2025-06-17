@@ -140,10 +140,6 @@ export class FileManager {
       // Publish file created event
       this.publishFileEvent("created", filePath);
 
-      // Invalidate cache and rebuild index since we added a new file
-      this.invalidateIndex();
-      await this.buildIndex();
-
       return filePath;
     } catch (error) {
       console.error(`Failed to create prompt file: ${error}`);
@@ -173,10 +169,6 @@ export class FileManager {
       // Publish directory created event
       this.publishDirectoryCreated(folderPath);
 
-      // Invalidate cache and rebuild index since we added a new folder
-      this.invalidateIndex();
-      await this.buildIndex();
-
       return folderPath;
     } catch (error) {
       console.error(`Failed to create folder: ${error}`);
@@ -190,10 +182,6 @@ export class FileManager {
 
       // Publish file deleted event
       this.publishFileEvent("deleted", filePath);
-
-      // Invalidate cache and rebuild index since we deleted a file
-      this.invalidateIndex();
-      await this.buildIndex();
 
       return true;
     } catch (error) {

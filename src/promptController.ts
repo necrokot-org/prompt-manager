@@ -26,13 +26,6 @@ export class PromptController {
     @inject(DI_TOKENS.PromptRepository) repository: PromptRepository
   ) {
     this.repository = repository;
-
-    // Subscribe to filesystem structure changes
-    this.subscriptions.push(
-      eventBus.on("filesystem.structure.changed", () => {
-        this.publishTreeRefreshEvent("file-change");
-      })
-    );
   }
 
   /**

@@ -10,15 +10,6 @@ export interface EventMap {
   "filesystem.file.deleted": { filePath: string; fileName: string };
   "filesystem.file.changed": { filePath: string; fileName: string };
   "filesystem.directory.created": { dirPath: string; dirName: string };
-  "filesystem.structure.changed": {
-    reason:
-      | "file-created"
-      | "file-deleted"
-      | "file-changed"
-      | "directory-created"
-      | "manual-refresh";
-    affectedPath?: string;
-  };
 
   // Search
   "search.criteria.changed": {

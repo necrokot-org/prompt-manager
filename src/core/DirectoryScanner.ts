@@ -2,6 +2,7 @@ import * as path from "path";
 import fg from "fast-glob";
 import { FileSystemManager } from "./FileSystemManager";
 import { PromptParser, ParsedPromptContent } from "./PromptParser";
+import { eventBus } from "./ExtensionBus";
 
 export interface PromptFile {
   name: string;
@@ -37,6 +38,10 @@ export class DirectoryScanner {
   private cachedStructure: PromptStructure | null = null;
   private indexBuilt = false;
   private indexBuildPromise: Promise<void> | null = null;
+  /** Debounce timer for index rebuilds */
+  private rebuildTimer: NodeJS.Timeout | null = null;
+  /** Debounce delay in milliseconds */
+  private readonly rebuildDebounceMs = 250;
 
   constructor(fileSystemManager: FileSystemManager) {
     this.fileSystemManager = fileSystemManager;
@@ -274,8 +279,28 @@ export class DirectoryScanner {
    */
   public invalidateIndex(): void {
     console.log("DirectoryScanner: Invalidating index cache");
+
+    // Mark cache as stale
     this.cachedStructure = null;
     this.indexBuilt = false;
+
+    // Debounce rebuilds to avoid thrashing on rapid FS events
+    if (this.rebuildTimer) {
+      clearTimeout(this.rebuildTimer);
+    }
+
+    this.rebuildTimer = setTimeout(async () => {
+      this.rebuildTimer = null;
+
+      try {
+        await this.buildIndex();
+
+        // Notify UI layer that a fresh structure is available
+        eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
+      } catch (error) {
+        console.error("DirectoryScanner: Failed to rebuild index", error);
+      }
+    }, this.rebuildDebounceMs);
   }
 
   /**

@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { FileManager, PromptStructure } from "./fileManager";
 import { SearchService } from "./searchService";
-import { eventBus } from "./core/ExtensionBus";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
 import { DI_TOKENS } from "./core/di-tokens";
@@ -66,7 +65,7 @@ export class PromptRepository {
    */
   private handleFileCreated(uri: vscode.Uri): void {
     console.log("PromptRepository: File created, invalidating index");
-    this.invalidateCache("file-created", uri.fsPath);
+    this.invalidateCache();
   }
 
   /**
@@ -74,7 +73,7 @@ export class PromptRepository {
    */
   private handleFileDeleted(uri: vscode.Uri): void {
     console.log("PromptRepository: File deleted, invalidating index");
-    this.invalidateCache("file-deleted", uri.fsPath);
+    this.invalidateCache();
   }
 
   /**
@@ -82,31 +81,14 @@ export class PromptRepository {
    */
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
     // File change handling without timestamp updates
-    this.invalidateCache("file-changed", uri.fsPath);
+    this.invalidateCache();
   }
 
   /**
    * Invalidate cache and notify listeners of structure changes
    */
-  private invalidateCache(
-    reason:
-      | "file-created"
-      | "file-deleted"
-      | "file-changed"
-      | "manual-refresh" = "manual-refresh",
-    affectedPath?: string
-  ): void {
+  private invalidateCache(): void {
     this.fileManager.invalidateIndex();
-
-    // Publish structure changed event
-    this.publishStructureChanged(reason);
-  }
-
-  private publishStructureChanged(reason: string): void {
-    eventBus.emit("filesystem.structure.changed", {
-      reason: reason as any,
-      affectedPath: undefined,
-    });
   }
 
   /**
