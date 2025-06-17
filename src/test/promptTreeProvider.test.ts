@@ -7,12 +7,14 @@ import {
   FolderTreeItem,
 } from "../promptTreeProvider";
 import { PromptController } from "../promptController";
+import { SearchService } from "../searchService";
 import { SearchCriteria } from "../searchPanelProvider";
 import { PromptFile, PromptFolder } from "../fileManager";
 
 suite("PromptTreeProvider Tests", () => {
   let treeProvider: PromptTreeProvider;
   let mockPromptController: PromptController;
+  let mockSearchService: SearchService;
 
   const createMockPromptFile = (
     name: string,
@@ -103,7 +105,24 @@ suite("PromptTreeProvider Tests", () => {
       copyPromptContent: async () => false,
     } as any;
 
-    treeProvider = new PromptTreeProvider(mockPromptController);
+    // Mock SearchService
+    mockSearchService = {
+      search: async () => [],
+      searchInContent: async () => [],
+      searchInTitle: async () => [],
+      searchBoth: async () => [],
+      matchesPrompt: async () => false,
+      countMatches: async () => 0,
+      clearCache: () => {},
+      getAvailableScopes: () => ["titles", "content", "both"],
+      publishResultsUpdated: async () => {},
+      publishCleared: async () => {},
+    } as any;
+
+    treeProvider = new PromptTreeProvider(
+      mockPromptController,
+      mockSearchService
+    );
   });
 
   test("Initial Tree State - No Search", async () => {
@@ -298,7 +317,10 @@ suite("PromptTreeProvider Tests", () => {
       onDidChangeTreeData: () => ({ dispose: () => {} }),
     } as any;
 
-    const emptyTreeProvider = new PromptTreeProvider(emptyPromptManager);
+    const emptyTreeProvider = new PromptTreeProvider(
+      emptyPromptManager,
+      mockSearchService
+    );
     const rootItems = await emptyTreeProvider.getChildren();
 
     assert.strictEqual(rootItems.length, 1);

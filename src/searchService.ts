@@ -49,6 +49,69 @@ export class SearchService {
   }
 
   /**
+   * Search in prompt content only
+   */
+  async searchInContent(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "content",
+      caseSensitive: options.caseSensitive || false,
+      isActive: true,
+    };
+
+    return await this.search(searchCriteria);
+  }
+
+  /**
+   * Search in prompt titles only
+   */
+  async searchInTitle(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "titles",
+      caseSensitive: options.caseSensitive || false,
+      isActive: true,
+    };
+
+    return await this.search(searchCriteria);
+  }
+
+  /**
+   * Search in both titles and content
+   */
+  async searchBoth(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "both",
+      caseSensitive: options.caseSensitive || false,
+      isActive: true,
+    };
+
+    return await this.search(searchCriteria);
+  }
+
+  /**
    * Check if a specific prompt file matches the search criteria
    */
   async matchesPrompt(

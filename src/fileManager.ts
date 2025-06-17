@@ -14,11 +14,7 @@ import {
   PromptFolder,
   PromptStructure,
 } from "./core/DirectoryScanner";
-import { SearchCriteria, SearchResult, FileContent } from "./core/SearchEngine";
-import { searchEngine } from "./searchEngine";
-
 import { sanitizeFileName } from "./validation/index";
-import { searchResultToPromptFile } from "./utils/promptFile";
 
 // Legacy interfaces for backward compatibility
 export interface SearchablePromptFile extends PromptFile {
@@ -91,7 +87,6 @@ export class FileManager {
 
   public invalidateIndex(): void {
     this.directoryScanner.invalidateIndex();
-    this.clearSearchCache();
   }
 
   public async scanPrompts(): Promise<PromptStructure> {
@@ -204,155 +199,10 @@ export class FileManager {
     }
   }
 
-  // Search operations (delegate to SearchEngine)
-
-  public async searchInContent(
-    query: string,
-    options: {
-      caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
-    } = {}
-  ): Promise<ContentSearchResult[]> {
-    const files = await this.getFileContentsForSearch();
-
-    const searchCriteria: SearchCriteria = {
-      query,
-      scope: "content",
-      caseSensitive: options.caseSensitive || false,
-      exact: options.exact || false,
-      threshold: options.threshold,
-      isActive: true,
-    };
-
-    const results = await searchEngine.search(files, searchCriteria);
-
-    // Convert SearchResult[] to ContentSearchResult[]
-    const contentResults: ContentSearchResult[] = [];
-    for (const result of results) {
-      const file = await this.searchResultToPromptFile(result);
-      contentResults.push({
-        file,
-        score: result.score,
-        matches: result.matches,
-      });
-    }
-    return contentResults;
-  }
-
-  public async searchInTitle(
-    query: string,
-    options: {
-      caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
-    } = {}
-  ): Promise<ContentSearchResult[]> {
-    const files = await this.getFileContentsForSearch();
-
-    const searchCriteria: SearchCriteria = {
-      query,
-      scope: "titles",
-      caseSensitive: options.caseSensitive || false,
-      exact: options.exact || false,
-      threshold: options.threshold,
-      isActive: true,
-    };
-
-    const results = await searchEngine.search(files, searchCriteria);
-
-    // Convert SearchResult[] to ContentSearchResult[]
-    const contentResults: ContentSearchResult[] = [];
-    for (const result of results) {
-      const file = await this.searchResultToPromptFile(result);
-      contentResults.push({
-        file,
-        score: result.score,
-        matches: result.matches,
-      });
-    }
-    return contentResults;
-  }
-
-  public async searchBoth(
-    query: string,
-    options: {
-      caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
-    } = {}
-  ): Promise<ContentSearchResult[]> {
-    const files = await this.getFileContentsForSearch();
-
-    const searchCriteria: SearchCriteria = {
-      query,
-      scope: "both",
-      caseSensitive: options.caseSensitive || false,
-      exact: options.exact || false,
-      threshold: options.threshold,
-      isActive: true,
-    };
-
-    const results = await searchEngine.search(files, searchCriteria);
-
-    // Convert SearchResult[] to ContentSearchResult[]
-    const contentResults: ContentSearchResult[] = [];
-    for (const result of results) {
-      const file = await this.searchResultToPromptFile(result);
-      contentResults.push({
-        file,
-        score: result.score,
-        matches: result.matches,
-      });
-    }
-    return contentResults;
-  }
-
   // Cache management
 
-  public clearSearchCache(): void {
-    searchEngine.clearCache();
+  public clearContentCache(): void {
     this.contentCache.clear();
-  }
-
-  // Private helper methods
-
-  private async getFileContentsForSearch(): Promise<FileContent[]> {
-    const allFiles = await this.directoryScanner.getAllPromptFiles();
-    const fileContents: FileContent[] = [];
-
-    for (const promptFile of allFiles) {
-      try {
-        let content = this.contentCache.get(promptFile.path);
-
-        if (!content) {
-          content = await this.fileSystemManager.readFile(promptFile.path);
-          this.contentCache.set(promptFile.path, content);
-        }
-
-        fileContents.push({
-          path: promptFile.path,
-          content,
-        });
-      } catch (error) {
-        console.warn(
-          `Failed to read file for search: ${promptFile.path}`,
-          error
-        );
-      }
-    }
-
-    return fileContents;
-  }
-
-  private async searchResultToPromptFile(
-    result: SearchResult
-  ): Promise<PromptFile> {
-    // Get all files from directory scanner
-    const allFiles = await this.directoryScanner.getAllPromptFiles();
-
-    // Use shared utility function
-    return searchResultToPromptFile(result, allFiles, this.fileSystemManager);
   }
 
   // Component access methods (for advanced usage)
@@ -367,10 +217,6 @@ export class FileManager {
 
   public getDirectoryScanner(): DirectoryScanner {
     return this.directoryScanner;
-  }
-
-  public getSearchEngine() {
-    return searchEngine;
   }
 
   private publishFileEvent(

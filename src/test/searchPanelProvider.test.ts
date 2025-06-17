@@ -5,11 +5,27 @@ import { subscribe, publish } from "../core/eventBus";
 
 suite("SearchPanelProvider", () => {
   let searchProvider: SearchPanelProvider;
-  let mockUri: vscode.Uri;
+  let mockContext: vscode.ExtensionContext;
 
   setup(() => {
-    mockUri = vscode.Uri.file("/test/extension");
-    searchProvider = new SearchPanelProvider(mockUri);
+    const mockUri = vscode.Uri.file("/test/extension");
+    mockContext = {
+      extensionUri: mockUri,
+      subscriptions: [],
+      workspaceState: {} as any,
+      globalState: {} as any,
+      secrets: {} as any,
+      extensionMode: vscode.ExtensionMode.Test,
+      extensionPath: "/test/extension",
+      environmentVariableCollection: {} as any,
+      asAbsolutePath: (relativePath: string) =>
+        `/test/extension/${relativePath}`,
+      storageUri: mockUri,
+      globalStorageUri: mockUri,
+      logUri: mockUri,
+    } as any;
+
+    searchProvider = new SearchPanelProvider(mockContext);
   });
 
   test("should create search provider", () => {

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { FileManager, PromptStructure } from "./fileManager";
+import { SearchService } from "./searchService";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
@@ -16,10 +17,15 @@ import * as fs from "fs";
 @injectable()
 export class PromptRepository {
   private fileManager: FileManager;
+  private searchService: SearchService;
   private fileWatcher?: vscode.FileSystemWatcher;
 
-  constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
+  constructor(
+    @inject(DI_TOKENS.FileManager) fileManager: FileManager,
+    @inject(DI_TOKENS.SearchService) searchService: SearchService
+  ) {
     this.fileManager = fileManager;
+    this.searchService = searchService;
   }
 
   /**
@@ -208,7 +214,7 @@ export class PromptRepository {
       includeYaml?: boolean;
     } = {}
   ) {
-    return await this.fileManager.searchInContent(query, options);
+    return await this.searchService.searchInContent(query, options);
   }
 
   /**
@@ -221,7 +227,7 @@ export class PromptRepository {
       exact?: boolean;
     } = {}
   ) {
-    return await this.fileManager.searchInTitle(query, options);
+    return await this.searchService.searchInTitle(query, options);
   }
 
   /**
