@@ -1,5 +1,6 @@
 import matter from "gray-matter";
-import { compact, trim } from "lodash";
+import compact from "lodash-es/compact.js";
+import trim from "lodash-es/trim.js";
 
 /**
  * Markdown validation issue

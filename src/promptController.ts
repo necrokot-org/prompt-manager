@@ -10,7 +10,7 @@ import {
   sanitizeFileName,
   getErrorMessages,
 } from "./validation/index.js";
-import { trim } from "lodash";
+import trim from "lodash-es/trim.js";
 import { DI_TOKENS } from "./core/di-tokens";
 
 /**

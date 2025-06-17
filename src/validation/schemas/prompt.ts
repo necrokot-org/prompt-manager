@@ -5,7 +5,9 @@ import {
   extractFrontMatter,
   FRONT_MATTER_FIELDS,
 } from "../markdown.js";
-import { compact, uniq, trim } from "lodash";
+import compact from "lodash-es/compact.js";
+import uniq from "lodash-es/uniq.js";
+import trim from "lodash-es/trim.js";
 
 /**
  * Front matter schema for prompt metadata

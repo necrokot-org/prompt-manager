@@ -173,7 +173,7 @@ Happy prompting!
    * Check if file exists
    */
   public fileExists(filePath: string): boolean {
-    return fs.existsSync(filePath);
+    return fsExtra.existsSync(filePath);
   }
 
   /**

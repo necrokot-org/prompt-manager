@@ -6,7 +6,7 @@ import { searchEngine } from "./searchEngine";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
 import { DI_TOKENS } from "./core/di-tokens";
-import { trim } from "lodash";
+import trim from "lodash-es/trim.js";
 import { searchResultToPromptFile } from "./utils/promptFile";
 
 @injectable()

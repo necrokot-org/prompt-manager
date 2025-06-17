@@ -2,7 +2,7 @@ import { z } from "zod";
 import sanitizeFilename from "sanitize-filename";
 import slugify from "@sindresorhus/slugify";
 import validFilename from "valid-filename";
-import { trim } from "lodash";
+import trim from "lodash-es/trim.js";
 
 /**
  * File naming patterns

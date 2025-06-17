@@ -50,6 +50,9 @@ async function main() {
       "remark-frontmatter",
       "remark-lint",
     ],
+    // Enable tree-shaking for lodash-es
+    mainFields: ["es2015", "module", "main"],
+    treeShaking: true,
     logLevel: "silent",
     plugins: [
       /* add to the end of plugins array */
