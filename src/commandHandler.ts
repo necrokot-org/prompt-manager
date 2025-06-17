@@ -1,12 +1,8 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { PromptController } from "./promptController";
-import {
-  PromptTreeItem,
-  FileTreeItem,
-  FolderTreeItem,
-} from "./promptTreeProvider";
-import { EXTENSION_CONSTANTS } from "./config";
+import { PromptTreeItem } from "./promptTreeProvider";
+import { FileTreeItem, FolderTreeItem } from "./tree/items";
 import { eventBus } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 

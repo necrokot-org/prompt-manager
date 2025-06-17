@@ -108,7 +108,9 @@ class EventBus {
       const sub = this.on(key, (payload) => {
         if (!predicate || predicate(payload)) {
           sub.dispose();
-          if (timeout) clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           resolve(payload);
         }
       });

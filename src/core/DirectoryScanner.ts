@@ -1,60 +1,50 @@
 import * as path from "path";
-import fg from "fast-glob";
 import { FileSystemManager } from "./FileSystemManager";
-import { PromptParser, ParsedPromptContent } from "./PromptParser";
 import { eventBus } from "./ExtensionBus";
 import { log } from "./log";
+import { FilesystemWalker } from "../scanner/FilesystemWalker";
+import { PromptOrganizer } from "../scanner/PromptOrganizer";
+import { IndexCache } from "../scanner/IndexCache";
+import {
+  PromptFile,
+  PromptFolder,
+  PromptStructure,
+  ScanOptions,
+} from "../scanner/types";
 
-export interface PromptFile {
-  name: string;
-  title: string;
-  path: string;
-  description?: string;
-  tags: string[];
-  fileSize: number;
-  isDirectory: boolean;
-}
+export type {
+  PromptFile,
+  PromptFolder,
+  PromptStructure,
+  ScanOptions,
+} from "../scanner/types";
 
-export interface PromptFolder {
-  name: string;
-  path: string;
-  prompts: PromptFile[];
-}
-
-export interface PromptStructure {
-  folders: PromptFolder[];
-  rootPrompts: PromptFile[];
-}
-
-export interface ScanOptions {
-  includeHidden?: boolean;
-  maxDepth?: number;
-  fileExtensions?: string[];
-  excludePatterns?: string[];
-}
-
+/**
+ * High-level orchestration class that delegates the heavy work of walking the
+ * filesystem, organising prompts and caching the resulting structure to
+ * focused collaborators.
+ *
+ *  – FilesystemWalker: converts prompt files on disk to PromptFile objects
+ *  – PromptOrganizer: groups PromptFile objects into folders / root prompts
+ *  – IndexCache: keeps a debounced, in-memory copy of the PromptStructure
+ */
 export class DirectoryScanner {
-  private fileSystemManager: FileSystemManager;
-  private parser: PromptParser;
-  private cachedStructure: PromptStructure | null = null;
-  private indexBuilt = false;
+  private walker: FilesystemWalker;
+  private organizer: PromptOrganizer;
+  private cache: IndexCache;
   private indexBuildPromise: Promise<void> | null = null;
-  /** Debounce timer for index rebuilds */
-  private rebuildTimer: NodeJS.Timeout | null = null;
-  /** Debounce delay in milliseconds */
-  private readonly rebuildDebounceMs = 250;
 
-  constructor(fileSystemManager: FileSystemManager) {
-    this.fileSystemManager = fileSystemManager;
-    this.parser = new PromptParser();
+  constructor(private fileSystemManager: FileSystemManager) {
+    this.walker = new FilesystemWalker(fileSystemManager);
+    this.organizer = new PromptOrganizer(fileSystemManager);
+    this.cache = new IndexCache();
   }
 
   /**
-   * Build the in-memory index by scanning all prompt files
-   * This is called once on initialization and after file system changes
+   * Force a rebuild of the cached index immediately.
    */
   public async buildIndex(): Promise<void> {
-    // Prevent concurrent index builds
+    // Prevent concurrent builds
     if (this.indexBuildPromise) {
       return this.indexBuildPromise;
     }
@@ -65,145 +55,50 @@ export class DirectoryScanner {
   }
 
   /**
-   * Get the current prompt structure from memory index
-   * Builds index if not yet built
+   * Get the current PromptStructure from cache, rebuilding if necessary.
    */
   public async scanPrompts(): Promise<PromptStructure> {
-    // If index not built yet, build it now
-    if (!this.indexBuilt) {
+    if (!this.cache.isValid()) {
       await this.buildIndex();
     }
-
-    // Return cached structure or empty structure if failed
-    return this.cachedStructure || { folders: [], rootPrompts: [] };
+    return this.cache.get() || { folders: [], rootPrompts: [] };
   }
 
   /**
-   * Scan a specific directory for prompts using fast-glob
+   * Scan an arbitrary directory on demand.
+   * Bypasses the cache and delegates directly to the walker & organiser.
    */
   public async scanDirectory(
     dirPath: string,
     options: ScanOptions = {}
   ): Promise<PromptStructure> {
-    const {
-      includeHidden = false,
-      maxDepth = 10,
-      fileExtensions = [".md"],
-      excludePatterns = [],
-    } = options;
-
-    try {
-      if (!this.fileSystemManager.fileExists(dirPath)) {
-        return { folders: [], rootPrompts: [] };
-      }
-
-      // Build glob patterns for file extensions
-      const patterns = fileExtensions.map((ext) =>
-        ext.startsWith(".") ? `**/*${ext}` : `**/*.${ext}`
-      );
-
-      // Default ignore patterns plus user excludes
-      const ignore = ["**/README.md", ...excludePatterns];
-
-      // Get all matching files using fast-glob
-      const entries = await fg(patterns, {
-        cwd: dirPath,
-        dot: includeHidden,
-        deep: maxDepth,
-        ignore,
-        onlyFiles: true,
-        absolute: false, // We'll resolve paths ourselves for consistency
-      });
-
-      // Parse all found files into PromptFile objects
-      const allPromptFiles: PromptFile[] = [];
-      for (const relativePath of entries) {
-        const fullPath = path.join(dirPath, relativePath);
-        const promptFile = await this.parsePromptFile(fullPath);
-        if (promptFile) {
-          allPromptFiles.push(promptFile);
-        }
-      }
-
-      // Organize files into folders and root prompts
-      const folders: PromptFolder[] = [];
-      const rootPrompts: PromptFile[] = [];
-      const folderMap = new Map<string, PromptFile[]>();
-
-      for (const file of allPromptFiles) {
-        const relativePath = path.relative(dirPath, file.path);
-        const dirName = path.dirname(relativePath);
-
-        if (dirName === "." || dirName === "") {
-          // File is in root directory
-          rootPrompts.push(file);
-        } else {
-          // File is in a subdirectory
-          const topLevelDir = dirName.split(path.sep)[0];
-          if (!folderMap.has(topLevelDir)) {
-            folderMap.set(topLevelDir, []);
-          }
-          folderMap.get(topLevelDir)!.push(file);
-        }
-      }
-
-      // Also scan for empty directories
-      const dirEntries = await this.fileSystemManager.readDirectory(dirPath);
-      for (const entry of dirEntries) {
-        if (entry.isDirectory() && !folderMap.has(entry.name)) {
-          // This is a directory that doesn't contain any prompt files
-          folders.push({
-            name: entry.name,
-            path: path.join(dirPath, entry.name),
-            prompts: [],
-          });
-        }
-      }
-
-      // Convert folder map to PromptFolder array
-      for (const [folderName, prompts] of folderMap) {
-        folders.push({
-          name: folderName,
-          path: path.join(dirPath, folderName),
-          prompts: prompts.sort((a, b) => a.title.localeCompare(b.title)),
-        });
-      }
-
-      // Sort results
-      folders.sort((a, b) => a.name.localeCompare(b.name));
-      rootPrompts.sort((a, b) => a.title.localeCompare(b.title));
-
-      return { folders, rootPrompts };
-    } catch (error) {
-      log.error(`Failed to scan directory ${dirPath}:`, error);
-      return { folders: [], rootPrompts: [] };
-    }
+    const promptFiles = await this.walker.scanDirectory(dirPath, options);
+    return await this.organizer.organize(promptFiles, dirPath);
   }
 
   /**
-   * Get all prompt files as a flat array
+   * Return all PromptFile objects as a flat array.
    */
   public async getAllPromptFiles(): Promise<PromptFile[]> {
     const structure = await this.scanPrompts();
-    const allFiles: PromptFile[] = [
+    return [
       ...structure.rootPrompts,
-      ...structure.folders.flatMap((folder) => folder.prompts),
+      ...structure.folders.flatMap((f) => f.prompts),
     ];
-    return allFiles;
   }
 
   /**
-   * Find prompt files matching criteria
+   * Filter PromptFile objects using an arbitrary predicate.
    */
   public async findPromptFiles(
     predicate: (file: PromptFile) => boolean
   ): Promise<PromptFile[]> {
-    const allFiles = await this.getAllPromptFiles();
-    return allFiles.filter(predicate);
+    const all = await this.getAllPromptFiles();
+    return all.filter(predicate);
   }
 
   /**
-   * Get folder structure (directories only)
+   * Get folder-only representation of the prompt hierarchy.
    */
   public async getFolderStructure(): Promise<PromptFolder[]> {
     const structure = await this.scanPrompts();
@@ -211,101 +106,18 @@ export class DirectoryScanner {
   }
 
   /**
-   * Scan a specific folder for prompts - now simplified using fast-glob
-   */
-  public async scanFolderPrompts(
-    folderPath: string,
-    options: ScanOptions = {}
-  ): Promise<PromptFile[]> {
-    try {
-      const { fileExtensions = [".md"] } = options;
-
-      // Use fast-glob to get files in this specific folder (depth 1)
-      const patterns = fileExtensions.map((ext) =>
-        ext.startsWith(".") ? `*${ext}` : `*.${ext}`
-      );
-
-      const entries = await fg(patterns, {
-        cwd: folderPath,
-        dot: options.includeHidden || false,
-        deep: 1, // Only direct children, no subdirectories
-        onlyFiles: true,
-        absolute: false,
-      });
-
-      const prompts: PromptFile[] = [];
-      for (const fileName of entries) {
-        const fullPath = path.join(folderPath, fileName);
-        const promptFile = await this.parsePromptFile(fullPath);
-        if (promptFile) {
-          prompts.push(promptFile);
-        }
-      }
-
-      return prompts.sort((a, b) => a.title.localeCompare(b.title));
-    } catch (error) {
-      log.error(`Failed to scan folder prompts in ${folderPath}:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Parse a single prompt file
-   */
-  public async parsePromptFile(filePath: string): Promise<PromptFile | null> {
-    try {
-      const stats = await this.fileSystemManager.getFileStats(filePath);
-      const content = await this.fileSystemManager.readFile(filePath);
-
-      const fileName = path.basename(filePath, path.extname(filePath));
-      const parsed = this.parser.parsePromptContent(content, fileName);
-
-      return {
-        name: fileName,
-        title: parsed.title,
-        path: filePath,
-        description: parsed.description,
-        tags: parsed.tags,
-        fileSize: stats.size,
-        isDirectory: false,
-      };
-    } catch (error) {
-      log.error(`Failed to parse prompt file ${filePath}:`, error);
-      return null;
-    }
-  }
-
-  /**
-   * Invalidate the cached index - call this when files are added/removed/changed
+   * Invalidate the current cache and schedule a debounced rebuild.
+   * A ui.tree.refresh.requested event will be emitted once finished.
    */
   public invalidateIndex(): void {
-    log.debug("DirectoryScanner: Invalidating index cache");
-
-    // Mark cache as stale
-    this.cachedStructure = null;
-    this.indexBuilt = false;
-
-    // Debounce rebuilds to avoid thrashing on rapid FS events
-    if (this.rebuildTimer) {
-      clearTimeout(this.rebuildTimer);
-    }
-
-    this.rebuildTimer = setTimeout(async () => {
-      this.rebuildTimer = null;
-
-      try {
-        await this.buildIndex();
-
-        // Notify UI layer that a fresh structure is available
-        eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
-      } catch (error) {
-        log.error("DirectoryScanner: Failed to rebuild index", error);
-      }
-    }, this.rebuildDebounceMs);
+    this.cache.invalidate(async () => {
+      await this.buildIndex();
+      eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
+    });
   }
 
   /**
-   * Get directory statistics
+   * Compute basic statistics for any directory (defaulting to the prompt root).
    */
   public async getDirectoryStats(dirPath?: string): Promise<{
     totalFiles: number;
@@ -321,19 +133,19 @@ export class DirectoryScanner {
     const structure = dirPath
       ? await this.scanDirectory(targetPath)
       : await this.scanPrompts();
+
     const allFiles = [
       ...structure.rootPrompts,
-      ...structure.folders.flatMap((folder) => folder.prompts),
+      ...structure.folders.flatMap((f) => f.prompts),
     ];
 
     const stats = {
       totalFiles: allFiles.length,
       totalFolders: structure.folders.length,
-      totalSize: allFiles.reduce((sum, file) => sum + file.fileSize, 0),
+      totalSize: allFiles.reduce((sum, f) => sum + f.fileSize, 0),
       fileTypes: {} as Record<string, number>,
     };
 
-    // Count file types
     for (const file of allFiles) {
       const ext = path.extname(file.path).toLowerCase();
       stats.fileTypes[ext] = (stats.fileTypes[ext] || 0) + 1;
@@ -342,30 +154,27 @@ export class DirectoryScanner {
     return stats;
   }
 
-  // Private methods
-
+  // Internal helpers
   private async performIndexBuild(): Promise<void> {
-    log.debug("DirectoryScanner: Building in-memory index...");
-    const promptPath = this.fileSystemManager.getPromptManagerPath();
+    log.debug("DirectoryScanner: Building in-memory index ...");
+    const promptRoot = this.fileSystemManager.getPromptManagerPath();
 
-    if (!promptPath || !this.fileSystemManager.fileExists(promptPath)) {
-      this.cachedStructure = { folders: [], rootPrompts: [] };
-      this.indexBuilt = true;
+    if (!promptRoot || !this.fileSystemManager.fileExists(promptRoot)) {
+      this.cache.set({ folders: [], rootPrompts: [] });
       return;
     }
 
     try {
-      const structure = await this.scanDirectory(promptPath);
-      this.cachedStructure = structure;
-      this.indexBuilt = true;
+      const promptFiles = await this.walker.scanDirectory(promptRoot);
+      const structure = await this.organizer.organize(promptFiles, promptRoot);
+      this.cache.set(structure);
 
       log.debug(
-        `DirectoryScanner: Index built - ${structure.folders.length} folders, ${structure.rootPrompts.length} root prompts`
+        `DirectoryScanner: Index built – ${structure.folders.length} folders, ${structure.rootPrompts.length} root prompts`
       );
     } catch (error) {
-      log.error("Failed to build index:", error);
-      this.cachedStructure = { folders: [], rootPrompts: [] };
-      this.indexBuilt = true;
+      log.error("DirectoryScanner: Failed to build index", error);
+      this.cache.set({ folders: [], rootPrompts: [] });
     }
   }
 }
