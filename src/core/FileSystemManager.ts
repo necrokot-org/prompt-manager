@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
+import * as fsExtra from "fs-extra";
 import * as path from "path";
 import { injectable, inject } from "tsyringe";
 import { DI_TOKENS } from "./di-tokens";
@@ -14,6 +14,33 @@ export interface FileSystemOperation {
 @injectable()
 export class FileSystemManager {
   private readonly defaultPromptManagerDir = ".prompt_manager";
+
+  private static readonly README_CONTENT = `# Prompt Manager
+
+This directory contains your LLM prompts organized by the VSCode Prompt Manager extension.
+
+## Structure
+
+- Create folders to organize your prompts by category
+- Each prompt is a markdown file with optional front matter metadata
+- Front matter can include title, description, tags, and other metadata
+
+## Example Prompt File
+
+\`\`\`markdown
+---
+title: "Code Review Helper"
+description: "Assists with comprehensive code review"
+tags: ["review", "quality", "feedback"]
+---
+
+# Code Review Helper
+
+Your prompt content goes here...
+\`\`\`
+
+Happy prompting!
+`;
 
   constructor(
     @inject(DI_TOKENS.ConfigurationService)
@@ -62,10 +89,17 @@ export class FileSystemManager {
     }
 
     try {
-      if (!fs.existsSync(promptPath)) {
-        await fs.promises.mkdir(promptPath, { recursive: true });
-        await this.createReadmeFile(promptPath);
+      // Use fs-extra's ensureDir instead of mkdir with recursive
+      await fsExtra.ensureDir(promptPath);
+
+      // Create README file directly with fs-extra's outputFile
+      const readmePath = path.join(promptPath, "README.md");
+
+      // Only create README if it doesn't exist
+      if (!(await fsExtra.pathExists(readmePath))) {
+        await fsExtra.outputFile(readmePath, FileSystemManager.README_CONTENT);
       }
+
       return true;
     } catch (error) {
       vscode.window.showErrorMessage(
@@ -80,7 +114,7 @@ export class FileSystemManager {
    */
   public async readFile(filePath: string): Promise<string> {
     try {
-      return await fs.promises.readFile(filePath, "utf8");
+      return await fsExtra.readFile(filePath, "utf8");
     } catch (error) {
       console.error(`Failed to read file ${filePath}:`, error);
       throw error;
@@ -92,7 +126,7 @@ export class FileSystemManager {
    */
   public async writeFile(filePath: string, content: string): Promise<void> {
     try {
-      await fs.promises.writeFile(filePath, content, "utf8");
+      await fsExtra.outputFile(filePath, content);
     } catch (error) {
       console.error(`Failed to write file ${filePath}:`, error);
       throw error;
@@ -104,7 +138,7 @@ export class FileSystemManager {
    */
   public async deleteFile(filePath: string): Promise<void> {
     try {
-      await fs.promises.unlink(filePath);
+      await fsExtra.remove(filePath);
     } catch (error) {
       console.error(`Failed to delete file ${filePath}:`, error);
       throw error;
@@ -116,7 +150,7 @@ export class FileSystemManager {
    */
   public async createDirectory(dirPath: string): Promise<void> {
     try {
-      await fs.promises.mkdir(dirPath, { recursive: true });
+      await fsExtra.ensureDir(dirPath);
     } catch (error) {
       console.error(`Failed to create directory ${dirPath}:`, error);
       throw error;
@@ -126,9 +160,9 @@ export class FileSystemManager {
   /**
    * Get file stats
    */
-  public async getFileStats(filePath: string): Promise<fs.Stats> {
+  public async getFileStats(filePath: string): Promise<fsExtra.Stats> {
     try {
-      return await fs.promises.stat(filePath);
+      return await fsExtra.stat(filePath);
     } catch (error) {
       console.error(`Failed to get stats for ${filePath}:`, error);
       throw error;
@@ -145,9 +179,9 @@ export class FileSystemManager {
   /**
    * Read directory contents
    */
-  public async readDirectory(dirPath: string): Promise<fs.Dirent[]> {
+  public async readDirectory(dirPath: string): Promise<fsExtra.Dirent[]> {
     try {
-      return await fs.promises.readdir(dirPath, { withFileTypes: true });
+      return await fsExtra.readdir(dirPath, { withFileTypes: true });
     } catch (error) {
       console.error(`Failed to read directory ${dirPath}:`, error);
       throw error;
@@ -182,44 +216,5 @@ export class FileSystemManager {
     }
 
     return results;
-  }
-
-  /**
-   * Create the default README file
-   */
-  private async createReadmeFile(promptPath: string): Promise<void> {
-    const readmePath = path.join(promptPath, "README.md");
-    const readmeContent = `# Prompt Manager
-
-This directory contains your LLM prompts organized by the VSCode Prompt Manager extension.
-
-## Structure
-
-- Create folders to organize your prompts by category
-- Each prompt is a markdown file with optional front matter metadata
-- Front matter can include title, description, tags, and other metadata
-
-## Example Prompt File
-
-\`\`\`markdown
----
-title: "Code Review Helper"
-description: "Assists with comprehensive code review"
-tags: ["review", "quality", "feedback"]
----
-
-# Code Review Helper
-
-Your prompt content goes here...
-\`\`\`
-
-Happy prompting!
-`;
-
-    try {
-      await this.writeFile(readmePath, readmeContent);
-    } catch (error) {
-      console.error("Failed to create README.md:", error);
-    }
   }
 }
