@@ -18,7 +18,7 @@ import { SearchCriteria, SearchResult, FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
 
 import { sanitizeFileName } from "./validation/index";
-import { searchResultToPromptFile } from "./utils";
+import { searchResultToPromptFile } from "./utils/promptFile";
 
 // Legacy interfaces for backward compatibility
 export interface SearchablePromptFile extends PromptFile {

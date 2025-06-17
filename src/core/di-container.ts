@@ -1,6 +1,7 @@
 import "reflect-metadata";
-import { container, injectable, inject, singleton } from "tsyringe";
+import { container, InjectionToken } from "tsyringe";
 import * as vscode from "vscode";
+import { DI_TOKENS } from "./di-tokens";
 
 // Import all services that need to be managed by DI
 import { FileManager } from "../fileManager";
@@ -11,19 +12,6 @@ import { ConfigurationService } from "../config";
 import { PromptTreeProvider } from "../promptTreeProvider";
 import { SearchPanelProvider } from "../searchPanelProvider";
 import { CommandHandler } from "../commandHandler";
-
-// Service tokens for dependency injection
-export const DI_TOKENS = {
-  FileManager: "FileManager",
-  PromptRepository: "PromptRepository",
-  PromptController: "PromptController",
-  SearchService: "SearchService",
-  ConfigurationService: "ConfigurationService",
-  ExtensionContext: "ExtensionContext",
-  PromptTreeProvider: "PromptTreeProvider",
-  SearchPanelProvider: "SearchPanelProvider",
-  CommandHandler: "CommandHandler",
-} as const;
 
 /**
  * Configure and register all services with the DI container
@@ -58,7 +46,7 @@ export function configureDependencies(context: vscode.ExtensionContext): void {
 /**
  * Resolve a service from the DI container
  */
-export function resolve<T>(token: string): T {
+export function resolve<T>(token: InjectionToken<T>): T {
   return container.resolve<T>(token);
 }
 
@@ -76,3 +64,6 @@ export function disposeDependencies(): void {
 export function getContainer() {
   return container;
 }
+
+// Re-export tokens for backward compatibility
+export { DI_TOKENS };

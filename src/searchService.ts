@@ -5,9 +5,9 @@ import { FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
-import { DI_TOKENS } from "./core/di-container";
+import { DI_TOKENS } from "./core/di-tokens";
 import { trim } from "lodash";
-import { searchResultToPromptFile } from "./utils";
+import { searchResultToPromptFile } from "./utils/promptFile";
 
 @injectable()
 export class SearchService {

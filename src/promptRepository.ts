@@ -5,7 +5,7 @@ import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
-import { DI_TOKENS } from "./core/di-container";
+import { DI_TOKENS } from "./core/di-tokens";
 import * as fs from "fs";
 
 /**

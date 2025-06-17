@@ -3,7 +3,7 @@ import { injectable, inject } from "tsyringe";
 import { EXTENSION_CONSTANTS } from "./config";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
-import { DI_TOKENS } from "./core/di-container";
+import { DI_TOKENS } from "./core/di-tokens";
 
 export interface SearchCriteria {
   query: string;

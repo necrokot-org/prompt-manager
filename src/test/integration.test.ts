@@ -11,8 +11,9 @@ import {
   configureDependencies,
   resolve,
   disposeDependencies,
-  DI_TOKENS,
 } from "../core/di-container";
+
+import { DI_TOKENS } from "../core/di-tokens";
 
 suite("Integration Tests", () => {
   let controller: PromptController;

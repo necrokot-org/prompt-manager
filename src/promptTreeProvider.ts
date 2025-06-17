@@ -12,7 +12,7 @@ import { SearchService } from "./searchService";
 import { getShowDescriptionInTree } from "./config";
 import { ExtensionEvent } from "./core/EventSystem";
 import { subscribe } from "./core/eventBus";
-import { DI_TOKENS } from "./core/di-container";
+import { DI_TOKENS } from "./core/di-tokens";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
   constructor(

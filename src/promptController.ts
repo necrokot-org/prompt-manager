@@ -11,7 +11,7 @@ import {
   getErrorMessages,
 } from "./validation/index.js";
 import { trim } from "lodash";
-import { DI_TOKENS } from "./core/di-container";
+import { DI_TOKENS } from "./core/di-tokens";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
