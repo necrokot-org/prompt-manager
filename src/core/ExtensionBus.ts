@@ -1,150 +1,144 @@
 import * as vscode from "vscode";
-import type { ExtensionEvent } from "./EventSystem";
 
-/**
- * VS Code EventEmitter-based extension bus
- * Replaces RxJS-based eventBus.ts with native VS Code infrastructure
- *
- * Benefits:
- * - Zero dependencies (removes ~18KB RxJS)
- * - Native VS Code disposal integration
- * - Faster cold-start performance
- * - Synchronous event dispatch (matches current RxJS Subject behavior)
- */
+// ---------------------------------------------------------------------------
+// Typed Event Map -----------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-/**
- * Subscription handle that matches the existing eventBus API
- */
-export interface ExtensionSubscription {
+export interface EventMap {
+  // Filesystem
+  "filesystem.file.created": { filePath: string; fileName: string };
+  "filesystem.file.deleted": { filePath: string; fileName: string };
+  "filesystem.file.changed": { filePath: string; fileName: string };
+  "filesystem.directory.created": { dirPath: string; dirName: string };
+  "filesystem.structure.changed": {
+    reason:
+      | "file-created"
+      | "file-deleted"
+      | "file-changed"
+      | "directory-created"
+      | "manual-refresh";
+    affectedPath?: string;
+  };
+
+  // Search
+  "search.criteria.changed": {
+    query: string;
+    scope: "titles" | "content" | "both";
+    caseSensitive: boolean;
+    isActive: boolean;
+  };
+  "search.results.updated": { resultCount: number; query: string };
+  "search.cleared": {};
+
+  // UI
+  "ui.tree.refresh.requested": {
+    reason: "manual" | "file-change" | "search-change";
+  };
+  "ui.tree.item.selected": {
+    itemType: "file" | "folder";
+    itemPath: string;
+    itemName: string;
+  };
+  "ui.prompt.opened": { filePath: string; fileName: string };
+  "ui.prompt.created": {
+    filePath: string;
+    fileName: string;
+    folderPath?: string;
+  };
+
+  // Config
+  "config.changed": { configKey: string; newValue: any; oldValue?: any };
+  "config.workspace.changed": {
+    workspaceFolders: readonly vscode.WorkspaceFolder[];
+    reason:
+      | "folder-added"
+      | "folder-removed"
+      | "workspace-opened"
+      | "workspace-closed";
+  };
+}
+
+type EventKey = keyof EventMap;
+
+export interface ExtensionSubscription extends vscode.Disposable {
   unsubscribe(): void;
 }
 
-/**
- * Internal subscription management
- */
-interface ManagedSubscription {
-  types: string[];
-  handler: (event: ExtensionEvent) => void;
-  disposable: vscode.Disposable;
-}
+class EventBus {
+  private readonly emitter = new vscode.EventEmitter<{
+    key: EventKey;
+    payload: any;
+  }>();
 
-/**
- * Singleton event bus using VS Code's EventEmitter
- */
-class ExtensionBus {
-  private readonly _eventEmitter = new vscode.EventEmitter<ExtensionEvent>();
-  private readonly _subscriptions = new Set<ManagedSubscription>();
-
-  /**
-   * Event emitter for external access (if needed)
-   */
-  public readonly onEvent = this._eventEmitter.event;
-
-  /**
-   * Publish an event (compatible with existing publish() signature)
-   */
-  public publish<E extends ExtensionEvent>(event: Omit<E, "timestamp">): void {
-    const eventWithTimestamp = { ...event, timestamp: Date.now() } as E;
-    this._eventEmitter.fire(eventWithTimestamp);
+  /** Emit an event with typed payload */
+  emit<K extends EventKey>(key: K, payload: EventMap[K]): void {
+    this.emitter.fire({ key, payload });
   }
 
-  /**
-   * Subscribe to events (compatible with existing subscribe() signature)
-   */
-  public subscribe<E extends ExtensionEvent>(
-    eventTypes: E["type"] | E["type"][],
-    handler: (event: E) => void
+  /** Listen for event */
+  on<K extends EventKey>(
+    key: K,
+    handler: (payload: EventMap[K]) => void
   ): ExtensionSubscription {
-    const types = Array.isArray(eventTypes) ? eventTypes : [eventTypes];
-
-    // Create filtered handler
-    const filteredHandler = (event: ExtensionEvent): void => {
-      if (types.includes(event.type as E["type"])) {
-        handler(event as E);
+    const disposable = this.emitter.event((e) => {
+      if (e.key === key) {
+        handler(e.payload as EventMap[K]);
       }
-    };
+    });
 
-    // Subscribe to the event emitter
-    const disposable = this.onEvent(filteredHandler);
-
-    // Track the subscription for cleanup
-    const managedSub: ManagedSubscription = {
-      types,
-      handler: filteredHandler,
-      disposable,
-    };
-
-    this._subscriptions.add(managedSub);
-
-    // Return API-compatible subscription handle
     return {
-      unsubscribe: () => {
-        disposable.dispose();
-        this._subscriptions.delete(managedSub);
-      },
-    };
+      unsubscribe: () => disposable.dispose(),
+      dispose: () => disposable.dispose(),
+    } as ExtensionSubscription;
   }
 
-  /**
-   * Get current subscription count (for diagnostics)
-   */
-  public getSubscriptionCount(): number {
-    return this._subscriptions.size;
+  /** Listen once */
+  once<K extends EventKey>(
+    key: K,
+    handler: (payload: EventMap[K]) => void
+  ): ExtensionSubscription {
+    const sub = this.on(key, (p) => {
+      try {
+        handler(p);
+      } finally {
+        sub.dispose();
+      }
+    });
+    return sub;
   }
 
-  /**
-   * Dispose all subscriptions and clean up
-   */
-  public dispose(): void {
-    // Dispose all subscriptions
-    for (const sub of this._subscriptions) {
-      sub.disposable.dispose();
-    }
-    this._subscriptions.clear();
+  /** Wait for event */
+  waitFor<K extends EventKey>(
+    key: K,
+    predicate?: (payload: EventMap[K]) => boolean,
+    timeoutMs?: number
+  ): Promise<EventMap[K]> {
+    return new Promise((resolve, reject) => {
+      const sub = this.on(key, (payload) => {
+        if (!predicate || predicate(payload)) {
+          sub.dispose();
+          if (timeout) clearTimeout(timeout);
+          resolve(payload);
+        }
+      });
 
-    // Dispose the event emitter
-    this._eventEmitter.dispose();
+      let timeout: NodeJS.Timeout | undefined;
+      if (timeoutMs) {
+        timeout = setTimeout(() => {
+          sub.dispose();
+          reject(new Error("EventBus.waitFor timeout"));
+        }, timeoutMs);
+      }
+    });
+  }
+
+  dispose(): void {
+    this.emitter.dispose();
   }
 }
 
-// Singleton instance
-const extensionBus = new ExtensionBus();
+export const eventBus = new EventBus();
 
-// Export the instance and compatibility functions
-export { extensionBus };
-
-// ---------- API Compatible Helper Functions ----------
-// These maintain the existing import signatures for gradual migration
-
-/**
- * Publish an event (API compatible with eventBus.publish)
- */
-export function publish<E extends ExtensionEvent>(
-  event: Omit<E, "timestamp">
-): void {
-  extensionBus.publish(event);
-}
-
-/**
- * Subscribe to events (API compatible with eventBus.subscribe)
- */
-export function subscribe<E extends ExtensionEvent>(
-  eventTypes: E["type"] | E["type"][],
-  handler: (event: E) => void
-): ExtensionSubscription {
-  return extensionBus.subscribe(eventTypes, handler);
-}
-
-/**
- * Get subscription diagnostics
- */
-export function getSubscriptionCount(): number {
-  return extensionBus.getSubscriptionCount();
-}
-
-/**
- * Clean up all subscriptions (should be called on extension deactivation)
- */
-export function dispose(): void {
-  extensionBus.dispose();
-}
+// Convenience re-exports ----------------------------------------------------
+export type { EventKey };
+// ---------------------------------------------------------------------------

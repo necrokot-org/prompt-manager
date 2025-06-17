@@ -2,8 +2,7 @@ import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { FileManager, PromptStructure } from "./fileManager";
 import { SearchService } from "./searchService";
-import { publish } from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
 import { PromptParser } from "./core/PromptParser.js";
 import { DI_TOKENS } from "./core/di-tokens";
@@ -104,9 +103,10 @@ export class PromptRepository {
   }
 
   private publishStructureChanged(reason: string): void {
-    publish(
-      Events.structureChanged(reason as any, undefined, "PromptRepository")
-    );
+    eventBus.emit("filesystem.structure.changed", {
+      reason: reason as any,
+      affectedPath: undefined,
+    });
   }
 
   /**

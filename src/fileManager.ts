@@ -1,8 +1,7 @@
 import * as path from "path";
 import { injectable, inject } from "tsyringe";
 
-import { Events } from "./core/EventSystem";
-import { publish } from "./core/ExtensionBus";
+import { eventBus } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 
 // Import all the focused components
@@ -227,20 +226,24 @@ export class FileManager {
     eventType: "created" | "deleted" | "changed",
     filePath: string
   ): void {
+    const fileName = filePath.split(/[\\/]/).pop() || filePath;
     switch (eventType) {
       case "created":
-        publish(Events.fileCreated(filePath, "FileManager"));
+        eventBus.emit("filesystem.file.created", { filePath, fileName });
         break;
       case "deleted":
-        publish(Events.fileDeleted(filePath, "FileManager"));
+        eventBus.emit("filesystem.file.deleted", { filePath, fileName });
         break;
       case "changed":
-        publish(Events.fileChanged(filePath, "FileManager"));
+        eventBus.emit("filesystem.file.changed", { filePath, fileName });
         break;
     }
   }
 
   private publishDirectoryCreated(dirPath: string): void {
-    publish(Events.directoryCreated(dirPath, "FileManager"));
+    eventBus.emit("filesystem.directory.created", {
+      dirPath,
+      dirName: dirPath.split(/[\\/]/).pop() || dirPath,
+    });
   }
 }

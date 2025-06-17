@@ -3,8 +3,7 @@ import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 import { FileContent } from "./core/SearchEngine";
 import { searchEngine } from "./searchEngine";
-import { publish } from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 import trim from "lodash-es/trim.js";
 import { searchResultToPromptFile } from "./utils/promptFile";
@@ -165,11 +164,11 @@ export class SearchService {
     resultCount: number,
     query: string
   ): Promise<void> {
-    publish(Events.searchResultsUpdated(resultCount, query, "SearchService"));
+    eventBus.emit("search.results.updated", { resultCount, query });
   }
 
   async publishCleared(): Promise<void> {
-    publish(Events.searchCleared("SearchService"));
+    eventBus.emit("search.cleared", {});
   }
 
   // Private helper methods

@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { SearchPanelProvider } from "../searchPanelProvider";
-import { subscribe, publish } from "../core/ExtensionBus";
+import { eventBus } from "../core/ExtensionBus";
 
 suite("SearchPanelProvider", () => {
   let searchProvider: SearchPanelProvider;
@@ -33,41 +33,31 @@ suite("SearchPanelProvider", () => {
   });
 
   test("should publish search criteria changed event", (done) => {
-    // Subscribe to the event
-    subscribe("search.criteria.changed", (event: any) => {
-      assert.strictEqual(event.type, "search.criteria.changed");
-      assert.strictEqual(event.payload.query, "test");
-      assert.strictEqual(event.payload.scope, "both");
-      assert.strictEqual(event.payload.caseSensitive, false);
-      assert.strictEqual(event.payload.isActive, true);
+    // Listen to event
+    eventBus.on("search.criteria.changed", (payload) => {
+      assert.strictEqual(payload.query, "test");
+      assert.strictEqual(payload.scope, "both");
+      assert.strictEqual(payload.caseSensitive, false);
+      assert.strictEqual(payload.isActive, true);
       done();
     });
 
-    // Simulate the search provider publishing the event
-    publish({
-      type: "search.criteria.changed",
-      source: "test",
-      payload: {
-        query: "test",
-        scope: "both" as const,
-        caseSensitive: false,
-        isActive: true,
-      },
+    // Emit event
+    eventBus.emit("search.criteria.changed", {
+      query: "test",
+      scope: "both",
+      caseSensitive: false,
+      isActive: true,
     });
   });
 
   test("should publish search cleared event", (done) => {
-    // Subscribe to the event
-    subscribe("search.cleared", (event: any) => {
-      assert.strictEqual(event.type, "search.cleared");
+    // Listen to the event
+    eventBus.on("search.cleared", () => {
       done();
     });
 
-    // Simulate the search provider publishing the event
-    publish({
-      type: "search.cleared",
-      source: "test",
-      payload: {},
-    });
+    // Emit
+    eventBus.emit("search.cleared", {});
   });
 });

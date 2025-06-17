@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { publish } from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 
 export interface SearchCriteria {
@@ -77,15 +76,12 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     this._criteria = normalizedCriteria;
 
     // Publish search criteria changed event with normalized data
-    publish(
-      Events.searchCriteriaChanged(
-        normalizedCriteria.query,
-        normalizedCriteria.scope,
-        normalizedCriteria.caseSensitive,
-        normalizedCriteria.isActive,
-        "SearchPanelProvider"
-      )
-    );
+    eventBus.emit("search.criteria.changed", {
+      query: normalizedCriteria.query,
+      scope: normalizedCriteria.scope,
+      caseSensitive: normalizedCriteria.caseSensitive,
+      isActive: normalizedCriteria.isActive,
+    });
   }
 
   private handleClear(): void {
@@ -96,8 +92,8 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       isActive: false,
     };
 
-    // Publish search cleared event
-    publish(Events.searchCleared("SearchPanelProvider"));
+    // Emit search cleared event
+    eventBus.emit("search.cleared", {});
 
     // Update the webview
     if (this._view) {

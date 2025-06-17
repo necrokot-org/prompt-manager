@@ -7,8 +7,7 @@ import {
   FolderTreeItem,
 } from "./promptTreeProvider";
 import { EXTENSION_CONSTANTS } from "./config";
-import { publish } from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 
 @injectable()
@@ -58,8 +57,10 @@ export class CommandHandler {
 
   private async refreshTree(): Promise<void> {
     try {
-      // Publish tree refresh event instead of directly calling controller
-      publish(Events.treeRefreshRequested("manual", "CommandHandler"));
+      // Emit tree refresh event
+      eventBus.emit("ui.tree.refresh.requested", {
+        reason: "manual",
+      });
 
       vscode.window.showInformationMessage("Prompt Manager tree refreshed");
     } catch (error) {
@@ -85,8 +86,8 @@ export class CommandHandler {
 
       await this.promptController.openPromptFile(filePath);
 
-      // Publish prompt opened event
-      this.publishPromptOpened(filePath);
+      // Emit prompt opened event
+      this.emitPromptOpened(filePath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to open prompt: ${error}`);
     }
@@ -102,8 +103,11 @@ export class CommandHandler {
       const filePath = item.promptFile.path;
       await this.promptController.deletePromptFile(filePath);
 
-      // Publish file deleted event
-      publish(Events.fileDeleted(filePath, "CommandHandler"));
+      // Emit file deleted event
+      eventBus.emit("filesystem.file.deleted", {
+        filePath,
+        fileName: filePath.split(/[\\/]/).pop() || filePath,
+      });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
     }
@@ -174,7 +178,10 @@ export class CommandHandler {
     }
   }
 
-  private publishPromptOpened(filePath: string): void {
-    publish(Events.promptOpened(filePath, "CommandHandler"));
+  private emitPromptOpened(filePath: string): void {
+    eventBus.emit("ui.prompt.opened", {
+      filePath,
+      fileName: filePath.split(/[\\/]/).pop() || filePath,
+    });
   }
 }

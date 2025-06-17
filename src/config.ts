@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 import { injectable } from "tsyringe";
 import { FileNamingPattern } from "./utils/string";
-import { publish } from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 
 /**
  * Centralized configuration management for Prompt Manager
@@ -106,14 +105,11 @@ export class ConfigurationService {
       if (e.affectsConfiguration(`promptManager.${configKey}`)) {
         const newValue = config.get(configKey);
 
-        publish(
-          Events.configChanged(
-            configKey,
-            newValue,
-            undefined, // We don't track old values currently
-            "ConfigurationService"
-          )
-        );
+        eventBus.emit("config.changed", {
+          configKey,
+          newValue,
+          oldValue: undefined,
+        });
       }
     }
   }

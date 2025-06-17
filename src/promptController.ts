@@ -3,8 +3,7 @@ import { injectable, inject } from "tsyringe";
 import { PromptRepository } from "./promptRepository";
 import { PromptStructure } from "./fileManager";
 import { EXTENSION_CONSTANTS } from "./config";
-import { subscribe, publish } from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 import {
   validateFileName,
   sanitizeFileName,
@@ -30,7 +29,7 @@ export class PromptController {
 
     // Subscribe to filesystem structure changes
     this.subscriptions.push(
-      subscribe("filesystem.structure.changed", () => {
+      eventBus.on("filesystem.structure.changed", () => {
         this.publishTreeRefreshEvent("file-change");
       })
     );
@@ -66,7 +65,7 @@ export class PromptController {
   private publishTreeRefreshEvent(
     reason: "manual" | "file-change" | "search-change"
   ): void {
-    publish(Events.treeRefreshRequested(reason, "PromptController"));
+    eventBus.emit("ui.tree.refresh.requested", { reason });
   }
 
   /**

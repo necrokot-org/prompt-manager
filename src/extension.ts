@@ -8,12 +8,7 @@ import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
-import {
-  publish,
-  subscribe,
-  dispose as disposeEventBus,
-} from "./core/ExtensionBus";
-import { Events } from "./core/EventSystem";
+import { eventBus } from "./core/ExtensionBus";
 import {
   configureDependencies,
   resolve,
@@ -108,13 +103,12 @@ async function initializeExtension(
 
     // Connect search events to search service
     if (searchProvider && treeProvider && promptController && searchService) {
-      subscribe("search.criteria.changed", async (event) => {
-        const searchEvent = event as any; // Type assertion for now
+      eventBus.on("search.criteria.changed", async (payload) => {
         const criteria: SearchCriteria = {
-          query: searchEvent.payload.query,
-          scope: searchEvent.payload.scope,
-          caseSensitive: searchEvent.payload.caseSensitive,
-          isActive: searchEvent.payload.isActive,
+          query: payload.query,
+          scope: payload.scope,
+          caseSensitive: payload.caseSensitive,
+          isActive: payload.isActive,
         };
 
         // Update result count in search panel
@@ -162,13 +156,10 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         }
 
         // Publish workspace change event
-        publish(
-          Events.workspaceChanged(
-            workspaceFolders,
-            "workspace-opened",
-            "extension"
-          )
-        );
+        eventBus.emit("config.workspace.changed", {
+          workspaceFolders,
+          reason: "workspace-opened",
+        });
 
         try {
           await initializeExtension(context);
@@ -187,7 +178,10 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
         );
 
         // Publish workspace change event
-        publish(Events.workspaceChanged([], "workspace-closed", "extension"));
+        eventBus.emit("config.workspace.changed", {
+          workspaceFolders: [],
+          reason: "workspace-closed",
+        });
 
         // Hide the view when no workspace is open
         vscode.commands.executeCommand(
@@ -246,7 +240,7 @@ export function deactivate() {
   cleanup();
 
   // Dispose event bus subscriptions to prevent memory leaks
-  disposeEventBus();
+  eventBus.dispose();
 
   // VSCode automatically disposes of registered commands and tree views
 }

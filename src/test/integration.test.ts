@@ -6,7 +6,7 @@ import { PromptTreeProvider } from "../promptTreeProvider";
 import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
 import { FileManager } from "../fileManager";
 import { PromptRepository } from "../promptRepository";
-import { subscribe, publish } from "../core/ExtensionBus";
+import { eventBus } from "../core/ExtensionBus";
 import {
   configureDependencies,
   resolve,
@@ -84,26 +84,22 @@ suite("Integration Tests", () => {
   test("should handle search events correctly", (done) => {
     let eventReceived = false;
 
-    // Subscribe to search events
-    subscribe("search.criteria.changed", (event: any) => {
+    // Listen to search events
+    eventBus.on("search.criteria.changed", (payload) => {
       eventReceived = true;
-      assert.strictEqual(event.payload.query, "test query");
-      assert.strictEqual(event.payload.scope, "both");
-      assert.strictEqual(event.payload.caseSensitive, false);
-      assert.strictEqual(event.payload.isActive, true);
+      assert.strictEqual(payload.query, "test query");
+      assert.strictEqual(payload.scope, "both");
+      assert.strictEqual(payload.caseSensitive, false);
+      assert.strictEqual(payload.isActive, true);
       done();
     });
 
-    // Publish a search event
-    publish({
-      type: "search.criteria.changed",
-      source: "test",
-      payload: {
-        query: "test query",
-        scope: "both" as const,
-        caseSensitive: false,
-        isActive: true,
-      },
+    // Emit a search event
+    eventBus.emit("search.criteria.changed", {
+      query: "test query",
+      scope: "both",
+      caseSensitive: false,
+      isActive: true,
     });
 
     // Timeout fallback

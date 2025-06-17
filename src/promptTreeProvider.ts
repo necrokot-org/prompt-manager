@@ -10,8 +10,7 @@ import {
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
 import { ConfigurationService } from "./config";
-import { ExtensionEvent } from "./core/EventSystem";
-import { subscribe } from "./core/ExtensionBus";
+import { eventBus } from "./core/ExtensionBus";
 import { DI_TOKENS } from "./core/di-tokens";
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
@@ -133,27 +132,25 @@ export class PromptTreeProvider
   ) {
     this._searchService = searchService;
 
-    // Subscribe to tree refresh events
+    // Listen to tree refresh events
     this.subscriptions.push(
-      subscribe("ui.tree.refresh.requested", () => {
+      eventBus.on("ui.tree.refresh.requested", () => {
         this.refresh();
       })
     );
 
-    // Subscribe to search events
+    // Listen to search criteria changes
     this.subscriptions.push(
-      subscribe("search.criteria.changed", (event) => {
-        if (event.type === "search.criteria.changed") {
-          const { query, scope, caseSensitive, isActive } = event.payload;
-          this.setSearchCriteria(
-            isActive ? { query, scope, caseSensitive, isActive } : null
-          );
-        }
+      eventBus.on("search.criteria.changed", (payload) => {
+        const { query, scope, caseSensitive, isActive } = payload;
+        this.setSearchCriteria(
+          isActive ? { query, scope, caseSensitive, isActive } : null
+        );
       })
     );
 
     this.subscriptions.push(
-      subscribe("search.cleared", () => {
+      eventBus.on("search.cleared", () => {
         this.setSearchCriteria(null);
       })
     );
