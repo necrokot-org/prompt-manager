@@ -141,6 +141,19 @@ export class DirectoryScanner {
         }
       }
 
+      // Also scan for empty directories
+      const dirEntries = await this.fileSystemManager.readDirectory(dirPath);
+      for (const entry of dirEntries) {
+        if (entry.isDirectory() && !folderMap.has(entry.name)) {
+          // This is a directory that doesn't contain any prompt files
+          folders.push({
+            name: entry.name,
+            path: path.join(dirPath, entry.name),
+            prompts: [],
+          });
+        }
+      }
+
       // Convert folder map to PromptFolder array
       for (const [folderName, prompts] of folderMap) {
         folders.push({
