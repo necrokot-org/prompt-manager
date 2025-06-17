@@ -6,7 +6,6 @@ import { PromptController } from "./promptController";
 import { PromptTreeProvider } from "./promptTreeProvider";
 import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
-import { PromptFile } from "./fileManager";
 import { SearchService } from "./searchService";
 import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
 import { publish, subscribe } from "./core/eventBus";

@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { EXTENSION_CONSTANTS } from "./config";
 import { publish } from "./core/eventBus";
 import { Events } from "./core/EventSystem";
 import { DI_TOKENS } from "./core/di-tokens";
@@ -65,16 +64,25 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     );
   }
 
-  private handleSearch(criteria: SearchCriteria): void {
-    this._criteria = criteria;
+  private handleSearch(criteria: Omit<SearchCriteria, "isActive">): void {
+    // Determine active state based on presence of non-whitespace characters in the query
+    const isActive = (criteria.query || "").trim().length > 0;
 
-    // Publish search criteria changed event
+    // Merge incoming criteria with the computed isActive flag
+    const normalizedCriteria: SearchCriteria = {
+      ...criteria,
+      isActive,
+    } as SearchCriteria;
+
+    this._criteria = normalizedCriteria;
+
+    // Publish search criteria changed event with normalized data
     publish(
       Events.searchCriteriaChanged(
-        criteria.query,
-        criteria.scope,
-        criteria.caseSensitive,
-        criteria.isActive,
+        normalizedCriteria.query,
+        normalizedCriteria.scope,
+        normalizedCriteria.caseSensitive,
+        normalizedCriteria.isActive,
         "SearchPanelProvider"
       )
     );
