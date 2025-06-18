@@ -116,7 +116,7 @@ export class PromptTreeProvider
     }
 
     if (element instanceof FolderTreeItem) {
-      // Return prompts in this folder
+      // Return prompts and subfolders in this folder
       return this.getFolderItems(element.promptFolder);
     }
 
@@ -141,15 +141,24 @@ export class PromptTreeProvider
         return this.getFilteredItems(structure);
       }
 
-      // Add folders
+      // Add folders that are in the root (no parent folders)
       if (structure?.folders) {
         log.debug("getRootItems: Processing folders");
+        const basePromptPath = this.promptController
+          .getRepository()
+          .getFileManager()
+          .getPromptManagerPath();
+
         for (const folder of structure.folders) {
           log.debug("getRootItems: Processing folder:", folder);
           if (folder && folder.name) {
-            const folderItem = this.itemFactory.createFolderTreeItem(folder);
-            items.push(folderItem);
-            log.debug("getRootItems: Added folder item:", folder.name);
+            // Only show folders whose parent is the root prompt manager directory
+            const parentPath = path.dirname(folder.path);
+            if (parentPath === basePromptPath) {
+              const folderItem = this.itemFactory.createFolderTreeItem(folder);
+              items.push(folderItem);
+              log.debug("getRootItems: Added root folder item:", folder.name);
+            }
           } else {
             log.warn("FolderTreeItem: Skipping invalid folder:", folder);
           }
@@ -202,20 +211,33 @@ export class PromptTreeProvider
     }
   }
 
-  private getFolderItems(folder: PromptFolder): PromptTreeItem[] {
+  private async getFolderItems(
+    folder: PromptFolder
+  ): Promise<PromptTreeItem[]> {
     const items: PromptTreeItem[] = [];
+    const structure = await this.promptController.getPromptStructure();
 
-    if (!folder.prompts || folder.prompts.length === 0) {
-      return items;
+    // Add child folders (folders whose parent path equals this folder's path)
+    if (structure?.folders) {
+      for (const childFolder of structure.folders) {
+        const childParentPath = path.dirname(childFolder.path);
+        if (childParentPath === folder.path) {
+          const folderItem = this.itemFactory.createFolderTreeItem(childFolder);
+          items.push(folderItem);
+        }
+      }
     }
 
-    for (const prompt of folder.prompts) {
-      const promptItem = this.createFileTreeItem(prompt, {
-        command: "promptManager.openPrompt",
-        title: "Open Prompt",
-        arguments: [prompt.path],
-      });
-      items.push(promptItem);
+    // Add prompts directly in this folder
+    if (folder.prompts && folder.prompts.length > 0) {
+      for (const prompt of folder.prompts) {
+        const promptItem = this.createFileTreeItem(prompt, {
+          command: "promptManager.openPrompt",
+          title: "Open Prompt",
+          arguments: [prompt.path],
+        });
+        items.push(promptItem);
+      }
     }
 
     return items;
