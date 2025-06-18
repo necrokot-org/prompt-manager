@@ -213,11 +213,7 @@ describe("PromptTreeProvider", () => {
       const fileItem = new FileTreeItem(mockPromptFile);
       const dataTransfer = new vscode.DataTransfer();
 
-      await promptTreeProvider.handleDrag(
-        [fileItem],
-        dataTransfer,
-        new vscode.CancellationTokenSource().token
-      );
+      await promptTreeProvider.handleDrag([fileItem], dataTransfer);
 
       const dragData = dataTransfer.get(
         "application/vnd.code.tree.promptmanager"
@@ -234,11 +230,7 @@ describe("PromptTreeProvider", () => {
       });
       const dataTransfer = new vscode.DataTransfer();
 
-      await promptTreeProvider.handleDrag(
-        [folderItem],
-        dataTransfer,
-        new vscode.CancellationTokenSource().token
-      );
+      await promptTreeProvider.handleDrag([folderItem], dataTransfer);
 
       const dragData = dataTransfer.get(
         "application/vnd.code.tree.promptmanager"

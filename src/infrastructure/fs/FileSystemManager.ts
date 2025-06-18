@@ -242,6 +242,37 @@ Happy prompting!
   }
 
   /**
+   * Move folder to a new location
+   */
+  public async moveFolder(
+    sourcePath: string,
+    targetPath: string
+  ): Promise<void> {
+    try {
+      // Check if source is actually a directory
+      const sourceStats = await fsExtra.stat(sourcePath);
+      if (!sourceStats.isDirectory()) {
+        throw new Error(`Source path ${sourcePath} is not a directory`);
+      }
+
+      // Ensure parent directory of target exists
+      const targetParentDir = path.dirname(targetPath);
+      await fsExtra.ensureDir(targetParentDir);
+
+      // Move the folder
+      await fsExtra.move(sourcePath, targetPath, { overwrite: false });
+
+      log.debug(`Folder moved from ${sourcePath} to ${targetPath}`);
+    } catch (error) {
+      log.error(
+        `Failed to move folder from ${sourcePath} to ${targetPath}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Check if a file move operation would cause a conflict
    */
   public async checkMoveConflict(

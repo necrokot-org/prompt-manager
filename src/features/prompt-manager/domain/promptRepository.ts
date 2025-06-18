@@ -50,8 +50,9 @@ export class PromptRepository {
       return;
     }
 
+    // Watch for both file and directory changes
     this.fileWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(promptPath, "**/*.{md,prompt}")
+      new vscode.RelativePattern(promptPath, "**/*")
     );
 
     // Setup file watcher events with unified handling

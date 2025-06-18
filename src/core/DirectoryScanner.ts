@@ -117,6 +117,19 @@ export class DirectoryScanner {
   }
 
   /**
+   * Force immediate cache clear and index rebuild (bypasses debouncing).
+   * Use this for operations like folder moves that require immediate refresh.
+   */
+  public async forceRebuildIndex(): Promise<void> {
+    this.cache.invalidate(async () => {
+      // This will be called immediately due to the 0ms debounce override
+    });
+    // Immediately rebuild the index
+    await this.buildIndex();
+    eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
+  }
+
+  /**
    * Compute basic statistics for any directory (defaulting to the prompt root).
    */
   public async getDirectoryStats(dirPath?: string): Promise<{

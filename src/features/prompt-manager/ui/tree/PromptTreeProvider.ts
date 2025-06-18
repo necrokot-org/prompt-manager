@@ -31,7 +31,7 @@ import { FileSystemManager } from "@infra/fs/FileSystemManager";
 export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
 
 // Simple state for drag operations
-let currentDrag: vscode.Uri | undefined;
+let currentDrag: { uri: vscode.Uri; type: "file" | "folder" } | undefined;
 
 @injectable()
 export class PromptTreeProvider
@@ -349,28 +349,55 @@ export class PromptTreeProvider
   // Simplified TreeDragAndDropController implementation
   async handleDrag(
     source: readonly PromptTreeItem[],
-    dataTransfer: vscode.DataTransfer,
-    token: vscode.CancellationToken
+    dataTransfer: vscode.DataTransfer
   ): Promise<void> {
-    // Only support dragging single file items
-    if (source.length !== 1 || !(source[0] instanceof FileTreeItem)) {
+    // Only support dragging single items (files or folders)
+    if (source.length !== 1) {
       return;
     }
 
-    const item = source[0] as FileTreeItem;
-    currentDrag = vscode.Uri.file(item.promptFile.path);
+    const item = source[0];
 
-    // Set drag data
-    dataTransfer.set(
-      this.dragMimeTypes[0],
-      new vscode.DataTransferItem(item.promptFile.path)
-    );
+    if (item instanceof FileTreeItem) {
+      currentDrag = {
+        uri: vscode.Uri.file(item.promptFile.path),
+        type: "file",
+      };
+
+      // Set drag data
+      dataTransfer.set(
+        this.dragMimeTypes[0],
+        new vscode.DataTransferItem(
+          JSON.stringify({
+            path: item.promptFile.path,
+            type: "file",
+          })
+        )
+      );
+    } else if (item instanceof FolderTreeItem) {
+      currentDrag = {
+        uri: vscode.Uri.file(item.promptFolder.path),
+        type: "folder",
+      };
+
+      // Set drag data
+      dataTransfer.set(
+        this.dragMimeTypes[0],
+        new vscode.DataTransferItem(
+          JSON.stringify({
+            path: item.promptFolder.path,
+            type: "folder",
+          })
+        )
+      );
+    } else {
+      return;
+    }
   }
 
   async handleDrop(
     target: PromptTreeItem | undefined,
-    dataTransfer: vscode.DataTransfer,
-    token: vscode.CancellationToken
+    dataTransfer: vscode.DataTransfer
   ): Promise<void> {
     // Get source path from drag data
     const dragDataItem = dataTransfer.get(this.dragMimeTypes[0]);
@@ -378,21 +405,30 @@ export class PromptTreeProvider
       return;
     }
 
-    const source = currentDrag;
+    let dragData;
+    try {
+      dragData = JSON.parse(dragDataItem.value as string);
+    } catch (error) {
+      log.error("handleDrop: Failed to parse drag data", error);
+      return;
+    }
+
+    const source = currentDrag.uri;
+    const sourceType = currentDrag.type;
 
     // Calculate target URI
     let targetUri: vscode.Uri;
-    const fileName = path.basename(source.fsPath);
+    const itemName = path.basename(source.fsPath);
 
     if (target instanceof FolderTreeItem) {
       // Dropping on folder
       targetUri = vscode.Uri.file(
-        path.join(target.promptFolder.path, fileName)
+        path.join(target.promptFolder.path, itemName)
       );
     } else if (target instanceof FileTreeItem) {
       // Dropping on file - use parent folder
       targetUri = vscode.Uri.file(
-        path.join(path.dirname(target.promptFile.path), fileName)
+        path.join(path.dirname(target.promptFile.path), itemName)
       );
     } else {
       // Dropping on root
@@ -401,33 +437,68 @@ export class PromptTreeProvider
         log.error("handleDrop: No root path found");
         return;
       }
-      targetUri = vscode.Uri.file(path.join(rootPath, fileName));
+      targetUri = vscode.Uri.file(path.join(rootPath, itemName));
     }
 
+    // Don't allow dropping on itself
     if (source.fsPath === targetUri.fsPath) {
       return;
     }
 
+    // Don't allow dropping into a child of itself (for folders)
     if (
-      source.fsPath === targetUri.fsPath ||
-      (await fsExtra.pathExists(targetUri.fsPath))
+      sourceType === "folder" &&
+      targetUri.fsPath.startsWith(source.fsPath + path.sep)
     ) {
-      vscode.window.showErrorMessage("Move not allowed");
+      vscode.window.showErrorMessage(
+        "Cannot move folder into itself or its subdirectory"
+      );
+      return;
+    }
+
+    // Check if target already exists
+    if (await fsExtra.pathExists(targetUri.fsPath)) {
+      vscode.window.showErrorMessage(
+        "Move not allowed - target already exists"
+      );
       return;
     }
 
     try {
-      // Execute move immediately
-      await this.fileSystemManager.moveFile(source.fsPath, targetUri.fsPath);
+      // Execute move based on source type
+      if (sourceType === "file") {
+        await this.fileSystemManager.moveFile(source.fsPath, targetUri.fsPath);
+        vscode.window.showInformationMessage(`Moved file "${itemName}"`);
+        // For files, immediate refresh is sufficient
+        await this.promptController.refresh();
+      } else if (sourceType === "folder") {
+        await this.fileSystemManager.moveFolder(
+          source.fsPath,
+          targetUri.fsPath
+        );
+        vscode.window.showInformationMessage(`Moved folder "${itemName}"`);
 
-      // Refresh tree
-      await this.promptController.refresh();
+        // For folder moves, we need to explicitly invalidate cache and force a rebuild
+        const fileManager = this.promptController
+          .getRepository()
+          .getFileManager();
+        fileManager.clearContentCache();
 
-      // Simple success feedback
-      vscode.window.showInformationMessage(`Moved "${fileName}"`);
+        // Small delay to ensure file system operations are complete, then force rebuild
+        setTimeout(async () => {
+          try {
+            await fileManager.forceRebuildIndex();
+            this.refresh();
+          } catch (error) {
+            log.error("Failed to rebuild index after folder move:", error);
+            // Fallback to regular refresh
+            this.refresh();
+          }
+        }, 150);
+      }
     } catch (error) {
-      // Simple failure feedback
-      vscode.window.showErrorMessage("Move not allowed");
+      log.error("handleDrop: Move operation failed", error);
+      vscode.window.showErrorMessage(`Failed to move ${sourceType}: ${error}`);
     } finally {
       // Clear drag state
       currentDrag = undefined;
