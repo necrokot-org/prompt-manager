@@ -1,8 +1,8 @@
 import * as path from "path";
 import fg from "fast-glob";
-import { FileSystemManager } from "../core/FileSystemManager";
-import { parsePromptContentSync } from "../validation/schemas/prompt.js";
-import { log } from "../core/log";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { parsePromptContentSync } from "@root/validation/schemas/prompt";
+import { log } from "@infra/vscode/log";
 import { PromptFile, ScanOptions } from "./types";
 
 /**

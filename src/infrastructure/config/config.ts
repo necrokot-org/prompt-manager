@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { injectable } from "tsyringe";
-import { FileNamingPattern } from "./utils/string";
-import { eventBus } from "./core/ExtensionBus";
+import { FileNamingPattern } from "../../utils/string";
+import { eventBus } from "@infra/vscode/ExtensionBus";
 
 /**
  * Centralized configuration management for Prompt Manager

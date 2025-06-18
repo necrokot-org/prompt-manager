@@ -1,21 +1,21 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { PromptController } from "./promptController";
+import { PromptController } from "@features/prompt-manager/domain/promptController";
 import {
   PromptFile,
   PromptFolder,
   ContentSearchResult,
   SearchMatch,
-} from "./fileManager";
-import { SearchCriteria } from "./searchPanelProvider";
-import { SearchService } from "./searchService";
-import { ConfigurationService } from "./config";
-import { eventBus } from "./core/ExtensionBus";
-import { log } from "./core/log";
-import { DI_TOKENS } from "./core/di-tokens";
-import { FileTreeItem, FolderTreeItem, EmptyStateTreeItem } from "./tree/items";
-import { ItemFactory } from "./tree/factory/ItemFactory";
-import { SearchFilter } from "./tree/filter/SearchFilter";
+} from "@features/prompt-manager/data/fileManager";
+import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { SearchService } from "@features/search/services/searchService";
+import { ConfigurationService } from "@infra/config/config";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { log } from "@infra/vscode/log";
+import { DI_TOKENS } from "@infra/di/di-tokens";
+import { FileTreeItem, FolderTreeItem, EmptyStateTreeItem } from "@features/prompt-manager/ui/tree/items";
+import { ItemFactory } from "@features/prompt-manager/ui/tree/factory/ItemFactory";
+import { SearchFilter } from "@features/prompt-manager/ui/tree/filter/SearchFilter";
 
 // NOTE: The tree item classes (FileTreeItem, FolderTreeItem, EmptyStateTreeItem) have
 // been extracted to dedicated modules under `src/tree/items/` to improve

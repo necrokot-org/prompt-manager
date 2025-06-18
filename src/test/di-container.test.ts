@@ -4,12 +4,12 @@ import {
   configureDependencies,
   resolve,
   disposeDependencies,
-} from "../core/di-container";
-import { DI_TOKENS } from "../core/di-tokens";
-import { ConfigurationService } from "../config";
-import { FileSystemManager } from "../core/FileSystemManager";
-import { FileManager } from "../fileManager";
-import { PromptTreeProvider } from "../promptTreeProvider";
+} from "@infra/di/di-container";
+import { DI_TOKENS } from "@infra/di/di-tokens";
+import { ConfigurationService } from "@infra/config/config";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { FileManager } from "@features/prompt-manager/data/fileManager";
+import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
 
 suite("DI Container Test Suite", () => {
   let mockContext: vscode.ExtensionContext;

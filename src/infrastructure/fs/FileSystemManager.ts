@@ -2,9 +2,9 @@ import * as vscode from "vscode";
 import * as fsExtra from "fs-extra";
 import * as path from "path";
 import { injectable, inject } from "tsyringe";
-import { DI_TOKENS } from "./di-tokens";
-import { ConfigurationService } from "../config";
-import { log } from "./log";
+import { DI_TOKENS } from "@infra/di/di-tokens";
+import { ConfigurationService } from "@infra/config/config";
+import { log } from "@infra/vscode/log";
 
 export interface FileSystemOperation {
   path: string;

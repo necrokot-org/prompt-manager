@@ -1,7 +1,7 @@
-import { PromptFile } from "../core/DirectoryScanner";
-import { SearchResult } from "../core/SearchEngine";
-import { FileSystemManager } from "../core/FileSystemManager";
-import { log } from "../core/log";
+import { PromptFile } from "core/DirectoryScanner";
+import { SearchResult } from "@features/search/core/SearchEngine";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { log } from "@infra/vscode/log";
 
 /**
  * Convert a SearchResult to a PromptFile using provided dependencies

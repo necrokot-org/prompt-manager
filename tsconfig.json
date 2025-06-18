@@ -1,24 +1,38 @@
 {
-	"compilerOptions": {
-		"module": "es2022",
-		"moduleResolution": "bundler",
-		"target": "ES2022",
-		"lib": [
-			"ES2022"
-		],
-		"sourceMap": true,
-		"rootDir": "src",
-		"strict": true, /* enable all strict type-checking options */
-		"esModuleInterop": true, /* enable compatibility with CommonJS modules */
-		"skipLibCheck": false, /* ensure generated zod types stay accurate */
-		"experimentalDecorators": true, /* Enable experimental decorator support */
-		"emitDecoratorMetadata": true, /* Emit design-type metadata for decorated declarations */
-		/* Additional Checks */
-		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
-		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
-	},
-	"exclude": [
-		"src/archive/**/*"
-	]
+  "compilerOptions": {
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "lib": [
+      "ES2022"
+    ],
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": "src",
+    "paths": {
+      "@infra/*": [
+        "infrastructure/*"
+      ],
+      "@ext/*": [
+        "extension/*"
+      ],
+      "@features/*": [
+        "features/*"
+      ],
+      "@root/*": [
+        "*"
+      ],
+      "@utils/*": [
+        "utils/*"
+      ]
+    }
+  },
+  "exclude": [
+    "src/archive/**/*"
+  ]
 }

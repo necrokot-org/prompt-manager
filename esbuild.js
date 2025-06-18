@@ -1,39 +1,72 @@
 import esbuild from "esbuild";
+import path from "node:path";
+import fs from "node:fs";
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
 
-/**
- * @type {import('esbuild').Plugin}
- */
-const esbuildProblemMatcherPlugin = {
-  name: "esbuild-problem-matcher",
-
+/* --- very small alias helper ----------------------------------------- */
+const pathAliasPlugin = {
+  name: "path-alias",
   setup(build) {
-    build.onStart(() => {
-      console.log("[watch] build started");
-    });
-    build.onEnd((result) => {
-      result.errors.forEach(({ text, location }) => {
-        console.error(`✘ [ERROR] ${text}`);
-        console.error(
-          `    ${location.file}:${location.line}:${location.column}:`
-        );
-      });
-      console.log("[watch] build finished");
+    const map = {
+      "@infra/": "src/infrastructure/",
+      "@ext/": "src/extension/",
+      "@features/": "src/features/",
+      "@root/": "src/",
+      "@utils/": "src/utils/",
+    };
+    build.onResolve({ filter: /^[.@]/ }, (args) => {
+      for (const [prefix, repl] of Object.entries(map)) {
+        if (args.path.startsWith(prefix)) {
+          let abs = path.join(
+            process.cwd(),
+            repl,
+            args.path.slice(prefix.length)
+          );
+          // if path exists and is a directory, use its index file
+          if (fs.existsSync(abs) && fs.lstatSync(abs).isDirectory()) {
+            const idx = ["index.ts", "index.tsx", "index.js"].find((f) =>
+              fs.existsSync(path.join(abs, f))
+            );
+            if (idx) abs = path.join(abs, idx);
+          }
+          // if still no extension, append common ones
+          if (!path.extname(abs)) {
+            const candidates = [".ts", ".tsx", ".mjs", ".cjs", ".js"];
+            const found = candidates.find((ext) => fs.existsSync(abs + ext));
+            if (found) abs = abs + found;
+          }
+          return { path: abs };
+        }
+      }
+      return; // let esbuild handle
     });
   },
 };
+/* --------------------------------------------------------------------- */
 
-async function main() {
+const watchPlugin = {
+  name: "build-watch-log",
+  setup(build) {
+    build.onStart(() => console.log("[watch] build started"));
+    build.onEnd((r) =>
+      console.log(
+        "[watch] build finished",
+        r.errors.length ? "with errors" : "✅"
+      )
+    );
+  },
+};
+
+(async () => {
   const ctx = await esbuild.context({
-    entryPoints: ["src/extension.ts"],
+    entryPoints: ["src/extension/extension.ts"],
     bundle: true,
     format: "cjs",
+    platform: "node",
     minify: production,
     sourcemap: !production,
-    sourcesContent: false,
-    platform: "node",
     outfile: "dist/extension.cjs",
     external: [
       "vscode",
@@ -50,24 +83,9 @@ async function main() {
       "remark-frontmatter",
       "remark-lint",
     ],
-    // Enable tree-shaking for lodash-es
-    mainFields: ["es2015", "module", "main"],
-    treeShaking: true,
+    plugins: [pathAliasPlugin, watchPlugin],
     logLevel: "silent",
-    plugins: [
-      /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin,
-    ],
+    tsconfig: "tsconfig.json",
   });
-  if (watch) {
-    await ctx.watch();
-  } else {
-    await ctx.rebuild();
-    await ctx.dispose();
-  }
-}
-
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+  watch ? await ctx.watch() : (await ctx.rebuild(), await ctx.dispose());
+})();

@@ -1,17 +1,17 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { PromptRepository } from "./promptRepository";
-import { PromptStructure } from "./fileManager";
-import { EXTENSION_CONSTANTS } from "./config";
-import { eventBus } from "./core/ExtensionBus";
-import { log } from "./core/log";
+import { PromptStructure } from "@features/prompt-manager/data/fileManager";
+import { EXTENSION_CONSTANTS } from "@infra/config/config";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { log } from "@infra/vscode/log";
 import {
   validateFileName,
   sanitizeFileName,
   getErrorMessages,
-} from "./validation/index.js";
+} from "@root/validation/index";
 import trim from "lodash-es/trim.js";
-import { DI_TOKENS } from "./core/di-tokens";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.

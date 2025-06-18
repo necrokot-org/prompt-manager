@@ -1,6 +1,6 @@
 import * as path from "path";
-import { FileSystemManager } from "../core/FileSystemManager";
-import { log } from "../core/log";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { log } from "@infra/vscode/log";
 import { PromptFile, PromptFolder, PromptStructure } from "./types";
 
 /**

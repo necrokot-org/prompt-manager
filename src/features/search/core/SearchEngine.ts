@@ -1,7 +1,7 @@
 import {
   parsePromptContentSync,
   ParsedPromptContent,
-} from "../validation/schemas/prompt.js";
+} from "@root/validation/schemas/prompt";
 import { LRUCache } from "lru-cache";
 import trim from "lodash-es/trim.js";
 import Fuse, { IFuseOptions, FuseResult } from "fuse.js";

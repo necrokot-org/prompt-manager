@@ -1,12 +1,12 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { PromptTreeProvider, PromptTreeItem } from "../promptTreeProvider";
-import { FileTreeItem, FolderTreeItem } from "../tree/items";
-import { PromptController } from "../promptController";
-import { SearchService } from "../searchService";
-import { SearchCriteria } from "../searchPanelProvider";
-import { PromptFile, PromptFolder } from "../fileManager";
-import { ConfigurationService } from "../config";
+import { PromptTreeProvider, PromptTreeItem } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { FileTreeItem, FolderTreeItem } from "@features/prompt-manager/ui/tree/items";
+import { PromptController } from "@features/prompt-manager/domain/promptController";
+import { SearchService } from "@features/search/services/searchService";
+import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { PromptFile, PromptFolder } from "@features/prompt-manager/data/fileManager";
+import { ConfigurationService } from "@infra/config/config";
 
 suite("PromptTreeProvider Tests", () => {
   let treeProvider: PromptTreeProvider;

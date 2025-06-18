@@ -1,12 +1,15 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { FileManager, PromptStructure } from "./fileManager";
-import { SearchService } from "./searchService";
-import { validatePrompt, getErrorMessages } from "./validation/index.js";
-import { parsePromptContentSync } from "./validation/schemas/prompt.js";
-import { DI_TOKENS } from "./core/di-tokens";
+import {
+  FileManager,
+  PromptStructure,
+} from "@features/prompt-manager/data/fileManager";
+import { SearchService } from "@features/search/services/searchService";
+import { validatePrompt, getErrorMessages } from "@root/validation/index";
+import { parsePromptContentSync } from "@root/validation/schemas/prompt";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 import * as fs from "fs";
-import { log } from "./core/log";
+import { log } from "@infra/vscode/log";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
