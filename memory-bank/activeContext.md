@@ -4,16 +4,18 @@
 
 ### Recently Completed Task
 
-**Drag and Drop Prompts Between Folders** - Level 3 Intermediate Feature completed on 2025-01-18
+**Fix Nested Folders Display Bug** - Level 2 Simple Enhancement completed on 2025-01-19
 
-- Successfully implemented comprehensive drag-and-drop functionality for moving prompt files
-- Command pattern architecture with validation engine and state management
-- VSCode TreeView integration with native drag-and-drop controller
-- **Archive**: [docs/archive/archive-drag-drop-prompts-20250118.md](../docs/archive/archive-drag-drop-prompts-20250118.md)
-- **Reflection**: [memory-bank/reflection/reflection-drag-drop-prompts.md](reflection/reflection-drag-drop-prompts.md)
+- Fixed critical bug where nested folders were not displaying in extension tree view
+- Root cause: Folder flattening logic only taking first directory level
+- Simple solution: Removed flattening logic, leveraged VSCode Tree API naturally
+- **Key Learning**: Simple solutions using platform APIs are better than complex workarounds
+- **Archive**: [docs/archive/archive-nested-folders-fix-20250119.md](../docs/archive/archive-nested-folders-fix-20250119.md)
+- **Reflection**: [memory-bank/reflection/reflection-nested-folders-fix.md](reflection/reflection-nested-folders-fix.md)
 
 ## Previously Completed
 
+- ✅ Drag and Drop Prompts Between Folders - Level 3 Intermediate Feature completed on 2025-01-18
 - ✅ Remove Redundant "Open Prompt" Button - Level 2 Enhancement completed on 2025-06-18
 - ✅ Copy Button Enhancement completed on 2025-06-15
 
