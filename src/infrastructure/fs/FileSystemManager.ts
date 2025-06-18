@@ -218,4 +218,85 @@ Happy prompting!
 
     return results;
   }
+
+  /**
+   * Move file to a new location
+   */
+  public async moveFile(sourcePath: string, targetPath: string): Promise<void> {
+    try {
+      // Ensure target directory exists
+      const targetDir = path.dirname(targetPath);
+      await fsExtra.ensureDir(targetDir);
+
+      // Move the file
+      await fsExtra.move(sourcePath, targetPath, { overwrite: false });
+
+      log.debug(`File moved from ${sourcePath} to ${targetPath}`);
+    } catch (error) {
+      log.error(
+        `Failed to move file from ${sourcePath} to ${targetPath}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a file move operation would cause a conflict
+   */
+  public async checkMoveConflict(
+    sourcePath: string,
+    targetPath: string
+  ): Promise<{ hasConflict: boolean; conflictType?: string }> {
+    try {
+      // Check if source exists
+      if (!(await fsExtra.pathExists(sourcePath))) {
+        return { hasConflict: true, conflictType: "source_not_found" };
+      }
+
+      // Check if target already exists
+      if (await fsExtra.pathExists(targetPath)) {
+        return { hasConflict: true, conflictType: "target_exists" };
+      }
+
+      // Check if source and target are the same
+      if (path.resolve(sourcePath) === path.resolve(targetPath)) {
+        return { hasConflict: true, conflictType: "same_location" };
+      }
+
+      return { hasConflict: false };
+    } catch (error) {
+      log.error(`Failed to check move conflict:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get relative path from the prompt manager root
+   */
+  public getRelativePathFromRoot(absolutePath: string): string | undefined {
+    const promptPath = this.getPromptManagerPath();
+    if (!promptPath) {
+      return undefined;
+    }
+
+    try {
+      return path.relative(promptPath, absolutePath);
+    } catch (error) {
+      log.error(`Failed to get relative path:`, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Get absolute path from relative path within prompt manager
+   */
+  public getAbsolutePathFromRelative(relativePath: string): string | undefined {
+    const promptPath = this.getPromptManagerPath();
+    if (!promptPath) {
+      return undefined;
+    }
+
+    return path.join(promptPath, relativePath);
+  }
 }

@@ -5,14 +5,19 @@ import * as vscode from "vscode";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
 import { CommandHandler } from "@ext/commands/commandHandler";
-import { SearchPanelProvider, SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import {
+  SearchPanelProvider,
+  SearchCriteria,
+} from "@features/search/ui/SearchPanelProvider";
 import { SearchService } from "@features/search/services/searchService";
-import { EXTENSION_CONSTANTS, ConfigurationService } from "@infra/config/config";
+import {
+  EXTENSION_CONSTANTS,
+  ConfigurationService,
+} from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import {
-  configureDependencies,
-  resolve,
-  disposeDependencies,
+  setupDependencyInjection,
+  container,
   DI_TOKENS,
 } from "@infra/di/di-container";
 import { log } from "@infra/vscode/log";
@@ -63,22 +68,30 @@ async function initializeExtension(
   context: vscode.ExtensionContext
 ): Promise<void> {
   // Configure dependency injection container with all services
-  configureDependencies(context);
+  setupDependencyInjection(context);
 
   // Resolve services from DI container (they will be singletons)
-  configService = resolve<ConfigurationService>(DI_TOKENS.ConfigurationService);
+  configService = container.resolve<ConfigurationService>(
+    DI_TOKENS.ConfigurationService
+  );
   configService.initialize();
 
   // Resolve business logic layer
-  promptController = resolve<PromptController>(DI_TOKENS.PromptController);
+  promptController = container.resolve<PromptController>(
+    DI_TOKENS.PromptController
+  );
 
   // Resolve presentation layer
-  treeProvider = resolve<PromptTreeProvider>(DI_TOKENS.PromptTreeProvider);
-  searchProvider = resolve<SearchPanelProvider>(DI_TOKENS.SearchPanelProvider);
-  searchService = resolve<SearchService>(DI_TOKENS.SearchService);
+  treeProvider = container.resolve<PromptTreeProvider>(
+    DI_TOKENS.PromptTreeProvider
+  );
+  searchProvider = container.resolve<SearchPanelProvider>(
+    DI_TOKENS.SearchPanelProvider
+  );
+  searchService = container.resolve<SearchService>(DI_TOKENS.SearchService);
 
   // Resolve command handler
-  commandHandler = resolve<CommandHandler>(DI_TOKENS.CommandHandler);
+  commandHandler = container.resolve<CommandHandler>(DI_TOKENS.CommandHandler);
 
   // Initialize the prompt controller (creates directory structure)
   const initialized = await promptController.initialize();
@@ -90,10 +103,11 @@ async function initializeExtension(
     commandHandler &&
     searchService
   ) {
-    // Register tree view
+    // Register tree view with drag and drop support
     vscode.window.createTreeView("promptManagerTree", {
       treeDataProvider: treeProvider,
       showCollapseAll: true,
+      dragAndDropController: treeProvider,
     });
 
     // Register search panel
@@ -214,8 +228,6 @@ function cleanup(): void {
   if (configService) {
     configService.dispose();
   }
-
-  disposeDependencies();
 
   // Clear global references
   configService = undefined;

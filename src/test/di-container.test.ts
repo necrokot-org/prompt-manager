@@ -1,10 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import {
-  configureDependencies,
-  resolve,
-  disposeDependencies,
-} from "@infra/di/di-container";
+import { setupDependencyInjection, container } from "@infra/di/di-container";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import { ConfigurationService } from "@infra/config/config";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
@@ -45,16 +41,17 @@ suite("DI Container Test Suite", () => {
       languageModelAccessInformation: {} as any,
     };
 
-    // Configure dependencies with mock context
-    configureDependencies(mockContext);
+    // Configure dependencies with mock context using simplified API
+    setupDependencyInjection(mockContext);
   });
 
   suiteTeardown(() => {
-    disposeDependencies();
+    // Simplified cleanup - just clear container instances
+    container.clearInstances();
   });
 
   test("ConfigurationService should be resolvable", () => {
-    const configService = resolve<ConfigurationService>(
+    const configService = container.resolve<ConfigurationService>(
       DI_TOKENS.ConfigurationService
     );
     assert.ok(configService, "ConfigurationService should be resolved");
@@ -65,7 +62,7 @@ suite("DI Container Test Suite", () => {
   });
 
   test("FileSystemManager should be resolvable", () => {
-    const fileSystemManager = resolve<FileSystemManager>(
+    const fileSystemManager = container.resolve<FileSystemManager>(
       DI_TOKENS.FileSystemManager
     );
     assert.ok(fileSystemManager, "FileSystemManager should be resolved");
@@ -76,7 +73,7 @@ suite("DI Container Test Suite", () => {
   });
 
   test("FileManager should be resolvable with injected dependencies", () => {
-    const fileManager = resolve<FileManager>(DI_TOKENS.FileManager);
+    const fileManager = container.resolve<FileManager>(DI_TOKENS.FileManager);
     assert.ok(fileManager, "FileManager should be resolved");
     assert.ok(
       fileManager instanceof FileManager,
@@ -93,7 +90,7 @@ suite("DI Container Test Suite", () => {
   });
 
   test("PromptTreeProvider should be resolvable with injected dependencies", () => {
-    const treeProvider = resolve<PromptTreeProvider>(
+    const treeProvider = container.resolve<PromptTreeProvider>(
       DI_TOKENS.PromptTreeProvider
     );
     assert.ok(treeProvider, "PromptTreeProvider should be resolved");
@@ -104,7 +101,7 @@ suite("DI Container Test Suite", () => {
   });
 
   test("ConfigurationService methods should work", () => {
-    const configService = resolve<ConfigurationService>(
+    const configService = container.resolve<ConfigurationService>(
       DI_TOKENS.ConfigurationService
     );
 
@@ -129,7 +126,7 @@ suite("DI Container Test Suite", () => {
   });
 
   test("FileSystemManager should work with injected ConfigurationService", () => {
-    const fileSystemManager = resolve<FileSystemManager>(
+    const fileSystemManager = container.resolve<FileSystemManager>(
       DI_TOKENS.FileSystemManager
     );
 
@@ -144,10 +141,10 @@ suite("DI Container Test Suite", () => {
 
   test("All services should be singletons", () => {
     // Resolve the same service multiple times and verify they're the same instance
-    const configService1 = resolve<ConfigurationService>(
+    const configService1 = container.resolve<ConfigurationService>(
       DI_TOKENS.ConfigurationService
     );
-    const configService2 = resolve<ConfigurationService>(
+    const configService2 = container.resolve<ConfigurationService>(
       DI_TOKENS.ConfigurationService
     );
     assert.strictEqual(
@@ -156,10 +153,10 @@ suite("DI Container Test Suite", () => {
       "ConfigurationService should be singleton"
     );
 
-    const fileSystemManager1 = resolve<FileSystemManager>(
+    const fileSystemManager1 = container.resolve<FileSystemManager>(
       DI_TOKENS.FileSystemManager
     );
-    const fileSystemManager2 = resolve<FileSystemManager>(
+    const fileSystemManager2 = container.resolve<FileSystemManager>(
       DI_TOKENS.FileSystemManager
     );
     assert.strictEqual(
@@ -168,8 +165,8 @@ suite("DI Container Test Suite", () => {
       "FileSystemManager should be singleton"
     );
 
-    const fileManager1 = resolve<FileManager>(DI_TOKENS.FileManager);
-    const fileManager2 = resolve<FileManager>(DI_TOKENS.FileManager);
+    const fileManager1 = container.resolve<FileManager>(DI_TOKENS.FileManager);
+    const fileManager2 = container.resolve<FileManager>(DI_TOKENS.FileManager);
     assert.strictEqual(
       fileManager1,
       fileManager2,

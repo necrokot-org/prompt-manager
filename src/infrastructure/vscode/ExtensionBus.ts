@@ -47,6 +47,34 @@ export interface EventMap {
       | "workspace-opened"
       | "workspace-closed";
   };
+
+  // Drag and Drop
+  "dragdrop.drag.started": { file: any; timestamp: number };
+  "dragdrop.target.changed": {
+    target: string | null;
+    validation: string;
+    validationResult: any;
+  };
+  "dragdrop.validation.completed": {
+    valid: boolean;
+    error?: string;
+    target: string | null;
+  };
+  "dragdrop.operation.started": {
+    command: any;
+    description: string;
+  };
+  "dragdrop.operation.completed": {
+    command: any;
+    result: any;
+    operation: any;
+  };
+  "dragdrop.operation.failed": {
+    command: any;
+    result: any;
+    error?: Error;
+  };
+  "dragdrop.state.cleared": { timestamp: number };
 }
 
 type EventKey = keyof EventMap;

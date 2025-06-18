@@ -2,7 +2,7 @@
   "name": "prompt-manager",
   "displayName": "Prompt Manager",
   "description": "A VSCode extension to manage prompts for LLMs with tree view organization and file management",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -35,7 +35,8 @@
         {
           "id": "promptManagerTree",
           "name": "Prompts",
-          "when": "workspaceHasPromptManager"
+          "when": "workspaceHasPromptManager",
+          "enableDragAndDrop": true
         }
       ]
     },
