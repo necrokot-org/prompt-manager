@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { PromptController } from "./promptController";
 import {
   PromptFile,
@@ -8,103 +9,21 @@ import {
 } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
 import { SearchService } from "./searchService";
+import { ConfigurationService } from "./config";
+import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
+import { DI_TOKENS } from "./core/di-tokens";
+import { FileTreeItem, FolderTreeItem, EmptyStateTreeItem } from "./tree/items";
+import { ItemFactory } from "./tree/factory/ItemFactory";
+import { SearchFilter } from "./tree/filter/SearchFilter";
 
-export abstract class BaseTreeItem extends vscode.TreeItem {
-  constructor(
-    label: string,
-    collapsibleState: vscode.TreeItemCollapsibleState,
-    command?: vscode.Command
-  ) {
-    super(label, collapsibleState);
-    this.command = command;
-  }
-}
-
-export class FileTreeItem extends BaseTreeItem {
-  constructor(
-    public readonly promptFile: PromptFile,
-    command?: vscode.Command
-  ) {
-    if (!promptFile) {
-      throw new Error("FileTreeItem: promptFile cannot be null or undefined");
-    }
-    if (!promptFile.title) {
-      throw new Error(
-        "FileTreeItem: promptFile.title cannot be null or undefined"
-      );
-    }
-    super(promptFile.title, vscode.TreeItemCollapsibleState.None, command);
-
-    // Set properties directly after super()
-    this.tooltip = this.createTooltip();
-    this.description = this.createDescription();
-    this.contextValue = "promptFile";
-    this.iconPath = new vscode.ThemeIcon("file");
-  }
-
-  private createTooltip(): string {
-    const tags =
-      this.promptFile.tags.length > 0
-        ? ` | Tags: ${this.promptFile.tags.join(", ")}`
-        : "";
-    return `${this.promptFile.title}${tags}`;
-  }
-
-  private createDescription(): string | undefined {
-    const config = vscode.workspace.getConfiguration("promptManager");
-    const showDescription = config.get<boolean>("showDescriptionInTree", true);
-    return showDescription ? this.promptFile.description || "" : "";
-  }
-}
-
-export class FolderTreeItem extends BaseTreeItem {
-  constructor(
-    public readonly promptFolder: PromptFolder,
-    collapsibleState: vscode.TreeItemCollapsibleState = vscode
-      .TreeItemCollapsibleState.Expanded
-  ) {
-    if (!promptFolder) {
-      throw new Error(
-        "FolderTreeItem: promptFolder cannot be null or undefined"
-      );
-    }
-    if (!promptFolder.name) {
-      throw new Error(
-        "FolderTreeItem: promptFolder.name cannot be null or undefined"
-      );
-    }
-    super(promptFolder.name, collapsibleState);
-
-    // Set properties directly after super()
-    this.tooltip = this.createTooltip();
-    this.description = this.createDescription();
-    this.contextValue = "promptFolder";
-    this.iconPath = new vscode.ThemeIcon("folder");
-  }
-
-  private createTooltip(): string {
-    return `${this.promptFolder.name}\n${this.promptFolder.prompts.length} prompts`;
-  }
-
-  private createDescription(): string | undefined {
-    return `${this.promptFolder.prompts.length} prompts`;
-  }
-}
-
-export class EmptyStateTreeItem extends BaseTreeItem {
-  constructor(label: string, description: string, contextValue: string) {
-    super(label, vscode.TreeItemCollapsibleState.None);
-
-    // Set properties directly after super()
-    this.tooltip = label;
-    this.description = description;
-    this.contextValue = contextValue;
-    this.iconPath = new vscode.ThemeIcon("info");
-  }
-}
+// NOTE: The tree item classes (FileTreeItem, FolderTreeItem, EmptyStateTreeItem) have
+// been extracted to dedicated modules under `src/tree/items/` to improve
+// separation of concerns and unit-testability.
 
 export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
 
+@injectable()
 export class PromptTreeProvider
   implements vscode.TreeDataProvider<PromptTreeItem>
 {
@@ -116,17 +35,43 @@ export class PromptTreeProvider
   > = this._onDidChangeTreeData.event;
 
   private _currentSearchCriteria: SearchCriteria | null = null;
-  private _searchService: SearchService;
+  private itemFactory: ItemFactory;
+  private searchFilter: SearchFilter;
+  private subscriptions: any[] = [];
 
-  constructor(private promptController: PromptController) {
-    this._searchService = new SearchService(
-      this.promptController.getRepository().getFileManager()
+  constructor(
+    @inject(DI_TOKENS.PromptController)
+    private promptController: PromptController,
+    @inject(DI_TOKENS.SearchService) searchService: SearchService,
+    @inject(DI_TOKENS.ConfigurationService)
+    private configurationService: ConfigurationService
+  ) {
+    // Initialize modular helpers
+    this.itemFactory = new ItemFactory(this.configurationService);
+    this.searchFilter = new SearchFilter(searchService);
+
+    // Listen to tree refresh events
+    this.subscriptions.push(
+      eventBus.on("ui.tree.refresh.requested", () => {
+        this.refresh();
+      })
     );
 
-    // Listen to changes from PromptController
-    this.promptController.onDidChangeTreeData(() => {
-      this.refresh();
-    });
+    // Listen to search criteria changes
+    this.subscriptions.push(
+      eventBus.on("search.criteria.changed", (payload) => {
+        const { query, scope, caseSensitive, isActive } = payload;
+        this.setSearchCriteria(
+          isActive ? { query, scope, caseSensitive, isActive } : null
+        );
+      })
+    );
+
+    this.subscriptions.push(
+      eventBus.on("search.cleared", () => {
+        this.setSearchCriteria(null);
+      })
+    );
   }
 
   refresh(): void {
@@ -162,9 +107,9 @@ export class PromptTreeProvider
 
   private async getRootItems(): Promise<PromptTreeItem[]> {
     try {
-      console.log("getRootItems: Starting to get prompt structure");
+      log.debug("getRootItems: Starting to get prompt structure");
       const structure = await this.promptController.getPromptStructure();
-      console.log("getRootItems: Got structure", {
+      log.debug("getRootItems: Got structure", {
         foldersCount: structure?.folders?.length || 0,
         rootPromptsCount: structure?.rootPrompts?.length || 0,
         structure,
@@ -174,59 +119,60 @@ export class PromptTreeProvider
 
       // If search is active, apply filtering
       if (this._currentSearchCriteria?.isActive) {
-        console.log("getRootItems: Search is active, getting filtered items");
+        log.debug("getRootItems: Search is active, getting filtered items");
         return this.getFilteredItems(structure);
       }
 
       // Add folders
       if (structure?.folders) {
-        console.log("getRootItems: Processing folders");
+        log.debug("getRootItems: Processing folders");
         for (const folder of structure.folders) {
-          console.log("getRootItems: Processing folder:", folder);
+          log.debug("getRootItems: Processing folder:", folder);
           if (folder && folder.name) {
-            const folderItem = new FolderTreeItem(folder);
+            const folderItem = this.itemFactory.createFolderTreeItem(folder);
             items.push(folderItem);
-            console.log("getRootItems: Added folder item:", folder.name);
+            log.debug("getRootItems: Added folder item:", folder.name);
           } else {
-            console.warn("FolderTreeItem: Skipping invalid folder:", folder);
+            log.warn("FolderTreeItem: Skipping invalid folder:", folder);
           }
         }
       }
 
       // Add root prompts
       if (structure?.rootPrompts) {
-        console.log("getRootItems: Processing root prompts");
+        log.debug("getRootItems: Processing root prompts");
         for (const prompt of structure.rootPrompts) {
-          console.log("getRootItems: Processing prompt:", prompt);
+          log.debug("getRootItems: Processing prompt:", prompt);
           if (prompt && prompt.title) {
-            const promptItem = new FileTreeItem(prompt, {
+            const promptItem = this.createFileTreeItem(prompt, {
               command: "promptManager.openPrompt",
               title: "Open Prompt",
               arguments: [prompt.path],
             });
             items.push(promptItem);
-            console.log("getRootItems: Added prompt item:", prompt.title);
+            log.debug("getRootItems: Added prompt item:", prompt.title);
           } else {
-            console.warn("FileTreeItem: Skipping invalid prompt:", prompt);
+            log.warn("FileTreeItem: Skipping invalid prompt:", prompt);
           }
         }
       }
 
       // If no items, show empty state message
       if (items.length === 0) {
-        console.log("getRootItems: No items found, showing empty state");
-        const emptyItem = new EmptyStateTreeItem(
-          "No prompts yet",
-          "Click + to add your first prompt",
-          "emptyState"
+        log.debug("getRootItems: No items found, showing empty state");
+        items.push(
+          this.itemFactory.createEmptyStateItem(
+            "No prompts yet",
+            "Click + to add your first prompt",
+            "emptyState"
+          )
         );
-        items.push(emptyItem);
       }
 
-      console.log("getRootItems: Returning items", { count: items.length });
+      log.debug("getRootItems: Returning items", { count: items.length });
       return items;
     } catch (error) {
-      console.error("Error in getRootItems:", error);
+      log.error("Error in getRootItems:", error);
       vscode.window.showErrorMessage(`Error getting root items: ${error}`);
       return [
         new EmptyStateTreeItem(
@@ -242,26 +188,26 @@ export class PromptTreeProvider
     const items: PromptTreeItem[] = [];
 
     if (!folder || !folder.prompts) {
-      console.warn("getFolderItems: Invalid folder provided:", folder);
+      log.warn("getFolderItems: Invalid folder provided:", folder);
       return items;
     }
 
     for (const prompt of folder.prompts) {
       if (prompt && prompt.title) {
-        const promptItem = new FileTreeItem(prompt, {
+        const promptItem = this.createFileTreeItem(prompt, {
           command: "promptManager.openPrompt",
           title: "Open Prompt",
           arguments: [prompt.path],
         });
         items.push(promptItem);
       } else {
-        console.warn("getFolderItems: Skipping invalid prompt:", prompt);
+        log.warn("getFolderItems: Skipping invalid prompt:", prompt);
       }
     }
 
     // If folder is empty, show empty state
     if (items.length === 0) {
-      const emptyItem = new EmptyStateTreeItem(
+      const emptyItem = this.itemFactory.createEmptyStateItem(
         "No prompts in this folder",
         "Right-click folder to add prompts",
         "emptyFolder"
@@ -281,7 +227,7 @@ export class PromptTreeProvider
     // Check root prompts
     for (const prompt of structure.rootPrompts) {
       if (prompt.path === filePath) {
-        return new FileTreeItem(prompt);
+        return this.createFileTreeItem(prompt);
       }
     }
 
@@ -289,7 +235,7 @@ export class PromptTreeProvider
     for (const folder of structure.folders) {
       for (const prompt of folder.prompts) {
         if (prompt.path === filePath) {
-          return new FileTreeItem(prompt);
+          return this.createFileTreeItem(prompt);
         }
       }
     }
@@ -304,7 +250,7 @@ export class PromptTreeProvider
 
     // Check if structure is valid
     if (!structure) {
-      console.warn("getFilteredItems: Invalid structure provided");
+      log.warn("getFilteredItems: Invalid structure provided");
       return items;
     }
 
@@ -316,7 +262,7 @@ export class PromptTreeProvider
           prompt.title &&
           (await this.matchesSearchCriteria(prompt, criteria))
         ) {
-          const promptItem = new FileTreeItem(prompt, {
+          const promptItem = this.createFileTreeItem(prompt, {
             command: "promptManager.openPrompt",
             title: "Open Prompt",
             arguments: [prompt.path],
@@ -331,7 +277,7 @@ export class PromptTreeProvider
     if (structure.folders) {
       for (const folder of structure.folders) {
         if (!folder || !folder.name) {
-          console.warn("getFilteredItems: Skipping invalid folder:", folder);
+          log.warn("getFilteredItems: Skipping invalid folder:", folder);
           continue;
         }
 
@@ -357,7 +303,8 @@ export class PromptTreeProvider
             name: `${folder.name} (${matchingPrompts.length})`,
             prompts: matchingPrompts,
           };
-          const folderItem = new FolderTreeItem(filteredFolder);
+          const folderItem =
+            this.itemFactory.createFolderTreeItem(filteredFolder);
           items.push(folderItem);
         }
       }
@@ -365,13 +312,12 @@ export class PromptTreeProvider
 
     // If no matches, show no results message
     if (items.length === 0) {
-      const noResultsItem = new EmptyStateTreeItem(
+      const noResultsItem = this.itemFactory.createEmptyStateItem(
         "No matching prompts",
         `No prompts match "${criteria.query}"`,
-        "noResults"
+        "noResults",
+        new vscode.ThemeIcon("search")
       );
-      // Override icon for search results
-      noResultsItem.iconPath = new vscode.ThemeIcon("search");
       items.push(noResultsItem);
     }
 
@@ -382,15 +328,22 @@ export class PromptTreeProvider
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    try {
-      return await this._searchService.matchesPrompt(prompt, criteria);
-    } catch (error) {
-      console.error(
-        "Error in enhanced search, falling back to simple search:",
-        error
-      );
-      // Fallback to simple text matching
-      return this._searchService.matchesTextFallback(prompt, criteria);
-    }
+    return await this.searchFilter.matches(prompt, criteria);
+  }
+
+  /**
+   * Dispose of resources and event subscriptions
+   */
+  private createFileTreeItem(
+    promptFile: PromptFile,
+    command?: vscode.Command
+  ): FileTreeItem {
+    return this.itemFactory.createFileTreeItem(promptFile, command);
+  }
+
+  public dispose(): void {
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
+    this.subscriptions = [];
+    this._onDidChangeTreeData.dispose();
   }
 }

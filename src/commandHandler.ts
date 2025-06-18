@@ -1,15 +1,17 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { PromptController } from "./promptController";
-import {
-  PromptTreeItem,
-  FileTreeItem,
-  FolderTreeItem,
-} from "./promptTreeProvider";
+import { PromptTreeItem } from "./promptTreeProvider";
+import { FileTreeItem, FolderTreeItem } from "./tree/items";
+import { eventBus } from "./core/ExtensionBus";
+import { DI_TOKENS } from "./core/di-tokens";
 
+@injectable()
 export class CommandHandler {
   constructor(
+    @inject(DI_TOKENS.PromptController)
     private promptController: PromptController,
-    private context: vscode.ExtensionContext
+    @inject(DI_TOKENS.ExtensionContext) private context: vscode.ExtensionContext
   ) {}
 
   public registerCommands(): void {
@@ -51,7 +53,11 @@ export class CommandHandler {
 
   private async refreshTree(): Promise<void> {
     try {
-      this.promptController.refresh();
+      // Emit tree refresh event
+      eventBus.emit("ui.tree.refresh.requested", {
+        reason: "manual",
+      });
+
       vscode.window.showInformationMessage("Prompt Manager tree refreshed");
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to refresh tree: ${error}`);
@@ -61,6 +67,7 @@ export class CommandHandler {
   private async addPrompt(): Promise<void> {
     try {
       await this.promptController.createNewPrompt();
+      // Event will be published by PromptController when prompt is created
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to add prompt: ${error}`);
     }
@@ -72,7 +79,11 @@ export class CommandHandler {
         vscode.window.showErrorMessage("No file path provided to open prompt");
         return;
       }
+
       await this.promptController.openPromptFile(filePath);
+
+      // Emit prompt opened event
+      this.emitPromptOpened(filePath);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to open prompt: ${error}`);
     }
@@ -84,7 +95,15 @@ export class CommandHandler {
         vscode.window.showErrorMessage("No prompt selected for deletion");
         return;
       }
-      await this.promptController.deletePromptFile(item.promptFile.path);
+
+      const filePath = item.promptFile.path;
+      await this.promptController.deletePromptFile(filePath);
+
+      // Emit file deleted event
+      eventBus.emit("filesystem.file.deleted", {
+        filePath,
+        fileName: filePath.split(/[\\/]/).pop() || filePath,
+      });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
     }
@@ -95,6 +114,7 @@ export class CommandHandler {
       const folderPath =
         item instanceof FolderTreeItem ? item.promptFolder.path : undefined;
       await this.promptController.createFolderInLocation(folderPath);
+      // Event will be published by PromptController when folder is created
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create folder: ${error}`);
     }
@@ -126,6 +146,7 @@ export class CommandHandler {
         return;
       }
       await this.promptController.createPromptInFolder(item.promptFolder.path);
+      // Event will be published by PromptController when prompt is created
     } catch (error) {
       vscode.window.showErrorMessage(
         `Failed to add prompt to folder: ${error}`
@@ -151,5 +172,12 @@ export class CommandHandler {
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to copy prompt content: ${error}`);
     }
+  }
+
+  private emitPromptOpened(filePath: string): void {
+    eventBus.emit("ui.prompt.opened", {
+      filePath,
+      fileName: filePath.split(/[\\/]/).pop() || filePath,
+    });
   }
 }

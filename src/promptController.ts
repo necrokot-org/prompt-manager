@@ -1,25 +1,32 @@
 import * as vscode from "vscode";
+import { injectable, inject } from "tsyringe";
 import { PromptRepository } from "./promptRepository";
-import { PromptStructure, PromptFile } from "./fileManager";
+import { PromptStructure } from "./fileManager";
+import { EXTENSION_CONSTANTS } from "./config";
+import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
+import {
+  validateFileName,
+  sanitizeFileName,
+  getErrorMessages,
+} from "./validation/index.js";
+import trim from "lodash-es/trim.js";
+import { DI_TOKENS } from "./core/di-tokens";
 
 /**
  * PromptController handles VSCode UI orchestration and user interactions.
- * It uses PromptRepository for data operations and raises tree refresh events.
+ * It uses PromptRepository for data operations and publishes UI events.
+ * Now integrated with the centralized event system and dependency injection.
  */
+@injectable()
 export class PromptController {
   private repository: PromptRepository;
-  private _onDidChangeTreeData: vscode.EventEmitter<void> =
-    new vscode.EventEmitter<void>();
-  public readonly onDidChangeTreeData: vscode.Event<void> =
-    this._onDidChangeTreeData.event;
+  private subscriptions: any[] = [];
 
-  constructor(repository?: PromptRepository) {
-    this.repository = repository || new PromptRepository();
-
-    // Listen to repository changes and refresh tree
-    this.repository.onStructureChanged(() => {
-      this.refresh();
-    });
+  constructor(
+    @inject(DI_TOKENS.PromptRepository) repository: PromptRepository
+  ) {
+    this.repository = repository;
   }
 
   /**
@@ -32,7 +39,7 @@ export class PromptController {
       // Set context variable to show the tree view
       vscode.commands.executeCommand(
         "setContext",
-        "workspaceHasPromptManager",
+        EXTENSION_CONSTANTS.WORKSPACE_HAS_PROMPT_MANAGER,
         true
       );
     }
@@ -40,10 +47,19 @@ export class PromptController {
   }
 
   /**
-   * Refresh the tree view
+   * Refresh the tree view by publishing a tree refresh event
    */
   public refresh(): void {
-    this._onDidChangeTreeData.fire();
+    this.publishTreeRefreshEvent("manual");
+  }
+
+  /**
+   * Publish a tree refresh event
+   */
+  private publishTreeRefreshEvent(
+    reason: "manual" | "file-change" | "search-change"
+  ): void {
+    eventBus.emit("ui.tree.refresh.requested", { reason });
   }
 
   /**
@@ -205,7 +221,7 @@ export class PromptController {
       await vscode.env.clipboard.writeText(contentWithoutFrontMatter);
       return true;
     } catch (error) {
-      console.error(`Failed to copy content to clipboard: ${error}`);
+      log.error(`Failed to copy content to clipboard: ${error}`);
       vscode.window.showErrorMessage(`Failed to copy content: ${error}`);
       return false;
     }
@@ -222,11 +238,11 @@ export class PromptController {
 
     if (frontMatterMatch) {
       // Return content after front matter, trimming leading/trailing whitespace
-      return frontMatterMatch[2].trim();
+      return trim(frontMatterMatch[2]);
     }
 
     // If no front matter found, return original content
-    return content.trim();
+    return trim(content);
   }
 
   /**
@@ -237,14 +253,26 @@ export class PromptController {
       prompt: "Enter the name for your new prompt",
       placeHolder: "e.g., Code Review Helper",
       validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Prompt name cannot be empty";
+        const result = validateFileName(value, {
+          requiredExtension: ".md",
+        });
+
+        if (!result.success) {
+          const errors = getErrorMessages(result);
+          return errors[0] || "Invalid file name";
         }
+
         return undefined;
       },
     });
 
-    return fileName?.trim();
+    if (fileName) {
+      // Sanitize the file name before returning
+      const sanitized = sanitizeFileName(fileName + ".md");
+      return sanitized.replace(/\.md$/, ""); // Remove extension for display
+    }
+
+    return undefined;
   }
 
   /**
@@ -255,14 +283,25 @@ export class PromptController {
       prompt: "Enter the name for the new folder",
       placeHolder: "e.g., coding, writing, templates",
       validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Folder name cannot be empty";
+        const result = validateFileName(value, {
+          namingPattern: "kebab-case",
+        });
+
+        if (!result.success) {
+          const errors = getErrorMessages(result);
+          return errors[0] || "Invalid folder name";
         }
+
         return undefined;
       },
     });
 
-    return folderName?.trim();
+    if (folderName) {
+      // Sanitize the folder name before returning
+      return sanitizeFileName(folderName);
+    }
+
+    return undefined;
   }
 
   /**
@@ -293,6 +332,9 @@ export class PromptController {
    */
   public dispose(): void {
     this.repository.dispose();
-    this._onDidChangeTreeData.dispose();
+
+    // Unsubscribe from all event subscriptions
+    this.subscriptions.forEach((subscription) => subscription.unsubscribe());
+    this.subscriptions = [];
   }
 }

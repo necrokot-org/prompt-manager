@@ -1,26 +1,30 @@
 import * as vscode from "vscode";
-import { FileManager, PromptStructure, PromptFile } from "./fileManager";
-
-export interface PromptRepositoryEvents {
-  onStructureChanged: vscode.Event<void>;
-}
+import { injectable, inject } from "tsyringe";
+import { FileManager, PromptStructure } from "./fileManager";
+import { SearchService } from "./searchService";
+import { validatePrompt, getErrorMessages } from "./validation/index.js";
+import { parsePromptContentSync } from "./validation/schemas/prompt.js";
+import { DI_TOKENS } from "./core/di-tokens";
+import * as fs from "fs";
+import { log } from "./core/log";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
  * for the prompt manager. It's designed to be testable without VSCode stubs.
+ * Now integrated with the centralized event system and dependency injection.
  */
-export class PromptRepository implements PromptRepositoryEvents {
+@injectable()
+export class PromptRepository {
   private fileManager: FileManager;
+  private searchService: SearchService;
   private fileWatcher?: vscode.FileSystemWatcher;
 
-  // Events
-  private _onStructureChanged: vscode.EventEmitter<void> =
-    new vscode.EventEmitter<void>();
-  public readonly onStructureChanged: vscode.Event<void> =
-    this._onStructureChanged.event;
-
-  constructor(fileManager?: FileManager) {
-    this.fileManager = fileManager || new FileManager();
+  constructor(
+    @inject(DI_TOKENS.FileManager) fileManager: FileManager,
+    @inject(DI_TOKENS.SearchService) searchService: SearchService
+  ) {
+    this.fileManager = fileManager;
+    this.searchService = searchService;
   }
 
   /**
@@ -44,7 +48,7 @@ export class PromptRepository implements PromptRepositoryEvents {
     }
 
     this.fileWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(promptPath, "**/*.md")
+      new vscode.RelativePattern(promptPath, "**/*.{md,prompt}")
     );
 
     // Setup file watcher events with unified handling
@@ -60,16 +64,16 @@ export class PromptRepository implements PromptRepositoryEvents {
   /**
    * Handle file creation events
    */
-  private handleFileCreated(): void {
-    console.log("PromptRepository: File created, invalidating index");
+  private handleFileCreated(uri: vscode.Uri): void {
+    log.debug("PromptRepository: File created, invalidating index");
     this.invalidateCache();
   }
 
   /**
    * Handle file deletion events
    */
-  private handleFileDeleted(): void {
-    console.log("PromptRepository: File deleted, invalidating index");
+  private handleFileDeleted(uri: vscode.Uri): void {
+    log.debug("PromptRepository: File deleted, invalidating index");
     this.invalidateCache();
   }
 
@@ -86,7 +90,6 @@ export class PromptRepository implements PromptRepositoryEvents {
    */
   private invalidateCache(): void {
     this.fileManager.invalidateIndex();
-    this._onStructureChanged.fire();
   }
 
   /**
@@ -140,43 +143,45 @@ export class PromptRepository implements PromptRepositoryEvents {
    */
   public async readFileContent(filePath: string): Promise<string | null> {
     try {
-      const fs = await import("fs");
       return await fs.promises.readFile(filePath, "utf8");
     } catch (error) {
-      console.error(`Failed to read file ${filePath}:`, error);
+      log.error(`Failed to read file ${filePath}:`, error);
       return null;
     }
   }
 
   /**
-   * Validate prompt content
+   * Validate prompt content using the new validation layer
    */
-  public validatePromptContent(content: string): {
+  public async validatePromptContent(content: string): Promise<{
     isValid: boolean;
     errors: string[];
-  } {
-    const errors: string[] = [];
+    warnings: string[];
+  }> {
+    // Parse the content to extract structured data using unified parsing
+    const parsed = parsePromptContentSync(content);
 
-    if (!content || content.trim().length === 0) {
-      errors.push("Prompt content cannot be empty");
-    }
+    // Create PromptContent structure for validation
+    const promptContent = {
+      content: parsed.content,
+      frontMatter: parsed.frontMatter,
+      title: parsed.title,
+      description: parsed.description,
+      tags: parsed.tags,
+    };
 
-    if (content.length > 500000) {
-      errors.push("Prompt content is too large (max 500KB)");
-    }
-
-    // Validate front matter if present
-    const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (frontMatterMatch) {
-      const frontMatter = frontMatterMatch[1];
-      if (!frontMatter.includes("title:")) {
-        errors.push("Front matter must include a title field");
-      }
-    }
+    // Validate using the new Zod-based validator
+    const result = validatePrompt(promptContent, {
+      requireTitle: false,
+      requireDescription: false,
+      maxContentLength: 500000,
+      strictMode: false,
+    });
 
     return {
-      isValid: errors.length === 0,
-      errors,
+      isValid: result.success,
+      errors: getErrorMessages(result),
+      warnings: [], // Zod doesn't distinguish warnings, all are errors
     };
   }
 
@@ -191,7 +196,7 @@ export class PromptRepository implements PromptRepositoryEvents {
       includeYaml?: boolean;
     } = {}
   ) {
-    return await this.fileManager.searchInContent(query, options);
+    return await this.searchService.searchInContent(query, options);
   }
 
   /**
@@ -204,7 +209,7 @@ export class PromptRepository implements PromptRepositoryEvents {
       exact?: boolean;
     } = {}
   ) {
-    return await this.fileManager.searchInTitle(query, options);
+    return await this.searchService.searchInTitle(query, options);
   }
 
   /**
@@ -221,6 +226,5 @@ export class PromptRepository implements PromptRepositoryEvents {
     if (this.fileWatcher) {
       this.fileWatcher.dispose();
     }
-    this._onStructureChanged.dispose();
   }
 }

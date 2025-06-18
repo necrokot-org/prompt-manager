@@ -1,18 +1,17 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import {
-  PromptTreeProvider,
-  PromptTreeItem,
-  FileTreeItem,
-  FolderTreeItem,
-} from "../promptTreeProvider";
+import { PromptTreeProvider, PromptTreeItem } from "../promptTreeProvider";
+import { FileTreeItem, FolderTreeItem } from "../tree/items";
 import { PromptController } from "../promptController";
+import { SearchService } from "../searchService";
 import { SearchCriteria } from "../searchPanelProvider";
 import { PromptFile, PromptFolder } from "../fileManager";
+import { ConfigurationService } from "../config";
 
 suite("PromptTreeProvider Tests", () => {
   let treeProvider: PromptTreeProvider;
   let mockPromptController: PromptController;
+  let mockSearchService: SearchService;
 
   const createMockPromptFile = (
     name: string,
@@ -103,7 +102,28 @@ suite("PromptTreeProvider Tests", () => {
       copyPromptContent: async () => false,
     } as any;
 
-    treeProvider = new PromptTreeProvider(mockPromptController);
+    // Mock SearchService
+    mockSearchService = {
+      search: async () => [],
+      searchInContent: async () => [],
+      searchInTitle: async () => [],
+      searchBoth: async () => [],
+      matchesPrompt: async () => false,
+      countMatches: async () => 0,
+      clearCache: () => {},
+      getAvailableScopes: () => ["titles", "content", "both"],
+      publishResultsUpdated: async () => {},
+      publishCleared: async () => {},
+    } as any;
+
+    // Create a mock ConfigurationService for testing
+    const mockConfigService = new ConfigurationService();
+
+    treeProvider = new PromptTreeProvider(
+      mockPromptController,
+      mockSearchService,
+      mockConfigService
+    );
   });
 
   test("Initial Tree State - No Search", async () => {
@@ -129,8 +149,8 @@ suite("PromptTreeProvider Tests", () => {
     const promptItem = rootItems.find(
       (item) =>
         item instanceof FileTreeItem &&
-        item.promptFile?.title === "JavaScript Prompt"
-    );
+        item.promptFile.title === "JavaScript Prompt"
+    ) as FileTreeItem;
 
     assert.ok(promptItem);
     assert.strictEqual(promptItem.label, "JavaScript Prompt");
@@ -258,8 +278,8 @@ suite("PromptTreeProvider Tests", () => {
     const promptItem = rootItems.find(
       (item) =>
         item instanceof FileTreeItem &&
-        item.promptFile?.title === "JavaScript Prompt"
-    );
+        item.promptFile.title === "JavaScript Prompt"
+    ) as FileTreeItem;
 
     assert.ok(promptItem);
     assert.ok(promptItem.tooltip);
@@ -273,8 +293,8 @@ suite("PromptTreeProvider Tests", () => {
     const promptItem = rootItems.find(
       (item) =>
         item instanceof FileTreeItem &&
-        item.promptFile?.title === "JavaScript Prompt"
-    );
+        item.promptFile.title === "JavaScript Prompt"
+    ) as FileTreeItem;
     const folderItem = rootItems.find((item) => item instanceof FolderTreeItem);
 
     assert.ok(promptItem);
@@ -298,7 +318,12 @@ suite("PromptTreeProvider Tests", () => {
       onDidChangeTreeData: () => ({ dispose: () => {} }),
     } as any;
 
-    const emptyTreeProvider = new PromptTreeProvider(emptyPromptManager);
+    const emptyConfigService = new ConfigurationService();
+    const emptyTreeProvider = new PromptTreeProvider(
+      emptyPromptManager,
+      mockSearchService,
+      emptyConfigService
+    );
     const rootItems = await emptyTreeProvider.getChildren();
 
     assert.strictEqual(rootItems.length, 1);
@@ -311,8 +336,8 @@ suite("PromptTreeProvider Tests", () => {
     const foundItem = await treeProvider.findTreeItemByPath(testPath);
 
     assert.ok(foundItem);
-    assert.strictEqual(foundItem.promptFile?.path, testPath);
-    assert.strictEqual(foundItem.promptFile?.title, "JavaScript Prompt");
+    assert.strictEqual(foundItem.promptFile.path, testPath);
+    assert.strictEqual(foundItem.promptFile.title, "JavaScript Prompt");
   });
 
   test("Non-existent Path Finding", async () => {

@@ -1,53 +1,58 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
+import "reflect-metadata";
 import * as vscode from "vscode";
 import { PromptController } from "./promptController";
 import { PromptTreeProvider } from "./promptTreeProvider";
 import { CommandHandler } from "./commandHandler";
 import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
-import { PromptFile } from "./fileManager";
 import { SearchService } from "./searchService";
+import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
+import { eventBus } from "./core/ExtensionBus";
+import {
+  configureDependencies,
+  resolve,
+  disposeDependencies,
+  DI_TOKENS,
+} from "./core/di-container";
+import { log } from "./core/log";
 
-// Global instances
+// Global instances - now resolved from DI container
+let configService: ConfigurationService | undefined;
 let promptController: PromptController | undefined;
 let treeProvider: PromptTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
 let searchProvider: SearchPanelProvider | undefined;
 let searchService: SearchService | undefined;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+/**
+ * This method is called when your extension is activated
+ */
 export async function activate(context: vscode.ExtensionContext) {
-  console.log("Prompt Manager extension is being activated...");
+  log.info("Activating Prompt Manager extension...");
 
   try {
-    // Enhanced workspace/folder detection
+    // Check if we have a workspace
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    const workspaceName = vscode.workspace.name;
-    const isWorkspaceFile = vscode.workspace.workspaceFile !== undefined;
-
     if (!workspaceFolders || workspaceFolders.length === 0) {
-      console.log(
-        "Extension: No workspace or folder open, waiting for workspace/folder to be opened..."
-      );
-      // Set context to hide the view when no workspace is open
-      vscode.commands.executeCommand(
-        "setContext",
-        "workspaceHasPromptManager",
-        false
-      );
-
-      // Listen for workspace changes
+      log.debug("No workspace folder found, setting up workspace listener");
       setupWorkspaceChangeListener(context);
-      return;
+      return; // Exit early, extension will be activated when workspace is opened
     }
 
+    log.debug(
+      `Workspace detected: ${workspaceFolders.length} folder(s), proceeding...`
+    );
+
+    // Set up workspace change listener
+    setupWorkspaceChangeListener(context);
+
+    // Initialize extension components
     await initializeExtension(context);
 
-    // Listen for workspace changes
-    setupWorkspaceChangeListener(context);
+    log.info("Extension activated successfully");
   } catch (error) {
-    console.error("Failed to activate Prompt Manager extension:", error);
+    log.error("Failed to activate extension:", error);
     vscode.window.showErrorMessage(
       `Failed to activate Prompt Manager: ${error}`
     );
@@ -57,74 +62,60 @@ export async function activate(context: vscode.ExtensionContext) {
 async function initializeExtension(
   context: vscode.ExtensionContext
 ): Promise<void> {
-  // Initialize core components in proper order (following layered architecture)
+  // Configure dependency injection container with all services
+  configureDependencies(context);
 
-  // 1. Business Logic Layer
-  promptController = new PromptController();
+  // Resolve services from DI container (they will be singletons)
+  configService = resolve<ConfigurationService>(DI_TOKENS.ConfigurationService);
+  configService.initialize();
 
-  // 2. Presentation Layer
-  treeProvider = new PromptTreeProvider(promptController);
-  searchProvider = new SearchPanelProvider(context.extensionUri);
-  searchService = new SearchService(
-    promptController.getRepository().getFileManager()
-  );
+  // Resolve business logic layer
+  promptController = resolve<PromptController>(DI_TOKENS.PromptController);
 
-  // 3. Command Handler
-  commandHandler = new CommandHandler(promptController, context);
+  // Resolve presentation layer
+  treeProvider = resolve<PromptTreeProvider>(DI_TOKENS.PromptTreeProvider);
+  searchProvider = resolve<SearchPanelProvider>(DI_TOKENS.SearchPanelProvider);
+  searchService = resolve<SearchService>(DI_TOKENS.SearchService);
+
+  // Resolve command handler
+  commandHandler = resolve<CommandHandler>(DI_TOKENS.CommandHandler);
 
   // Initialize the prompt controller (creates directory structure)
   const initialized = await promptController.initialize();
 
-  if (initialized) {
-    // Register the tree view
-    const treeView = vscode.window.createTreeView("promptManagerTree", {
+  if (
+    initialized &&
+    treeProvider &&
+    searchProvider &&
+    commandHandler &&
+    searchService
+  ) {
+    // Register tree view
+    vscode.window.createTreeView("promptManagerTree", {
       treeDataProvider: treeProvider,
       showCollapseAll: true,
     });
 
-    // Register the search webview
-    const searchWebviewProvider = vscode.window.registerWebviewViewProvider(
-      SearchPanelProvider.viewType,
+    // Register search panel
+    vscode.window.registerWebviewViewProvider(
+      "promptManagerSearch",
       searchProvider
     );
 
-    // Add to subscriptions
-    context.subscriptions.push(treeView, searchWebviewProvider);
-
-    // Connect search provider to tree provider
+    // Connect search events to search service
     if (searchProvider && treeProvider && promptController && searchService) {
-      searchProvider.onDidChangeSearch(async (criteria) => {
-        treeProvider!.setSearchCriteria(criteria.isActive ? criteria : null);
+      eventBus.on("search.criteria.changed", async (payload) => {
+        const criteria: SearchCriteria = {
+          query: payload.query,
+          scope: payload.scope,
+          caseSensitive: payload.caseSensitive,
+          isActive: payload.isActive,
+        };
 
         // Update result count in search panel
         if (criteria.isActive) {
-          try {
-            const count = await searchService!.countMatches(criteria);
-            searchProvider!.updateResultCount(count);
-          } catch (error) {
-            console.error("Error counting search results:", error);
-            // Fallback to simple count
-            const structure = await promptController!.getPromptStructure();
-            let count = 0;
-
-            // Count matching root prompts
-            for (const prompt of structure.rootPrompts) {
-              if (searchService!.matchesTextFallback(prompt, criteria)) {
-                count++;
-              }
-            }
-
-            // Count matching prompts in folders
-            for (const folder of structure.folders) {
-              for (const prompt of folder.prompts) {
-                if (searchService!.matchesTextFallback(prompt, criteria)) {
-                  count++;
-                }
-              }
-            }
-
-            searchProvider!.updateResultCount(count);
-          }
+          const count = await searchService!.countMatches(criteria);
+          searchProvider!.updateResultCount(count);
         }
       });
     }
@@ -132,20 +123,22 @@ async function initializeExtension(
     // Register all commands
     commandHandler.registerCommands();
 
+    // Configuration is now handled by ConfigurationService
+    // which is initialized above and automatically handles config changes
+
     // Show welcome message for new users
     await showWelcomeMessage(context);
 
-    console.log("Prompt Manager extension activated successfully");
+    log.info("Prompt Manager extension activated successfully");
   } else {
     throw new Error("Failed to initialize Prompt Manager");
   }
 }
 
 function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
-  // Listen for workspace folder changes
   const workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(
     async (event) => {
-      console.log("Workspace folders changed:", event);
+      log.debug("Workspace folders changed:", event);
 
       const workspaceFolders = vscode.workspace.workspaceFolders;
       const workspaceName = vscode.workspace.name;
@@ -153,19 +146,25 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
 
       if (workspaceFolders && workspaceFolders.length > 0) {
         if (isWorkspaceFile) {
-          console.log(
-            `Workspace change: VS Code workspace opened/modified - Name: ${workspaceName}, Folders: ${workspaceFolders.length}`
+          log.info(
+            `Workspace opened/modified - Name: ${workspaceName}, Folders: ${workspaceFolders.length}`
           );
         } else {
-          console.log(
-            `Workspace change: Single folder opened - Path: ${workspaceFolders[0].uri.fsPath}`
+          log.info(
+            `Single folder opened - Path: ${workspaceFolders[0].uri.fsPath}`
           );
         }
+
+        // Publish workspace change event
+        eventBus.emit("config.workspace.changed", {
+          workspaceFolders,
+          reason: "workspace-opened",
+        });
 
         try {
           await initializeExtension(context);
         } catch (error) {
-          console.error(
+          log.error(
             "Failed to initialize extension after workspace change:",
             error
           );
@@ -174,22 +173,25 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
           );
         }
       } else {
-        console.log(
-          "Workspace change: All workspaces/folders closed, hiding extension..."
+        log.info(
+          "All workspaces/folders closed, hiding Prompt Manager views..."
         );
+
+        // Publish workspace change event
+        eventBus.emit("config.workspace.changed", {
+          workspaceFolders: [],
+          reason: "workspace-closed",
+        });
+
         // Hide the view when no workspace is open
         vscode.commands.executeCommand(
           "setContext",
-          "workspaceHasPromptManager",
+          EXTENSION_CONSTANTS.WORKSPACE_HAS_PROMPT_MANAGER,
           false
         );
 
         // Clean up existing instances
-        promptController = undefined;
-        treeProvider = undefined;
-        commandHandler = undefined;
-        searchProvider = undefined;
-        searchService = undefined;
+        cleanup();
       }
     }
   );
@@ -197,19 +199,48 @@ function setupWorkspaceChangeListener(context: vscode.ExtensionContext): void {
   context.subscriptions.push(workspaceChangeListener);
 }
 
+/**
+ * Centralized cleanup function for proper resource disposal
+ */
+function cleanup(): void {
+  if (treeProvider) {
+    treeProvider.dispose();
+  }
+
+  if (promptController) {
+    promptController.dispose();
+  }
+
+  if (configService) {
+    configService.dispose();
+  }
+
+  disposeDependencies();
+
+  // Clear global references
+  configService = undefined;
+  promptController = undefined;
+  treeProvider = undefined;
+  commandHandler = undefined;
+  searchProvider = undefined;
+  searchService = undefined;
+}
+
 // This method is called when your extension is deactivated
 export function deactivate() {
-  console.log("Prompt Manager extension is being deactivated");
+  log.info("Prompt Manager extension is being deactivated");
 
-  // Clean up resources if needed
-  // VSCode automatically disposes of registered commands and tree views
+  cleanup();
+
+  // Dispose event bus subscriptions to prevent memory leaks
+  eventBus.dispose();
 }
 
 async function showWelcomeMessage(
   context: vscode.ExtensionContext
 ): Promise<void> {
   const hasShownWelcome = context.globalState.get(
-    "promptManager.hasShownWelcome",
+    EXTENSION_CONSTANTS.HAS_SHOWN_WELCOME,
     false
   );
 
@@ -228,7 +259,9 @@ async function showWelcomeMessage(
       );
     }
 
-    // Mark as shown
-    await context.globalState.update("promptManager.hasShownWelcome", true);
+    await context.globalState.update(
+      EXTENSION_CONSTANTS.HAS_SHOWN_WELCOME,
+      true
+    );
   }
 }

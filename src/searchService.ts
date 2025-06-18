@@ -1,78 +1,114 @@
+import { injectable, inject } from "tsyringe";
 import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
 import { SearchCriteria } from "./searchPanelProvider";
+import { FileContent } from "./core/SearchEngine";
+import { searchEngine } from "./searchEngine";
+import { eventBus } from "./core/ExtensionBus";
+import { log } from "./core/log";
+import { DI_TOKENS } from "./core/di-tokens";
+import trim from "lodash-es/trim.js";
+import { searchResultToPromptFile } from "./utils/promptFile";
 
+@injectable()
 export class SearchService {
-  constructor(private fileManager: FileManager) {}
+  private fileManager: FileManager;
+
+  constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
+    this.fileManager = fileManager;
+  }
 
   /**
-   * Centralized search method that handles scope routing
+   * Centralized search method using fuse.js
    */
   async search(criteria: SearchCriteria): Promise<ContentSearchResult[]> {
-    if (!criteria.isActive || !criteria.query.trim()) {
+    if (!criteria.isActive || !trim(criteria.query)) {
       return [];
     }
 
-    const searchOptions = {
-      caseSensitive: criteria.caseSensitive,
-      exact: false,
-    };
+    // Get file contents for search
+    const files = await this.getFileContentsForSearch();
 
-    let results: ContentSearchResult[] = [];
+    // Use the streamlined SearchEngine
+    const results = await searchEngine.search(files, criteria);
 
-    switch (criteria.scope) {
-      case "titles":
-        results = await this.fileManager.searchInTitle(
-          criteria.query,
-          searchOptions
-        );
-        break;
-      case "content":
-        results = await this.fileManager.searchInContent(criteria.query, {
-          ...searchOptions,
-          includeYaml: false,
-        });
-        break;
-      case "both":
-        const titleResults = await this.fileManager.searchInTitle(
-          criteria.query,
-          searchOptions
-        );
-        const contentResults = await this.fileManager.searchInContent(
-          criteria.query,
-          {
-            ...searchOptions,
-            includeYaml: false,
-          }
-        );
-
-        // Merge results, removing duplicates based on file path
-        const resultMap = new Map<string, ContentSearchResult>();
-
-        // Add title results
-        for (const result of titleResults) {
-          resultMap.set(result.file.path, result);
-        }
-
-        // Add content results, combining scores if file already exists
-        for (const result of contentResults) {
-          const existing = resultMap.get(result.file.path);
-          if (existing) {
-            // Combine matches and scores
-            existing.matches.push(...result.matches);
-            existing.score += result.score;
-          } else {
-            resultMap.set(result.file.path, result);
-          }
-        }
-
-        results = Array.from(resultMap.values());
-        break;
-      default:
-        results = [];
+    // Convert SearchResult[] to ContentSearchResult[]
+    const contentResults: ContentSearchResult[] = [];
+    for (const result of results) {
+      const file = await this.convertSearchResultToPromptFile(result);
+      contentResults.push({
+        file,
+        score: result.score,
+        matches: result.matches,
+      });
     }
 
-    // Sort by relevance score (highest first)
-    return results.sort((a, b) => b.score - a.score);
+    // Publish search results updated event
+    await this.publishResultsUpdated(contentResults.length, criteria.query);
+
+    return contentResults;
+  }
+
+  /**
+   * Search in prompt content only
+   */
+  async searchInContent(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "content",
+      caseSensitive: options.caseSensitive || false,
+      isActive: true,
+    };
+
+    return await this.search(searchCriteria);
+  }
+
+  /**
+   * Search in prompt titles only
+   */
+  async searchInTitle(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "titles",
+      caseSensitive: options.caseSensitive || false,
+      isActive: true,
+    };
+
+    return await this.search(searchCriteria);
+  }
+
+  /**
+   * Search in both titles and content
+   */
+  async searchBoth(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      exact?: boolean;
+      threshold?: number;
+    } = {}
+  ): Promise<ContentSearchResult[]> {
+    const searchCriteria: SearchCriteria = {
+      query,
+      scope: "both",
+      caseSensitive: options.caseSensitive || false,
+      isActive: true,
+    };
+
+    return await this.search(searchCriteria);
   }
 
   /**
@@ -82,60 +118,103 @@ export class SearchService {
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    const results = await this.search(criteria);
-    return results.some((result) => result.file.path === prompt.path);
+    if (!criteria.isActive || !trim(criteria.query)) {
+      return false;
+    }
+
+    // Create a FileContent object for the single file
+    const content = await this.fileManager
+      .getFileSystemManager()
+      .readFile(prompt.path);
+    const fileContent: FileContent = {
+      path: prompt.path,
+      content,
+    };
+
+    return await searchEngine.matches(fileContent, criteria);
   }
 
   /**
    * Count total matches for search criteria
    */
   async countMatches(criteria: SearchCriteria): Promise<number> {
-    const results = await this.search(criteria);
-    return results.length;
+    if (!criteria.isActive || !trim(criteria.query)) {
+      return 0;
+    }
+
+    const files = await this.getFileContentsForSearch();
+    return await searchEngine.count(files, criteria);
   }
 
   /**
-   * Fallback text matching for when enhanced search fails
+   * Clear search caches
    */
-  matchesTextFallback(prompt: PromptFile, criteria: SearchCriteria): boolean {
-    const query = criteria.caseSensitive
-      ? criteria.query
-      : criteria.query.toLowerCase();
-
-    switch (criteria.scope) {
-      case "titles":
-        return this.matchesText(prompt.title, query, criteria.caseSensitive);
-      case "content":
-        // Search in description and tags as fallback
-        const searchableContent = [
-          prompt.description || "",
-          ...(prompt.tags || []),
-        ].join(" ");
-        return this.matchesText(
-          searchableContent,
-          query,
-          criteria.caseSensitive
-        );
-      case "both":
-        return (
-          this.matchesText(prompt.title, query, criteria.caseSensitive) ||
-          this.matchesText(
-            [prompt.description || "", ...(prompt.tags || [])].join(" "),
-            query,
-            criteria.caseSensitive
-          )
-        );
-      default:
-        return false;
-    }
+  clearCache(): void {
+    searchEngine.clearCache();
   }
 
-  private matchesText(
-    text: string,
-    query: string,
-    caseSensitive: boolean
-  ): boolean {
-    const searchText = caseSensitive ? text : text.toLowerCase();
-    return searchText.includes(query);
+  /**
+   * Get available search scopes
+   * #TODO:UI must rely on this to show the correct scopes
+   */
+  getAvailableScopes(): Array<SearchCriteria["scope"]> {
+    return searchEngine.getAvailableScopes();
+  }
+
+  async publishResultsUpdated(
+    resultCount: number,
+    query: string
+  ): Promise<void> {
+    eventBus.emit("search.results.updated", { resultCount, query });
+  }
+
+  async publishCleared(): Promise<void> {
+    eventBus.emit("search.cleared", {});
+  }
+
+  // Private helper methods
+
+  private async getFileContentsForSearch(): Promise<FileContent[]> {
+    const structure = await this.fileManager.scanPrompts();
+    const allFiles: PromptFile[] = [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((folder) => folder.prompts),
+    ];
+
+    const fileContents: FileContent[] = [];
+
+    for (const promptFile of allFiles) {
+      try {
+        const content = await this.fileManager
+          .getFileSystemManager()
+          .readFile(promptFile.path);
+        fileContents.push({
+          path: promptFile.path,
+          content,
+        });
+      } catch (error) {
+        log.warn(`Failed to read file for search: ${promptFile.path}`, error);
+      }
+    }
+
+    return fileContents;
+  }
+
+  private async convertSearchResultToPromptFile(
+    result: any
+  ): Promise<PromptFile> {
+    // Get all files from file manager
+    const structure = await this.fileManager.scanPrompts();
+    const allFiles: PromptFile[] = [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((folder) => folder.prompts),
+    ];
+
+    // Use shared utility function
+    return searchResultToPromptFile(
+      result,
+      allFiles,
+      this.fileManager.getFileSystemManager()
+    );
   }
 }

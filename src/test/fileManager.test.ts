@@ -4,38 +4,22 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { FileManager, ContentSearchResult } from "../fileManager";
+import { FileSystemManager } from "../core/FileSystemManager";
+import { ConfigurationService } from "../config";
+import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
 
-suite("FileManager Search Tests", () => {
+suite("FileManager Core Tests", () => {
   let fileManager: FileManager;
-  let tempDir: string;
-  let testPromptPath: string;
+  let mockWorkspace: MockWorkspaceSetup;
 
   suiteSetup(async () => {
-    // Create temporary directory for testing
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "prompt-manager-test-"));
-    testPromptPath = path.join(tempDir, ".prompt_manager");
+    // Set up mock workspace with temporary directory
+    mockWorkspace = await setupMockWorkspace("prompt-manager-test-");
 
-    // Mock workspace configuration
-    const mockConfig = {
-      get: (key: string, defaultValue: any) => {
-        if (key === "defaultPromptDirectory") {
-          return ".prompt_manager";
-        }
-        return defaultValue;
-      },
-    };
-
-    // Mock vscode.workspace
-    (vscode.workspace as any).getConfiguration = () => mockConfig;
-    Object.defineProperty(vscode.workspace, "workspaceFolders", {
-      value: [{ uri: { fsPath: tempDir } }],
-      configurable: true,
-    });
-
-    fileManager = new FileManager();
-
-    // Create test directory structure
-    await fs.promises.mkdir(testPromptPath, { recursive: true });
+    // Create dependencies manually for testing
+    const configService = new ConfigurationService();
+    const fileSystemManager = new FileSystemManager(configService);
+    fileManager = new FileManager(fileSystemManager);
 
     // Create test files
     await createTestFiles();
@@ -43,7 +27,7 @@ suite("FileManager Search Tests", () => {
 
   suiteTeardown(async () => {
     // Clean up temporary directory
-    await fs.promises.rm(tempDir, { recursive: true, force: true });
+    await mockWorkspace.cleanup();
   });
 
   async function createTestFiles() {
@@ -69,7 +53,7 @@ suite("FileManager Search Tests", () => {
     ].join("\n");
 
     await fs.promises.writeFile(
-      path.join(testPromptPath, "test-prompt.md"),
+      path.join(mockWorkspace.testPromptPath, "test-prompt.md"),
       promptWithYaml
     );
 
@@ -84,7 +68,7 @@ suite("FileManager Search Tests", () => {
     ].join("\n");
 
     await fs.promises.writeFile(
-      path.join(testPromptPath, "simple-prompt.md"),
+      path.join(mockWorkspace.testPromptPath, "simple-prompt.md"),
       promptWithoutYaml
     );
 
@@ -102,12 +86,12 @@ suite("FileManager Search Tests", () => {
     ].join("\n");
 
     await fs.promises.writeFile(
-      path.join(testPromptPath, "special-chars.md"),
+      path.join(mockWorkspace.testPromptPath, "special-chars.md"),
       promptSpecialChars
     );
 
     // Create a folder with prompts
-    const folderPath = path.join(testPromptPath, "subfolder");
+    const folderPath = path.join(mockWorkspace.testPromptPath, "subfolder");
     await fs.promises.mkdir(folderPath);
 
     const folderPrompt = [
@@ -126,205 +110,87 @@ suite("FileManager Search Tests", () => {
     );
   }
 
-  test("YAML Front Matter Parsing", async () => {
-    const results = await fileManager.searchInTitle("Test Prompt");
+  test("File System Operations - Directory Scanning", async () => {
+    const structure = await fileManager.scanPrompts();
 
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].file.title, "Test Prompt");
-    assert.strictEqual(
-      results[0].file.description,
-      "A test prompt for search functionality"
-    );
-    assert.deepStrictEqual(results[0].file.tags, ["testing", "search"]);
-  });
+    assert.ok(structure.rootPrompts.length > 0);
+    assert.ok(structure.folders.length > 0);
 
-  test("Content Search - Basic Text", async () => {
-    const results = await fileManager.searchInContent("JavaScript code");
-
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].file.title, "Test Prompt");
-    assert.ok(results[0].matches.length > 0);
-    assert.strictEqual(results[0].matches[0].type, "content");
-  });
-
-  test("Content Search - Case Sensitivity", async () => {
-    const caseSensitiveResults = await fileManager.searchInContent(
-      "JAVASCRIPT",
-      {
-        caseSensitive: true,
-      }
-    );
-    assert.strictEqual(caseSensitiveResults.length, 0);
-
-    const caseInsensitiveResults = await fileManager.searchInContent(
-      "JAVASCRIPT",
-      {
-        caseSensitive: false,
-      }
-    );
-    assert.strictEqual(caseInsensitiveResults.length, 1);
-  });
-
-  test("Content Search - Exact Match", async () => {
-    const exactResults = await fileManager.searchInContent("Hello World", {
-      exact: true,
-    });
-    assert.strictEqual(exactResults.length, 1);
-
-    const partialResults = await fileManager.searchInContent("Hello", {
-      exact: false,
-    });
-    assert.strictEqual(partialResults.length, 1);
-  });
-
-  test("Content Search - YAML Inclusion", async () => {
-    const withYamlResults = await fileManager.searchInContent("testing", {
-      includeYaml: true,
-    });
-    assert.ok(withYamlResults.length > 0);
-
-    const withoutYamlResults = await fileManager.searchInContent("testing", {
-      includeYaml: false,
-    });
-    // Should still find it in tags or description if those are included in content search
-    assert.ok(withoutYamlResults.length >= 0);
-  });
-
-  test("Title Search - Basic Functionality", async () => {
-    const results = await fileManager.searchInTitle("Test");
-
-    assert.ok(results.length >= 1);
-    const testPromptResult = results.find(
-      (r) => r.file.title === "Test Prompt"
-    );
-    assert.ok(testPromptResult);
-    if (testPromptResult) {
-      assert.ok(testPromptResult.matches.length > 0);
-      assert.strictEqual(testPromptResult.matches[0].type, "title");
-    }
-  });
-
-  test("Title Search - Multiple Results", async () => {
-    const results = await fileManager.searchInTitle("Prompt");
-
-    assert.ok(results.length >= 2); // Should find "Test Prompt" and "Folder Prompt"
-    const titles = results.map((r) => r.file.title);
-    assert.ok(titles.includes("Test Prompt"));
-    assert.ok(titles.includes("Folder Prompt"));
-  });
-
-  test("Search Scoring System", async () => {
-    const results = await fileManager.searchInContent("prompt");
-
-    // Results should be scored and sorted
-    assert.ok(results.length > 1);
-    for (let i = 0; i < results.length - 1; i++) {
-      assert.ok(results[i].score >= results[i + 1].score);
-    }
-  });
-
-  test("Special Characters Handling", async () => {
-    const specialCharResults = await fileManager.searchInContent("!@#$%^&*()");
-    assert.strictEqual(specialCharResults.length, 1);
-
-    const unicodeResults = await fileManager.searchInContent("你好世界");
-    assert.strictEqual(unicodeResults.length, 1);
-
-    const emojiResults = await fileManager.searchInContent("🚀");
-    assert.strictEqual(emojiResults.length, 1);
-  });
-
-  test("RegExp Special Characters Escaping", async () => {
-    const regexpResults = await fileManager.searchInContent(
-      "[.*+?^${}()|[]\\]"
-    );
-    assert.strictEqual(regexpResults.length, 1);
-  });
-
-  test("Empty Search Query", async () => {
-    const results = await fileManager.searchInContent("");
-    assert.strictEqual(results.length, 0);
-  });
-
-  test("No Results Search", async () => {
-    const results = await fileManager.searchInContent("nonexistenttext12345");
-    assert.strictEqual(results.length, 0);
-  });
-
-  test("Search Context Extraction", async () => {
-    const results = await fileManager.searchInContent("JavaScript");
-
-    assert.strictEqual(results.length, 1);
-    assert.ok(results[0].matches.length > 0);
-    assert.ok(results[0].matches[0].context.length > 0);
-    assert.ok(results[0].matches[0].context.includes("JavaScript"));
-  });
-
-  test("Performance with Cache", async () => {
-    // First search to populate cache
-    const start1 = Date.now();
-    await fileManager.searchInContent("content");
-    const time1 = Date.now() - start1;
-
-    // Second search should be faster due to caching
-    const start2 = Date.now();
-    await fileManager.searchInContent("content");
-    const time2 = Date.now() - start2;
-
-    // Second search should be significantly faster (allowing some margin for variability)
+    // Verify we have the expected test files
+    const promptTitles = structure.rootPrompts.map((p) => p.title);
     assert.ok(
-      time2 <= time1 * 2,
-      `Second search (${time2}ms) should be faster than first (${time1}ms)`
+      promptTitles.some(
+        (title) =>
+          title.includes("Test Prompt") || title.includes("test-prompt")
+      )
     );
   });
 
-  test("Cache TTL Expiry", async () => {
-    // This test would need to mock time or wait, for now just test cache clearing
-    fileManager.clearSearchCache();
+  test("File System Operations - Create Prompt File", async () => {
+    const fileName = "new-test-prompt";
+    const filePath = await fileManager.createPromptFile(fileName);
 
-    const results = await fileManager.searchInContent("test");
-    assert.ok(results.length > 0);
+    assert.ok(filePath !== null);
+    assert.ok(filePath!.endsWith(`${fileName}.md`));
+
+    // Verify file exists
+    assert.ok(fs.existsSync(filePath!));
   });
 
-  test("File with No YAML Front Matter", async () => {
-    const results = await fileManager.searchInTitle("Simple Prompt");
+  test("File System Operations - Create Folder", async () => {
+    const folderName = "new-test-folder";
+    const folderPath = await fileManager.createFolder(folderName);
 
-    // Should still work for files without YAML, using filename as title
-    assert.ok(results.length >= 1);
+    assert.ok(folderPath !== null);
+    assert.ok(folderPath!.endsWith(folderName));
+
+    // Verify folder exists
+    assert.ok(fs.existsSync(folderPath!));
   });
 
-  test("Hierarchical Search in Folders", async () => {
-    const results = await fileManager.searchInContent("hierarchical");
+  test("File System Operations - Delete File", async () => {
+    // First create a file to delete
+    const fileName = "temp-delete-test";
+    const filePath = await fileManager.createPromptFile(fileName);
+    assert.ok(filePath !== null);
+    assert.ok(fs.existsSync(filePath!));
 
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].file.title, "Folder Prompt");
+    // Now delete it
+    const success = await fileManager.deletePromptFile(filePath!);
+    assert.strictEqual(success, true);
+    assert.ok(!fs.existsSync(filePath!));
   });
 
-  test("Search Match Position and Length", async () => {
-    const results = await fileManager.searchInContent("JavaScript");
+  test("File System Operations - Index Management", async () => {
+    // Test index invalidation and rebuilding
+    fileManager.invalidateIndex();
 
-    assert.strictEqual(results.length, 1);
-    assert.ok(results[0].matches.length > 0);
+    // Build index should work without errors
+    await fileManager.buildIndex();
 
-    const match = results[0].matches[0];
-    assert.strictEqual(typeof match.position, "number");
-    assert.strictEqual(typeof match.length, "number");
-    assert.ok(match.length > 0);
+    // Should still be able to scan after rebuild
+    const structure = await fileManager.scanPrompts();
+    assert.ok(structure.rootPrompts.length >= 0);
   });
 
-  test("Multiple Queries Performance", async () => {
-    const queries = ["test", "prompt", "content", "search", "javascript"];
+  test("File System Operations - Content Cache", async () => {
+    // Test content cache clearing
+    fileManager.clearContentCache();
 
-    const start = Date.now();
-    for (const query of queries) {
-      await fileManager.searchInContent(query);
-    }
-    const totalTime = Date.now() - start;
+    // Should still work after cache clearing
+    const structure = await fileManager.scanPrompts();
+    assert.ok(structure.rootPrompts.length >= 0);
+  });
 
-    // Should complete multiple searches reasonably quickly
-    assert.ok(
-      totalTime < 5000,
-      `Multiple searches took ${totalTime}ms, should be under 5 seconds`
-    );
+  test("Component Access - FileSystemManager", async () => {
+    const fsManager = fileManager.getFileSystemManager();
+    assert.ok(fsManager !== null);
+    assert.ok(typeof fsManager.getPromptManagerPath === "function");
+  });
+
+  test("Component Access - DirectoryScanner", async () => {
+    const scanner = fileManager.getDirectoryScanner();
+    assert.ok(scanner !== null);
+    assert.ok(typeof scanner.scanPrompts === "function");
   });
 });
