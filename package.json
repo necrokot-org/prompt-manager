@@ -86,6 +86,11 @@
         "command": "promptManager.focusSearch",
         "title": "Focus Search",
         "icon": "$(search)"
+      },
+      {
+        "command": "promptManager.askAiWithPrompt",
+        "title": "Ask AI",
+        "icon": "$(rocket)"
       }
     ],
     "menus": {
@@ -135,6 +140,11 @@
         {
           "command": "promptManager.addPromptToFolder",
           "when": "view == promptManagerTree && viewItem == promptFolder"
+        },
+        {
+          "command": "promptManager.askAiWithPrompt",
+          "when": "view == promptManagerTree && viewItem == promptFile",
+          "group": "inline"
         }
       ]
     },

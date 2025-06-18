@@ -8,6 +8,7 @@ import {
 } from "@features/prompt-manager/ui/tree/items";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
+import { log } from "@infra/vscode/log";
 
 @injectable()
 export class CommandHandler {
@@ -47,6 +48,10 @@ export class CommandHandler {
       vscode.commands.registerCommand(
         "promptManager.copyPromptContent",
         (item: PromptTreeItem) => this.copyPromptContent(item)
+      ),
+      vscode.commands.registerCommand(
+        "promptManager.askAiWithPrompt",
+        (item: PromptTreeItem) => this.askAiWithPrompt(item)
       ),
     ];
 
@@ -174,6 +179,30 @@ export class CommandHandler {
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to copy prompt content: ${error}`);
+    }
+  }
+
+  private async askAiWithPrompt(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item || !(item instanceof FileTreeItem)) {
+        vscode.window.showErrorMessage("No prompt selected to ask AI");
+        return;
+      }
+
+      const prompt = await this.promptController.getPrompt(
+        item.promptFile.path
+      );
+
+      if (!prompt) {
+        return;
+      }
+
+      await vscode.commands.executeCommand("workbench.action.chat.open", {
+        query: prompt,
+        isPartialQuery: true,
+      });
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to ask AI: ${error}`);
     }
   }
 
