@@ -119,11 +119,6 @@
       ],
       "view/item/context": [
         {
-          "command": "promptManager.openPrompt",
-          "when": "view == promptManagerTree && viewItem == promptFile",
-          "group": "inline"
-        },
-        {
           "command": "promptManager.copyPromptContent",
           "when": "view == promptManagerTree && viewItem == promptFile",
           "group": "inline"
