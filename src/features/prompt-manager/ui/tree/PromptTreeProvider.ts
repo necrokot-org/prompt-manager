@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as path from "path";
+import * as fsExtra from "fs-extra";
 import { injectable, inject } from "tsyringe";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import {
@@ -13,9 +15,14 @@ import { ConfigurationService } from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
 import { DI_TOKENS } from "@infra/di/di-tokens";
-import { FileTreeItem, FolderTreeItem, EmptyStateTreeItem } from "@features/prompt-manager/ui/tree/items";
+import {
+  FileTreeItem,
+  FolderTreeItem,
+  EmptyStateTreeItem,
+} from "@features/prompt-manager/ui/tree/items";
 import { ItemFactory } from "@features/prompt-manager/ui/tree/factory/ItemFactory";
 import { SearchFilter } from "@features/prompt-manager/ui/tree/filter/SearchFilter";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
 // NOTE: The tree item classes (FileTreeItem, FolderTreeItem, EmptyStateTreeItem) have
 // been extracted to dedicated modules under `src/tree/items/` to improve
@@ -23,9 +30,14 @@ import { SearchFilter } from "@features/prompt-manager/ui/tree/filter/SearchFilt
 
 export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
 
+// Simple state for drag operations
+let currentDrag: { uri: vscode.Uri; type: "file" | "folder" } | undefined;
+
 @injectable()
 export class PromptTreeProvider
-  implements vscode.TreeDataProvider<PromptTreeItem>
+  implements
+    vscode.TreeDataProvider<PromptTreeItem>,
+    vscode.TreeDragAndDropController<PromptTreeItem>
 {
   private _onDidChangeTreeData: vscode.EventEmitter<
     PromptTreeItem | undefined | void
@@ -33,6 +45,10 @@ export class PromptTreeProvider
   readonly onDidChangeTreeData: vscode.Event<
     PromptTreeItem | undefined | void
   > = this._onDidChangeTreeData.event;
+
+  // TreeDragAndDropController properties
+  dropMimeTypes = ["application/vnd.code.tree.promptmanager"];
+  dragMimeTypes = ["application/vnd.code.tree.promptmanager"];
 
   private _currentSearchCriteria: SearchCriteria | null = null;
   private itemFactory: ItemFactory;
@@ -44,7 +60,9 @@ export class PromptTreeProvider
     private promptController: PromptController,
     @inject(DI_TOKENS.SearchService) searchService: SearchService,
     @inject(DI_TOKENS.ConfigurationService)
-    private configurationService: ConfigurationService
+    private configurationService: ConfigurationService,
+    @inject(DI_TOKENS.FileSystemManager)
+    private fileSystemManager: FileSystemManager
   ) {
     // Initialize modular helpers
     this.itemFactory = new ItemFactory(this.configurationService);
@@ -187,55 +205,45 @@ export class PromptTreeProvider
   private getFolderItems(folder: PromptFolder): PromptTreeItem[] {
     const items: PromptTreeItem[] = [];
 
-    if (!folder || !folder.prompts) {
-      log.warn("getFolderItems: Invalid folder provided:", folder);
+    if (!folder.prompts || folder.prompts.length === 0) {
       return items;
     }
 
     for (const prompt of folder.prompts) {
-      if (prompt && prompt.title) {
-        const promptItem = this.createFileTreeItem(prompt, {
-          command: "promptManager.openPrompt",
-          title: "Open Prompt",
-          arguments: [prompt.path],
-        });
-        items.push(promptItem);
-      } else {
-        log.warn("getFolderItems: Skipping invalid prompt:", prompt);
-      }
-    }
-
-    // If folder is empty, show empty state
-    if (items.length === 0) {
-      const emptyItem = this.itemFactory.createEmptyStateItem(
-        "No prompts in this folder",
-        "Right-click folder to add prompts",
-        "emptyFolder"
-      );
-      items.push(emptyItem);
+      const promptItem = this.createFileTreeItem(prompt, {
+        command: "promptManager.openPrompt",
+        title: "Open Prompt",
+        arguments: [prompt.path],
+      });
+      items.push(promptItem);
     }
 
     return items;
   }
 
-  // Helper method to get tree item by path (useful for commands)
   public async findTreeItemByPath(
     filePath: string
   ): Promise<FileTreeItem | undefined> {
     const structure = await this.promptController.getPromptStructure();
 
-    // Check root prompts
-    for (const prompt of structure.rootPrompts) {
-      if (prompt.path === filePath) {
-        return this.createFileTreeItem(prompt);
+    // Search in root prompts
+    if (structure?.rootPrompts) {
+      for (const prompt of structure.rootPrompts) {
+        if (prompt.path === filePath) {
+          return this.createFileTreeItem(prompt);
+        }
       }
     }
 
-    // Check folder prompts
-    for (const folder of structure.folders) {
-      for (const prompt of folder.prompts) {
-        if (prompt.path === filePath) {
-          return this.createFileTreeItem(prompt);
+    // Search in folder prompts
+    if (structure?.folders) {
+      for (const folder of structure.folders) {
+        if (folder.prompts) {
+          for (const prompt of folder.prompts) {
+            if (prompt.path === filePath) {
+              return this.createFileTreeItem(prompt);
+            }
+          }
         }
       }
     }
@@ -331,14 +339,170 @@ export class PromptTreeProvider
     return await this.searchFilter.matches(prompt, criteria);
   }
 
-  /**
-   * Dispose of resources and event subscriptions
-   */
   private createFileTreeItem(
     promptFile: PromptFile,
     command?: vscode.Command
   ): FileTreeItem {
     return this.itemFactory.createFileTreeItem(promptFile, command);
+  }
+
+  // Simplified TreeDragAndDropController implementation
+  async handleDrag(
+    source: readonly PromptTreeItem[],
+    dataTransfer: vscode.DataTransfer
+  ): Promise<void> {
+    // Only support dragging single items (files or folders)
+    if (source.length !== 1) {
+      return;
+    }
+
+    const item = source[0];
+
+    if (item instanceof FileTreeItem) {
+      currentDrag = {
+        uri: vscode.Uri.file(item.promptFile.path),
+        type: "file",
+      };
+
+      // Set drag data
+      dataTransfer.set(
+        this.dragMimeTypes[0],
+        new vscode.DataTransferItem(
+          JSON.stringify({
+            path: item.promptFile.path,
+            type: "file",
+          })
+        )
+      );
+    } else if (item instanceof FolderTreeItem) {
+      currentDrag = {
+        uri: vscode.Uri.file(item.promptFolder.path),
+        type: "folder",
+      };
+
+      // Set drag data
+      dataTransfer.set(
+        this.dragMimeTypes[0],
+        new vscode.DataTransferItem(
+          JSON.stringify({
+            path: item.promptFolder.path,
+            type: "folder",
+          })
+        )
+      );
+    } else {
+      return;
+    }
+  }
+
+  async handleDrop(
+    target: PromptTreeItem | undefined,
+    dataTransfer: vscode.DataTransfer
+  ): Promise<void> {
+    // Get source path from drag data
+    const dragDataItem = dataTransfer.get(this.dragMimeTypes[0]);
+    if (!dragDataItem || !currentDrag) {
+      return;
+    }
+
+    let dragData;
+    try {
+      dragData = JSON.parse(dragDataItem.value as string);
+    } catch (error) {
+      log.error("handleDrop: Failed to parse drag data", error);
+      return;
+    }
+
+    const source = currentDrag.uri;
+    const sourceType = currentDrag.type;
+
+    // Calculate target URI
+    let targetUri: vscode.Uri;
+    const itemName = path.basename(source.fsPath);
+
+    if (target instanceof FolderTreeItem) {
+      // Dropping on folder
+      targetUri = vscode.Uri.file(
+        path.join(target.promptFolder.path, itemName)
+      );
+    } else if (target instanceof FileTreeItem) {
+      // Dropping on file - use parent folder
+      targetUri = vscode.Uri.file(
+        path.join(path.dirname(target.promptFile.path), itemName)
+      );
+    } else {
+      // Dropping on root
+      const rootPath = this.fileSystemManager.getPromptManagerPath();
+      if (!rootPath) {
+        log.error("handleDrop: No root path found");
+        return;
+      }
+      targetUri = vscode.Uri.file(path.join(rootPath, itemName));
+    }
+
+    // Don't allow dropping on itself
+    if (source.fsPath === targetUri.fsPath) {
+      return;
+    }
+
+    // Don't allow dropping into a child of itself (for folders)
+    if (
+      sourceType === "folder" &&
+      targetUri.fsPath.startsWith(source.fsPath + path.sep)
+    ) {
+      vscode.window.showErrorMessage(
+        "Cannot move folder into itself or its subdirectory"
+      );
+      return;
+    }
+
+    // Check if target already exists
+    if (await fsExtra.pathExists(targetUri.fsPath)) {
+      vscode.window.showErrorMessage(
+        "Move not allowed - target already exists"
+      );
+      return;
+    }
+
+    try {
+      // Execute move based on source type
+      if (sourceType === "file") {
+        await this.fileSystemManager.moveFile(source.fsPath, targetUri.fsPath);
+        vscode.window.showInformationMessage(`Moved file "${itemName}"`);
+        // For files, immediate refresh is sufficient
+        await this.promptController.refresh();
+      } else if (sourceType === "folder") {
+        await this.fileSystemManager.moveFolder(
+          source.fsPath,
+          targetUri.fsPath
+        );
+        vscode.window.showInformationMessage(`Moved folder "${itemName}"`);
+
+        // For folder moves, we need to explicitly invalidate cache and force a rebuild
+        const fileManager = this.promptController
+          .getRepository()
+          .getFileManager();
+        fileManager.clearContentCache();
+
+        // Small delay to ensure file system operations are complete, then force rebuild
+        setTimeout(async () => {
+          try {
+            await fileManager.forceRebuildIndex();
+            this.refresh();
+          } catch (error) {
+            log.error("Failed to rebuild index after folder move:", error);
+            // Fallback to regular refresh
+            this.refresh();
+          }
+        }, 150);
+      }
+    } catch (error) {
+      log.error("handleDrop: Move operation failed", error);
+      vscode.window.showErrorMessage(`Failed to move ${sourceType}: ${error}`);
+    } finally {
+      // Clear drag state
+      currentDrag = undefined;
+    }
   }
 
   public dispose(): void {

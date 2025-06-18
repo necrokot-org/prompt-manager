@@ -10,11 +10,7 @@ import {
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
 import { eventBus } from "@infra/vscode/ExtensionBus";
-import {
-  configureDependencies,
-  resolve,
-  disposeDependencies,
-} from "@infra/di/di-container";
+import { setupDependencyInjection, container } from "@infra/di/di-container";
 
 import { DI_TOKENS } from "@infra/di/di-tokens";
 
@@ -49,14 +45,20 @@ suite("Integration Tests", () => {
     };
 
     // Configure DI container with mock context
-    configureDependencies(mockContext);
+    setupDependencyInjection(mockContext);
 
     // Resolve services from DI container
-    fileManager = resolve<FileManager>(DI_TOKENS.FileManager);
-    repository = resolve<PromptRepository>(DI_TOKENS.PromptRepository);
-    controller = resolve<PromptController>(DI_TOKENS.PromptController);
-    treeProvider = resolve<PromptTreeProvider>(DI_TOKENS.PromptTreeProvider);
-    searchProvider = resolve<SearchPanelProvider>(
+    fileManager = container.resolve<FileManager>(DI_TOKENS.FileManager);
+    repository = container.resolve<PromptRepository>(
+      DI_TOKENS.PromptRepository
+    );
+    controller = container.resolve<PromptController>(
+      DI_TOKENS.PromptController
+    );
+    treeProvider = container.resolve<PromptTreeProvider>(
+      DI_TOKENS.PromptTreeProvider
+    );
+    searchProvider = container.resolve<SearchPanelProvider>(
       DI_TOKENS.SearchPanelProvider
     );
 
@@ -73,7 +75,7 @@ suite("Integration Tests", () => {
       controller.dispose();
     }
     // Clean up DI container
-    disposeDependencies();
+    container.clearInstances();
   });
 
   test("should initialize all components correctly", () => {

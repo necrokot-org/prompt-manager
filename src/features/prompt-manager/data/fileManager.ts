@@ -94,6 +94,10 @@ export class FileManager {
     this.directoryScanner.invalidateIndex();
   }
 
+  public async forceRebuildIndex(): Promise<void> {
+    await this.directoryScanner.forceRebuildIndex();
+  }
+
   public async scanPrompts(): Promise<PromptStructure> {
     return await this.directoryScanner.scanPrompts();
   }

@@ -4,17 +4,18 @@
 
 ### Recently Completed Task
 
-**Remove Redundant "Open Prompt" Button** - Level 2 Enhancement completed on 2025-06-18
+**Drag and Drop Prompts Between Folders** - Level 3 Intermediate Feature completed on 2025-01-18
 
-- Successfully removed redundant UI element while preserving functionality
-- Optimized context menu layout with improved copy button positioning
-- **Archive**: [docs/archive/archive-remove-open-prompt-button-20241218.md](../docs/archive/archive-remove-open-prompt-button-20241218.md)
-- **Reflection**: [memory-bank/reflection/reflection-remove-open-prompt-button.md](reflection/reflection-remove-open-prompt-button.md)
+- Successfully implemented comprehensive drag-and-drop functionality for moving prompt files
+- Command pattern architecture with validation engine and state management
+- VSCode TreeView integration with native drag-and-drop controller
+- **Archive**: [docs/archive/archive-drag-drop-prompts-20250118.md](../docs/archive/archive-drag-drop-prompts-20250118.md)
+- **Reflection**: [memory-bank/reflection/reflection-drag-drop-prompts.md](reflection/reflection-drag-drop-prompts.md)
 
 ## Previously Completed
 
+- ✅ Remove Redundant "Open Prompt" Button - Level 2 Enhancement completed on 2025-06-18
 - ✅ Copy Button Enhancement completed on 2025-06-15
-- ✅ Archive: docs/archive/archive-copy-button-enhancement-20250615.md
 
 ## Current Architecture State
 
