@@ -106,9 +106,8 @@ Design an intuitive and efficient user interface that integrates seamlessly with
 
 ### Interaction Patterns
 
-- **Single Click**: Select/highlight prompt file
-- **Double Click**: Open prompt file in VSCode editor
-- **Right Click**: Context menu (Copy Content, Delete, etc.)
+- **Single Click**: Open prompt file in VSCode editor
+- **Right Click**: Context menu (Delete)
 - **Header + Button**: Create new prompt (opens input dialog)
 - **Header Refresh Button**: Re-scan `.prompt_manager` directory
 
