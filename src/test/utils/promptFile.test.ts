@@ -1,8 +1,8 @@
 import * as assert from "assert";
-import { searchResultToPromptFile } from "../../utils/promptFile";
+import { searchResultToPromptFile } from "@features/search/utils/promptFile";
 import { PromptFile } from "../../core/DirectoryScanner";
-import { SearchResult } from "../../core/SearchEngine";
-import { FileSystemManager } from "../../core/FileSystemManager";
+import { SearchResult } from "@features/search/core/SearchEngine";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
 suite("PromptFile Utils Tests", () => {
   test("should return existing file when found in allFiles", async () => {

@@ -2,7 +2,7 @@ import { z } from "zod";
 import filenamify from "filenamify";
 import trim from "lodash-es/trim.js";
 import { normalizeFileName, FileNamingPattern } from "../../utils/string.js";
-import { log } from "../../core/log";
+import { log } from "@infra/vscode/log";
 
 /**
  * Suspicious file extensions that should be flagged (non-blocking warnings)

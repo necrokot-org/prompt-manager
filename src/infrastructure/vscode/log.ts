@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
-import { eventBus } from "./ExtensionBus";
-import { config, CONFIG_KEYS } from "../config";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { config, CONFIG_KEYS } from "@infra/config/config";
 
 // Singleton OutputChannel for the entire extension. In unit-test environments
 // the VS Code API might be stubbed. Provide a graceful fallback to prevent

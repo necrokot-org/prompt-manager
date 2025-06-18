@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { eventBus } from "./core/ExtensionBus";
-import { DI_TOKENS } from "./core/di-tokens";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 
 export interface SearchCriteria {
   query: string;

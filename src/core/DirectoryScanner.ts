@@ -1,7 +1,7 @@
 import * as path from "path";
-import { FileSystemManager } from "./FileSystemManager";
-import { eventBus } from "./ExtensionBus";
-import { log } from "./log";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { log } from "@infra/vscode/log";
 import { FilesystemWalker } from "../scanner/FilesystemWalker";
 import { PromptOrganizer } from "../scanner/PromptOrganizer";
 import { IndexCache } from "../scanner/IndexCache";

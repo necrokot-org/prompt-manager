@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
-import { PromptController } from "./promptController";
-import { PromptTreeItem } from "./promptTreeProvider";
-import { FileTreeItem, FolderTreeItem } from "./tree/items";
-import { eventBus } from "./core/ExtensionBus";
-import { DI_TOKENS } from "./core/di-tokens";
+import { PromptController } from "@features/prompt-manager/domain/promptController";
+import { PromptTreeItem } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import {
+  FileTreeItem,
+  FolderTreeItem,
+} from "@features/prompt-manager/ui/tree/items";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 
 @injectable()
 export class CommandHandler {

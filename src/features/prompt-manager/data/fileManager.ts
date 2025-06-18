@@ -1,24 +1,24 @@
 import * as path from "path";
 import { injectable, inject } from "tsyringe";
 
-import { eventBus } from "./core/ExtensionBus";
-import { log } from "./core/log";
-import { DI_TOKENS } from "./core/di-tokens";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { log } from "@infra/vscode/log";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 
 // Import all the focused components
-import { FileSystemManager } from "./core/FileSystemManager";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import {
   serializePromptContent,
   PromptContent,
-} from "./validation/schemas/prompt.js";
+} from "@root/validation/schemas/prompt";
 import { LRUCache } from "lru-cache";
 import {
   DirectoryScanner,
   PromptFile,
   PromptFolder,
   PromptStructure,
-} from "./core/DirectoryScanner";
-import { sanitizeFileName } from "./validation/index";
+} from "core/DirectoryScanner";
+import { sanitizeFileName } from "@root/validation/index";
 
 // Legacy interfaces for backward compatibility
 export interface SearchablePromptFile extends PromptFile {

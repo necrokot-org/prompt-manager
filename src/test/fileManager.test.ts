@@ -3,9 +3,9 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { FileManager, ContentSearchResult } from "../fileManager";
-import { FileSystemManager } from "../core/FileSystemManager";
-import { ConfigurationService } from "../config";
+import { FileManager, ContentSearchResult } from "@features/prompt-manager/data/fileManager";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { ConfigurationService } from "@infra/config/config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
 
 suite("FileManager Core Tests", () => {

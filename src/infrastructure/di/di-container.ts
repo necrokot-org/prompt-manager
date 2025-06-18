@@ -1,19 +1,19 @@
 import "reflect-metadata";
 import { container, InjectionToken } from "tsyringe";
 import * as vscode from "vscode";
-import { DI_TOKENS } from "./di-tokens";
-import { log } from "./log";
+import { DI_TOKENS } from "@infra/di/di-tokens";
+import { log } from "@infra/vscode/log";
 
 // Import all services that need to be managed by DI
-import { FileManager } from "../fileManager";
-import { FileSystemManager } from "./FileSystemManager";
-import { PromptRepository } from "../promptRepository";
-import { PromptController } from "../promptController";
-import { SearchService } from "../searchService";
-import { ConfigurationService } from "../config";
-import { PromptTreeProvider } from "../promptTreeProvider";
-import { SearchPanelProvider } from "../searchPanelProvider";
-import { CommandHandler } from "../commandHandler";
+import { FileManager } from "@features/prompt-manager/data/fileManager";
+import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
+import { PromptController } from "@features/prompt-manager/domain/promptController";
+import { SearchService } from "@features/search/services/searchService";
+import { ConfigurationService } from "@infra/config/config";
+import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
+import { CommandHandler } from "@ext/commands/commandHandler";
 
 /**
  * Configure and register all services with the DI container

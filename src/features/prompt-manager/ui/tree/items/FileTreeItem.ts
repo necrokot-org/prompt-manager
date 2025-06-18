@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { PromptFile } from "../../scanner/types";
+import { PromptFile } from "@root/scanner/types";
 import { BaseTreeItem } from "./BaseTreeItem";
 
 export class FileTreeItem extends BaseTreeItem {

@@ -2,20 +2,20 @@
 // Import the module and reference it with the alias vscode in your code below
 import "reflect-metadata";
 import * as vscode from "vscode";
-import { PromptController } from "./promptController";
-import { PromptTreeProvider } from "./promptTreeProvider";
-import { CommandHandler } from "./commandHandler";
-import { SearchPanelProvider, SearchCriteria } from "./searchPanelProvider";
-import { SearchService } from "./searchService";
-import { EXTENSION_CONSTANTS, ConfigurationService } from "./config";
-import { eventBus } from "./core/ExtensionBus";
+import { PromptController } from "@features/prompt-manager/domain/promptController";
+import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { CommandHandler } from "@ext/commands/commandHandler";
+import { SearchPanelProvider, SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { SearchService } from "@features/search/services/searchService";
+import { EXTENSION_CONSTANTS, ConfigurationService } from "@infra/config/config";
+import { eventBus } from "@infra/vscode/ExtensionBus";
 import {
   configureDependencies,
   resolve,
   disposeDependencies,
   DI_TOKENS,
-} from "./core/di-container";
-import { log } from "./core/log";
+} from "@infra/di/di-container";
+import { log } from "@infra/vscode/log";
 
 // Global instances - now resolved from DI container
 let configService: ConfigurationService | undefined;

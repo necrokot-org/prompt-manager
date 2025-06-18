@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { ConfigurationService } from "../../config";
-import { PromptFile, PromptFolder } from "../../scanner/types";
+import { ConfigurationService } from "@infra/config/config";
+import { PromptFile, PromptFolder } from "@root/scanner/types";
 import { FileTreeItem } from "../items/FileTreeItem";
 import { FolderTreeItem } from "../items/FolderTreeItem";
 import { EmptyStateTreeItem } from "../items/EmptyStateTreeItem";

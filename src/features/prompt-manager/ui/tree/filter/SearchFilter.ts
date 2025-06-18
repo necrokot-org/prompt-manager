@@ -1,6 +1,6 @@
-import { SearchService } from "../../searchService";
-import { PromptFile } from "../../scanner/types";
-import { SearchCriteria } from "../../searchPanelProvider";
+import { SearchService } from "@features/search/services/searchService";
+import { PromptFile } from "@root/scanner/types";
+import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
 
 export class SearchFilter {
   constructor(private searchService: SearchService) {}

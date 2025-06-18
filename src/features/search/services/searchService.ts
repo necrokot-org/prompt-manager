@@ -1,20 +1,25 @@
 import { injectable, inject } from "tsyringe";
-import { FileManager, ContentSearchResult, PromptFile } from "./fileManager";
-import { SearchCriteria } from "./searchPanelProvider";
-import { FileContent } from "./core/SearchEngine";
-import { searchEngine } from "./searchEngine";
-import { eventBus } from "./core/ExtensionBus";
-import { log } from "./core/log";
-import { DI_TOKENS } from "./core/di-tokens";
+import {
+  FileManager,
+  ContentSearchResult,
+  PromptFile,
+} from "@features/prompt-manager/data/fileManager";
+import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { FileContent, SearchEngine } from "@features/search/core/SearchEngine";
+import { eventBus } from "@infra/vscode/ExtensionBus";
+import { log } from "@infra/vscode/log";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 import trim from "lodash-es/trim.js";
-import { searchResultToPromptFile } from "./utils/promptFile";
+import { searchResultToPromptFile } from "@features/search/utils/promptFile";
 
 @injectable()
 export class SearchService {
   private fileManager: FileManager;
+  private engine: SearchEngine;
 
   constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
     this.fileManager = fileManager;
+    this.engine = new SearchEngine();
   }
 
   /**
@@ -29,7 +34,7 @@ export class SearchService {
     const files = await this.getFileContentsForSearch();
 
     // Use the streamlined SearchEngine
-    const results = await searchEngine.search(files, criteria);
+    const results = await this.engine.search(files, criteria);
 
     // Convert SearchResult[] to ContentSearchResult[]
     const contentResults: ContentSearchResult[] = [];
@@ -131,7 +136,7 @@ export class SearchService {
       content,
     };
 
-    return await searchEngine.matches(fileContent, criteria);
+    return await this.engine.matches(fileContent, criteria);
   }
 
   /**
@@ -143,14 +148,14 @@ export class SearchService {
     }
 
     const files = await this.getFileContentsForSearch();
-    return await searchEngine.count(files, criteria);
+    return await this.engine.count(files, criteria);
   }
 
   /**
    * Clear search caches
    */
   clearCache(): void {
-    searchEngine.clearCache();
+    this.engine.clearCache();
   }
 
   /**
@@ -158,7 +163,7 @@ export class SearchService {
    * #TODO:UI must rely on this to show the correct scopes
    */
   getAvailableScopes(): Array<SearchCriteria["scope"]> {
-    return searchEngine.getAvailableScopes();
+    return this.engine.getAvailableScopes();
   }
 
   async publishResultsUpdated(

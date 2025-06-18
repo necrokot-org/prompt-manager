@@ -1,19 +1,22 @@
 import "reflect-metadata";
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { PromptController } from "../promptController";
-import { PromptTreeProvider } from "../promptTreeProvider";
-import { SearchPanelProvider, SearchCriteria } from "../searchPanelProvider";
-import { FileManager } from "../fileManager";
-import { PromptRepository } from "../promptRepository";
-import { eventBus } from "../core/ExtensionBus";
+import { PromptController } from "@features/prompt-manager/domain/promptController";
+import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import {
+  SearchPanelProvider,
+  SearchCriteria,
+} from "@features/search/ui/SearchPanelProvider";
+import { FileManager } from "@features/prompt-manager/data/fileManager";
+import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
+import { eventBus } from "@infra/vscode/ExtensionBus";
 import {
   configureDependencies,
   resolve,
   disposeDependencies,
-} from "../core/di-container";
+} from "@infra/di/di-container";
 
-import { DI_TOKENS } from "../core/di-tokens";
+import { DI_TOKENS } from "@infra/di/di-tokens";
 
 suite("Integration Tests", () => {
   let controller: PromptController;

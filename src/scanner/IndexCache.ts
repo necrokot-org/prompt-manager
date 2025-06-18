@@ -1,5 +1,5 @@
 import { PromptStructure } from "./types";
-import { log } from "../core/log";
+import { log } from "@infra/vscode/log";
 
 export class IndexCache {
   private structure: PromptStructure | null = null;
