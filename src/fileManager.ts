@@ -7,7 +7,10 @@ import { DI_TOKENS } from "./core/di-tokens";
 
 // Import all the focused components
 import { FileSystemManager } from "./core/FileSystemManager";
-import { PromptParser, PromptMetadata } from "./core/PromptParser";
+import {
+  serializePromptContent,
+  PromptContent,
+} from "./validation/schemas/prompt.js";
 import { LRUCache } from "lru-cache";
 import {
   DirectoryScanner,
@@ -50,7 +53,6 @@ export { PromptFile, PromptFolder, PromptStructure };
 export class FileManager {
   // Core components
   private fileSystemManager: FileSystemManager;
-  private promptParser: PromptParser;
   private contentCache: LRUCache<string, string>;
   private directoryScanner: DirectoryScanner;
 
@@ -60,7 +62,6 @@ export class FileManager {
   ) {
     // Initialize all components
     this.fileSystemManager = fileSystemManager;
-    this.promptParser = new PromptParser();
     this.contentCache = new LRUCache<string, string>({
       max: 1000,
       ttl: 5 * 60 * 1000, // 5 minutes
@@ -123,17 +124,14 @@ export class FileManager {
       return null;
     }
 
-    // Create front matter content using PromptParser
-    const metadata: PromptMetadata = {
+    // Build prompt content using unified schema utilities
+    const promptContent: PromptContent = {
+      content: `# ${fileName}\n\nWrite your prompt here...`,
       title: fileName,
       description: "",
       tags: [],
     };
-    const bodyContent = `# ${fileName}\n\nWrite your prompt here...`;
-    const frontMatterContent = this.promptParser.createPromptFile(
-      metadata,
-      bodyContent
-    );
+    const frontMatterContent = serializePromptContent(promptContent);
 
     try {
       await this.fileSystemManager.writeFile(filePath, frontMatterContent);
@@ -201,10 +199,6 @@ export class FileManager {
 
   public getFileSystemManager(): FileSystemManager {
     return this.fileSystemManager;
-  }
-
-  public getPromptParser(): PromptParser {
-    return this.promptParser;
   }
 
   public getDirectoryScanner(): DirectoryScanner {

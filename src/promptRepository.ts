@@ -3,7 +3,7 @@ import { injectable, inject } from "tsyringe";
 import { FileManager, PromptStructure } from "./fileManager";
 import { SearchService } from "./searchService";
 import { validatePrompt, getErrorMessages } from "./validation/index.js";
-import { PromptParser } from "./core/PromptParser.js";
+import { parsePromptContentSync } from "./validation/schemas/prompt.js";
 import { DI_TOKENS } from "./core/di-tokens";
 import * as fs from "fs";
 import { log } from "./core/log";
@@ -158,9 +158,8 @@ export class PromptRepository {
     errors: string[];
     warnings: string[];
   }> {
-    // Parse the content to extract structured data
-    const parser = new PromptParser();
-    const parsed = parser.parsePromptContent(content);
+    // Parse the content to extract structured data using unified parsing
+    const parsed = parsePromptContentSync(content);
 
     // Create PromptContent structure for validation
     const promptContent = {

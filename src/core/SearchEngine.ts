@@ -1,4 +1,7 @@
-import { PromptParser, ParsedPromptContent } from "./PromptParser";
+import {
+  parsePromptContentSync,
+  ParsedPromptContent,
+} from "../validation/schemas/prompt.js";
 import { LRUCache } from "lru-cache";
 import trim from "lodash-es/trim.js";
 import Fuse, { IFuseOptions, FuseResult } from "fuse.js";
@@ -42,7 +45,6 @@ interface SearchableContent {
 }
 
 export class SearchEngine {
-  private parser: PromptParser;
   private contentCache: LRUCache<string, ParsedPromptContent>;
   private searchableContent: SearchableContent[] = [];
   private fuse: Fuse<SearchableContent> | null = null;
@@ -50,7 +52,6 @@ export class SearchEngine {
   private readonly INDEX_TTL = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
-    this.parser = new PromptParser();
     this.contentCache = new LRUCache<string, ParsedPromptContent>({
       max: 500,
       ttl: 10 * 60 * 1000, // 10 minutes for parsed content
@@ -223,7 +224,17 @@ export class SearchEngine {
     }
 
     const fileName = this.getFileNameFromPath(file.path);
-    const parsed = this.parser.parsePromptContent(file.content, fileName);
+    const parsedContent = parsePromptContentSync(file.content, fileName);
+
+    // Convert to legacy interface for backward compatibility
+    const parsed: ParsedPromptContent = {
+      frontMatter: parsedContent.frontMatter || {},
+      content: parsedContent.content,
+      title: parsedContent.title || fileName.replace(/-/g, " "),
+      description: parsedContent.description,
+      tags: parsedContent.tags || [],
+    };
+
     this.contentCache.set(cacheKey, parsed);
     return parsed;
   }

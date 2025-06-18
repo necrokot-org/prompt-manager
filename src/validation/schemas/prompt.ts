@@ -76,162 +76,37 @@ export const PromptContentSchema = z
   });
 
 /**
- * Prompt validation options
+ * Prompt validation options – currently only maxContentLength is honoured
  */
 export interface PromptValidationOptions {
-  requireTitle?: boolean;
-  requireDescription?: boolean;
-  maxContentLength?: number;
-  maxTagCount?: number;
-  allowedTags?: string[];
-  validateMarkdown?: boolean;
-  strictMode?: boolean;
+  maxContentLength?: number; // bytes
+  [key: string]: any; // allow arbitrary properties (ignored)
 }
 
 /**
- * Create prompt schema with options
+ * Create a *very* relaxed prompt schema that only enforces maximum size.
  */
 export function createPromptSchema(options: PromptValidationOptions = {}) {
-  const {
-    requireTitle = false,
-    requireDescription = false,
-    maxContentLength = 500000,
-    maxTagCount = 20,
-    allowedTags = [],
-    validateMarkdown = true,
-    strictMode = false,
-  } = options;
+  const maxContentLength = options.maxContentLength ?? 50 * 1024 * 1024; // 50 MB
 
-  // Build the base schema
-  const baseSchema = z.object({
+  return z.object({
     content: z
       .string()
-      .min(1, "Prompt content cannot be empty")
       .max(
         maxContentLength,
         `Prompt content exceeds maximum length of ${maxContentLength} characters`
-      )
-      .refine((content) => trim(content).length > 0, {
-        message: "Prompt content cannot be only whitespace",
-      }),
+      ),
 
+    // Validate front matter structure if present
     frontMatter: FrontMatterSchema.optional(),
     title: z.string().optional(),
     description: z.string().optional(),
     tags: z.array(z.string()).optional(),
   });
-
-  // Create conditional schema based on requirements
-  const conditionalSchema = baseSchema.extend({
-    title: requireTitle
-      ? z.string().min(1, "Title is required")
-      : z.string().optional(),
-    description: requireDescription
-      ? z.string().min(1, "Description is required")
-      : z.string().optional(),
-  });
-
-  return conditionalSchema.superRefine((data, ctx) => {
-    // Validate markdown content if enabled (synchronous only)
-    if (validateMarkdown) {
-      const markdownResult = validateMarkdownSync(data.content);
-
-      // Add markdown issues as Zod issues
-      markdownResult.issues.forEach((issue) => {
-        const severity = issue.severity === "error" ? "error" : "warning";
-
-        if (severity === "error" || strictMode) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: issue.message,
-            path: ["content"],
-            params: {
-              line: issue.line,
-              column: issue.column,
-              ruleId: issue.ruleId,
-              severity: issue.severity,
-            },
-          });
-        }
-      });
-
-      // Extract and validate front matter from markdown
-      if (markdownResult.frontMatter) {
-        const frontMatterValidation = FrontMatterSchema.safeParse(
-          markdownResult.frontMatter
-        );
-
-        if (!frontMatterValidation.success) {
-          frontMatterValidation.error.errors.forEach((error) => {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `Front matter ${error.message}`,
-              path: ["frontMatter", ...(error.path || [])],
-            });
-          });
-        }
-      }
-    }
-
-    // Validate tags against allowed list
-    const allTags = data.tags || data.frontMatter?.tags;
-    if (allTags && allowedTags.length > 0) {
-      const invalidTags = allTags.filter((tag) => !allowedTags.includes(tag));
-      if (invalidTags.length > 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Invalid tags: ${invalidTags.join(
-            ", "
-          )}. Allowed tags: ${allowedTags.join(", ")}`,
-          path: ["tags"],
-        });
-      }
-    }
-
-    // Check tag count
-    if (allTags && allTags.length > maxTagCount) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Too many tags (${allTags.length}), maximum allowed is ${maxTagCount}`,
-        path: ["tags"],
-      });
-    }
-
-    // Content quality checks in strict mode
-    if (strictMode) {
-      const content = data.content.toLowerCase();
-
-      // Check for placeholder content
-      const placeholders = ["lorem ipsum", "placeholder", "example", "sample"];
-      const foundPlaceholder = placeholders.find((p) => content.includes(p));
-      if (foundPlaceholder) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Content appears to contain placeholder text: "${foundPlaceholder}"`,
-          path: ["content"],
-        });
-      }
-
-      // Check minimum content quality
-      const lines = compact(
-        data.content
-          .split("\n")
-          .map(trim)
-          .filter((line) => line.length > 0)
-      );
-      if (lines.length < 3) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Content seems very short (less than 3 non-empty lines)",
-          path: ["content"],
-        });
-      }
-    }
-  });
 }
 
 /**
- * Default prompt schema
+ * Default relaxed prompt schema (50 MB cap)
  */
 export const PromptSchema = createPromptSchema();
 
@@ -240,6 +115,44 @@ export const PromptSchema = createPromptSchema();
  */
 export type PromptContent = z.infer<typeof PromptSchema>;
 export type FrontMatter = z.infer<typeof FrontMatterSchema>;
+
+/**
+ * Synchronous version of parsePromptContent for backward compatibility
+ * Does not perform markdown validation, only front matter extraction and basic validation
+ */
+export function parsePromptContentSync(
+  rawContent: string,
+  fileName?: string
+): PromptContent {
+  // Extract front matter from raw markdown using gray-matter directly
+  const { frontMatter, body } = extractFrontMatter(rawContent);
+
+  const promptData: any = {
+    content: body,
+    frontMatter: frontMatter || undefined,
+  };
+
+  // Set top-level fields from front matter for convenience
+  if (frontMatter) {
+    if (frontMatter.title) {
+      promptData.title = frontMatter.title;
+    }
+    if (frontMatter.description) {
+      promptData.description = frontMatter.description;
+    }
+    if (frontMatter.tags) {
+      promptData.tags = frontMatter.tags;
+    }
+  }
+
+  // If no title from front matter, use filename fallback
+  if (!promptData.title && fileName) {
+    promptData.title = fileName.replace(/-/g, " ");
+  }
+
+  // Validate using relaxed schema (size + frontmatter only)
+  return createPromptSchema().parse(promptData);
+}
 
 /**
  * Utility function to parse prompt with front matter extraction
@@ -269,6 +182,27 @@ export async function parsePromptContent(
   }
 
   return PromptSchema.parse(promptData);
+}
+
+/**
+ * Legacy interface for backward compatibility with PromptParser
+ */
+export interface ParsedPromptContent {
+  frontMatter: any;
+  content: string;
+  title: string;
+  description?: string;
+  tags: string[];
+}
+
+/**
+ * Legacy interface for backward compatibility with PromptParser
+ */
+export interface PromptMetadata {
+  title?: string;
+  description?: string;
+  tags?: string[] | string;
+  [key: string]: any;
 }
 
 /**

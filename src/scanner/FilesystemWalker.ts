@@ -1,7 +1,7 @@
 import * as path from "path";
 import fg from "fast-glob";
 import { FileSystemManager } from "../core/FileSystemManager";
-import { PromptParser } from "../core/PromptParser";
+import { parsePromptContentSync } from "../validation/schemas/prompt.js";
 import { log } from "../core/log";
 import { PromptFile, ScanOptions } from "./types";
 
@@ -11,11 +11,7 @@ import { PromptFile, ScanOptions } from "./types";
  * that is handled by higher-level collaborators.
  */
 export class FilesystemWalker {
-  private parser: PromptParser;
-
-  constructor(private fileSystemManager: FileSystemManager) {
-    this.parser = new PromptParser();
-  }
+  constructor(private fileSystemManager: FileSystemManager) {}
 
   public async scanDirectory(
     dirPath: string,
@@ -67,14 +63,14 @@ export class FilesystemWalker {
       const content = await this.fileSystemManager.readFile(filePath);
 
       const fileName = path.basename(filePath, path.extname(filePath));
-      const parsed = this.parser.parsePromptContent(content, fileName);
+      const parsed = parsePromptContentSync(content, fileName);
 
       return {
         name: fileName,
-        title: parsed.title,
+        title: parsed.title || fileName.replace(/-/g, " "),
         path: filePath,
         description: parsed.description,
-        tags: parsed.tags,
+        tags: parsed.tags || [],
         fileSize: stats.size,
         isDirectory: false,
       };

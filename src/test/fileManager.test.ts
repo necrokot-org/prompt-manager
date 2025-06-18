@@ -188,12 +188,6 @@ suite("FileManager Core Tests", () => {
     assert.ok(typeof fsManager.getPromptManagerPath === "function");
   });
 
-  test("Component Access - PromptParser", async () => {
-    const parser = fileManager.getPromptParser();
-    assert.ok(parser !== null);
-    assert.ok(typeof parser.parsePromptContent === "function");
-  });
-
   test("Component Access - DirectoryScanner", async () => {
     const scanner = fileManager.getDirectoryScanner();
     assert.ok(scanner !== null);
