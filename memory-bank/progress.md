@@ -64,29 +64,38 @@ The project underwent **major architectural evolution** since last Memory Bank u
 
 **Next Action**: Ready to accept new task assignments with accurate project context.
 
-## Latest Completed Task (2025-01-19)
+## Latest Completed Task (2025-01-20)
+
+### **Environment-aware Feature Gating** ✅ COMPLETED & ARCHIVED
+
+- **Complexity**: Level 3 - Intermediate Feature
+- **Implementation**: 3-phase approach with robust detection and explicit state management
+- **Core Innovation**: Word boundary regex patterns preventing false positives + explicit Unknown environment
+- **Solution**: Comprehensive environment detection service with DI integration and VS Code context keys
+- **Key Learning**: Explicit state management and transparent behavior superior to silent fallbacks
+- **Reflection**: [memory-bank/reflection/reflection-environment-detection.md](reflection/reflection-environment-detection.md)
+- **Archive**: [archive-environment-detection-20250120.md](../docs/archive/archive-environment-detection-20250120.md)
+- **Impact**: HIGH - Enables environment-specific features with robust detection and user transparency
+
+**Technical Achievement**:
+
+- ✅ Robust detection algorithm with word boundaries preventing false positives (`/(^|\W)cursor($|\W)/`)
+- ✅ Explicit Unknown environment handling with user notifications instead of silent VS Code fallback
+- ✅ Seamless DI integration with zero breaking changes to existing architecture
+- ✅ Comprehensive testing with 22+ test cases covering all scenarios and edge cases
+- ✅ Four VS Code context keys enabling conditional UI/commands
+
+**Process Achievement**:
+
+- ✅ Successfully applied user feedback during implementation to significantly improve quality
+- ✅ Demonstrated value of iterative enhancement approach for Level 3 features
+- ✅ Established template for future environment-aware VS Code extension features
+- ✅ Exceeded all original requirements while maintaining backward compatibility
+
+## Previously Completed Task (2025-01-19)
 
 ### **Fix Nested Folders Display Bug** ✅ COMPLETED & ARCHIVED
 
 - **Complexity**: Level 2 - Simple Enhancement (Bug Fix)
-- **Implementation**: Simplified approach with minimal code changes
-- **Root Cause**: Fixed folder flattening logic in `PromptOrganizer.ts`
-- **Solution**: Replaced `dirName.split(path.sep)[0]` with `dirName` (no flattening)
-- **Key Learning**: Simple solutions leveraging platform APIs are better than complex workarounds
-- **Reflection**: [memory-bank/reflection/reflection-nested-folders-fix.md](reflection/reflection-nested-folders-fix.md)
 - **Archive**: [archive-nested-folders-fix-20250119.md](../docs/archive/archive-nested-folders-fix-20250119.md)
-- **Impact**: HIGH - Nested folder navigation now works correctly with 90% less code
-
-**Technical Achievement**:
-
-- ✅ Fixed critical bug with minimal code changes (5 lines vs 50+ lines complex approach)
-- ✅ Leveraged VSCode Tree View API as designed instead of working around it
-- ✅ Preserved all existing architecture and interfaces
-- ✅ Zero build issues or dependency changes
-
-**Process Achievement**:
-
-- ✅ Successfully integrated user feedback to avoid over-engineering
-- ✅ Demonstrated value of iterative refinement (second approach much better)
-- ✅ Learned importance of understanding platform API design patterns
-- ✅ Created actionable process improvements for future tasks
+- **Impact**: HIGH - Fixed critical nested folder navigation bug with minimal code changes
