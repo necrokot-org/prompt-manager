@@ -1,6 +1,8 @@
-# prompt-manager README
+# Prompt Manager
 
-This is the README for your extension "prompt-manager". After writing up a brief description, we recommend including the following sections.
+[![CI](https://github.com/yourusername/prompt-manager/workflows/CI/badge.svg)](https://github.com/yourusername/prompt-manager/actions)
+
+This is a VSCode extension for managing prompts with tree view organization and file management capabilities.
 
 ## Features
 
