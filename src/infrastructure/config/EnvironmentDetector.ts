@@ -60,7 +60,7 @@ export class EnvironmentDetectorImpl implements EnvironmentDetector {
    */
   private detect(): Environment {
     // Try multiple detection methods for reliability
-    const host = (vscode.env as any).appHost ?? vscode.env.appName ?? "";
+    const host = vscode.env.appName ?? "";
     const name = host.toLowerCase();
 
     // Use word boundaries to avoid false positives (e.g., "precursor" matching "cursor")
