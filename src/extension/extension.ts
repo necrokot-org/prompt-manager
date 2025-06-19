@@ -21,6 +21,7 @@ import {
   DI_TOKENS,
 } from "@infra/di/di-container";
 import { log } from "@infra/vscode/log";
+import { EnvironmentDetector } from "@infra/config/environment";
 
 // Global instances - now resolved from DI container
 let configService: ConfigurationService | undefined;
@@ -29,6 +30,7 @@ let treeProvider: PromptTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
 let searchProvider: SearchPanelProvider | undefined;
 let searchService: SearchService | undefined;
+let environmentDetector: EnvironmentDetector | undefined;
 
 /**
  * This method is called when your extension is activated
@@ -92,6 +94,44 @@ async function initializeExtension(
 
   // Resolve command handler
   commandHandler = container.resolve<CommandHandler>(DI_TOKENS.CommandHandler);
+
+  // Resolve environment detector
+  environmentDetector = container.resolve<EnvironmentDetector>(
+    DI_TOKENS.EnvironmentDetector
+  );
+
+  // Set environment context keys for VS Code 'when' clauses
+  await vscode.commands.executeCommand(
+    "setContext",
+    "promptManager.isCursor",
+    environmentDetector.isCursor()
+  );
+  await vscode.commands.executeCommand(
+    "setContext",
+    "promptManager.isWindserf",
+    environmentDetector.isWindserf()
+  );
+  await vscode.commands.executeCommand(
+    "setContext",
+    "promptManager.isVSCode",
+    environmentDetector.isVSCode()
+  );
+  await vscode.commands.executeCommand(
+    "setContext",
+    "promptManager.isUnknown",
+    environmentDetector.isUnknown()
+  );
+
+  const detectedEnv = environmentDetector.getEnvironment();
+  log.info(`Environment detected: ${detectedEnv}`);
+
+  // Show warning for unknown environments
+  if (environmentDetector.isUnknown()) {
+    const message =
+      "Unknown editor environment detected. Some features may not work as expected.";
+    log.warn(message);
+    vscode.window.showWarningMessage(message);
+  }
 
   // Initialize the prompt controller (creates directory structure)
   const initialized = await promptController.initialize();
@@ -236,6 +276,7 @@ function cleanup(): void {
   commandHandler = undefined;
   searchProvider = undefined;
   searchService = undefined;
+  environmentDetector = undefined;
 }
 
 // This method is called when your extension is deactivated

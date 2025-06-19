@@ -14,6 +14,7 @@ export const DI_TOKENS = {
   PromptTreeProvider: Symbol("PromptTreeProvider"),
   SearchPanelProvider: Symbol("SearchPanelProvider"),
   CommandHandler: Symbol("CommandHandler"),
+  EnvironmentDetector: Symbol("EnvironmentDetector"),
 } as const;
 
 export type DiToken<T = any> = InjectionToken<T>;
