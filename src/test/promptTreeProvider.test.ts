@@ -16,14 +16,14 @@ import {
 import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
-describe("PromptTreeProvider", () => {
+suite("PromptTreeProvider", () => {
   let promptTreeProvider: PromptTreeProvider;
   let mockPromptController: any;
   let mockSearchService: any;
   let mockConfigurationService: any;
   let mockFileSystemManager: any;
 
-  beforeEach(() => {
+  setup(() => {
     // Mock PromptController
     mockPromptController = {
       getPromptStructure: () =>
@@ -58,12 +58,12 @@ describe("PromptTreeProvider", () => {
     );
   });
 
-  afterEach(() => {
+  teardown(() => {
     promptTreeProvider.dispose();
   });
 
-  describe("getChildren", () => {
-    it("should return empty state when no prompts exist", async () => {
+  suite("getChildren", () => {
+    test("should return empty state when no prompts exist", async () => {
       const children = await promptTreeProvider.getChildren();
 
       assert.strictEqual(children.length, 1);
@@ -71,7 +71,7 @@ describe("PromptTreeProvider", () => {
       assert.strictEqual(children[0].label, "No prompts yet");
     });
 
-    it("should return folder and file items when prompts exist", async () => {
+    test("should return folder and file items when prompts exist", async () => {
       const mockStructure = {
         folders: [
           {
@@ -104,8 +104,8 @@ describe("PromptTreeProvider", () => {
     });
   });
 
-  describe("search functionality", () => {
-    it("should filter prompts based on search criteria", async () => {
+  suite("search functionality", () => {
+    test("should filter prompts based on search criteria", async () => {
       const mockStructure = {
         folders: [],
         rootPrompts: [
@@ -162,7 +162,7 @@ describe("PromptTreeProvider", () => {
       );
     });
 
-    it("should show no results message when no prompts match", async () => {
+    test("should show no results message when no prompts match", async () => {
       const mockStructure = {
         folders: [],
         rootPrompts: [
@@ -198,8 +198,8 @@ describe("PromptTreeProvider", () => {
     });
   });
 
-  describe("drag and drop", () => {
-    it("should handle drag operation for file items", async () => {
+  suite("drag and drop", () => {
+    test("should handle drag operation for file items", async () => {
       const mockPromptFile: PromptFile = {
         name: "test-prompt.md",
         title: "Test Prompt",
@@ -222,7 +222,7 @@ describe("PromptTreeProvider", () => {
       assert.strictEqual(dragData.value, "/test/test-prompt.md");
     });
 
-    it("should not handle drag for non-file items", async () => {
+    test("should not handle drag for non-file items", async () => {
       const folderItem = new FolderTreeItem({
         name: "Test Folder",
         path: "/test/folder",
