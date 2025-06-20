@@ -337,4 +337,14 @@ export class PromptController {
     this.subscriptions.forEach((subscription) => subscription.unsubscribe());
     this.subscriptions = [];
   }
+
+  public async getPrompt(filePath: string): Promise<string | null> {
+    // Convenience helper for callers that need raw prompt file content.
+    // Reads the file through the repository layer so we keep all I/O in a single place.
+    const content = await this.repository.readFileContent(filePath);
+    if (!content) {
+      return null;
+    }
+    return this.stripFrontMatter(content);
+  }
 }
