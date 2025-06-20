@@ -143,7 +143,7 @@
         },
         {
           "command": "promptManager.askAiWithPrompt",
-          "when": "view == promptManagerTree && viewItem == promptFile",
+          "when": "view == promptManagerTree && viewItem == promptFile && promptManager.isVSCode",
           "group": "inline"
         }
       ]
