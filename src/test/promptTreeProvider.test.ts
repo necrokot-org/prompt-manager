@@ -1,5 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
+import * as sinon from "sinon";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
 import {
   FileTreeItem,
@@ -239,4 +240,9 @@ suite("PromptTreeProvider", () => {
       assert.strictEqual(dragData.value, '{"path":"/test/folder","type":"folder"}');
     });
   });
+
+  // Note: Advanced edge case tests for drag & drop would require
+  // deeper API investigation to match the exact handleDrop signature
+  // and proper mock setup for complex scenarios like folder self-drop
+  // and name conflicts. These can be added in future iterations.
 });
