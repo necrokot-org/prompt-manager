@@ -39,13 +39,13 @@ jobs:
       - name: Build extension
         run: npm run package
 
-      # - name: Upload test coverage
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: coverage-report
-      #     path: coverage/
-      #     retention-days: 30
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
