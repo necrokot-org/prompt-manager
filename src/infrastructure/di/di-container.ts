@@ -48,9 +48,9 @@ export function setupDependencyInjection(context: vscode.ExtensionContext) {
   container.registerSingleton(DI_TOKENS.CommandHandler, CommandHandler);
 
   // Environment detection
-  container.registerSingleton(
+  container.registerInstance(
     DI_TOKENS.EnvironmentDetector,
-    EnvironmentDetectorImpl
+    new EnvironmentDetectorImpl(vscode.env)
   );
 }
 

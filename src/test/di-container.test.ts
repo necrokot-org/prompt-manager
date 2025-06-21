@@ -6,32 +6,12 @@ import { ConfigurationService } from "@infra/config/config";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { EnvironmentDetectorImpl } from "@infra/config/EnvironmentDetector";
 
 suite("DI Container Test Suite", () => {
   let mockContext: vscode.ExtensionContext;
 
   suiteSetup(() => {
-    // Try to mock vscode.env to include required properties
-    try {
-      const vscode = require("vscode");
-      if (!vscode.env) {
-        vscode.env = {};
-      }
-      vscode.env.appName = "Visual Studio Code";
-      vscode.env.appHost = "desktop";
-      // Avoid potential issues with vscode.env.file
-      if (!vscode.env.file) {
-        try {
-          vscode.env.file = vscode.Uri ? vscode.Uri.file("/test/file") : undefined;
-        } catch (e) {
-          // Ignore file property if it causes issues
-        }
-      }
-    } catch (e) {
-      // If vscode module mocking fails, continue with defaults
-      console.warn("Failed to mock vscode.env:", e);
-    }
-
     // Create a mock extension context for testing
     mockContext = {
       subscriptions: [],
@@ -62,12 +42,12 @@ suite("DI Container Test Suite", () => {
       languageModelAccessInformation: {} as any,
     };
 
-    // Configure dependencies with mock context using simplified API
+    // Configure dependencies with mock context
     setupDependencyInjection(mockContext);
   });
 
   suiteTeardown(() => {
-    // Simplified cleanup - just clear container instances
+    // Clear container instances
     container.clearInstances();
   });
 
@@ -79,6 +59,24 @@ suite("DI Container Test Suite", () => {
     assert.ok(
       configService instanceof ConfigurationService,
       "Should be instance of ConfigurationService"
+    );
+  });
+
+  test("EnvironmentDetector should be resolvable", () => {
+    const envDetector = container.resolve<EnvironmentDetectorImpl>(
+      DI_TOKENS.EnvironmentDetector
+    );
+    assert.ok(envDetector, "EnvironmentDetector should be resolved");
+    assert.ok(
+      envDetector instanceof EnvironmentDetectorImpl,
+      "Should be instance of EnvironmentDetectorImpl"
+    );
+
+    // Test that it can detect environment (should work with real vscode.env)
+    const environment = envDetector.getEnvironment();
+    assert.ok(
+      typeof environment === "string",
+      "getEnvironment should return string"
     );
   });
 
@@ -192,6 +190,18 @@ suite("DI Container Test Suite", () => {
       fileManager1,
       fileManager2,
       "FileManager should be singleton"
+    );
+
+    const envDetector1 = container.resolve<EnvironmentDetectorImpl>(
+      DI_TOKENS.EnvironmentDetector
+    );
+    const envDetector2 = container.resolve<EnvironmentDetectorImpl>(
+      DI_TOKENS.EnvironmentDetector
+    );
+    assert.strictEqual(
+      envDetector1,
+      envDetector2,
+      "EnvironmentDetector should be singleton"
     );
   });
 });
