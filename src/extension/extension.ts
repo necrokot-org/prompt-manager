@@ -21,7 +21,7 @@ import {
   DI_TOKENS,
 } from "@infra/di/di-container";
 import { log } from "@infra/vscode/log";
-import { EnvironmentDetector } from "@infra/config/environment";
+import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
 
 // Global instances - now resolved from DI container
 let configService: ConfigurationService | undefined;

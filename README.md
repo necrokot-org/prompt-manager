@@ -18,16 +18,71 @@ For example if there is an image subfolder under your extension project workspac
 
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
+## Environment Detection
+
+This extension automatically detects the host editor environment at runtime and adapts its behavior accordingly. **No user configuration is required.**
+
+### Supported Environments
+
+- **VS Code** (Microsoft Visual Studio Code)
+- **Cursor** (Cursor AI IDE)
+- **Windsurf** (Windsurf IDE)
+- **Unknown** (Any other VS Code-compatible editor)
+
+### Detection Logic
+
+The extension uses a **two-tier detection approach** with word-boundary matching to prevent false positives:
+
+1. **Primary Detection**: `vscode.env.appHost` (most reliable)
+2. **Fallback Detection**: `vscode.env.appName` (legacy compatibility)
+3. **Unknown Fallback**: If no matches found, shows user warning
+
+```typescript
+// Detection priority examples:
+vscode.env.appHost = "cursor-app"     → Environment.Cursor
+vscode.env.appHost = "windsurf-host"  → Environment.Windserf
+vscode.env.appName = "Visual Studio Code" → Environment.VSCode
+vscode.env.appName = "Unknown Editor" → Environment.Unknown (+ warning)
+```
+
+### Word-Boundary Protection
+
+The detection uses regex word boundaries to avoid false matches:
+
+- `"precursor"` → **Unknown** (not Cursor)
+- `"my-cursor-editor"` → **Cursor** ✓
+- `"excursion"` → **Unknown** (not Cursor)
+
+### Caching & Performance
+
+- Detection occurs **once at extension startup**
+- Results are **cached** for O(1) subsequent access
+- **No runtime performance impact**
+
+### Feature Gating
+
+Environment detection enables conditional features:
+
+```typescript
+// Available context keys for package.json "when" clauses:
+"promptManager.isVSCode"; // true only in VS Code
+"promptManager.isCursor"; // true only in Cursor
+"promptManager.isWindserf"; // true only in Windsurf
+"promptManager.isUnknown"; // true for unrecognized editors
+```
+
+Example usage in `package.json`:
+
+```json
+{
+  "command": "promptManager.askAiWithPrompt",
+  "when": "view == promptManagerTree && viewItem == promptFile && promptManager.isVSCode"
+}
+```
+
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
-
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
 
 ## Known Issues
 

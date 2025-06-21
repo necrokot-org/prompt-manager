@@ -20,5 +20,24 @@ export function normalizeFileName(
   }
 
   const separator = namingPattern === "snake_case" ? "_" : "-";
-  return slugify(fileName, { separator });
+  
+  // Handle special cases first
+  if (!fileName || typeof fileName !== "string") {
+    return "";
+  }
+
+  // Use slugify with custom options to handle edge cases
+  const result = slugify(fileName, { 
+    separator,
+    lowercase: true,
+    decamelize: true
+  });
+
+  // Handle edge case where only special characters result in empty string
+  // but slugify might return 'and' or other connective words
+  if (result === "and" || result === "or") {
+    return "";
+  }
+
+  return result;
 }

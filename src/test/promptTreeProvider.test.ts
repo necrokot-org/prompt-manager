@@ -1,39 +1,38 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import { SearchService } from "@features/search/services/searchService";
-import { ConfigurationService } from "@infra/config/config";
 import {
   FileTreeItem,
   FolderTreeItem,
   EmptyStateTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
-import { PromptController } from "@features/prompt-manager/domain/promptController";
-import {
-  PromptFile,
-  PromptFolder,
-} from "@features/prompt-manager/data/fileManager";
+import { PromptFile } from "@features/prompt-manager/data/fileManager";
 import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
-import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
-describe("PromptTreeProvider", () => {
+suite("PromptTreeProvider", () => {
   let promptTreeProvider: PromptTreeProvider;
   let mockPromptController: any;
   let mockSearchService: any;
   let mockConfigurationService: any;
   let mockFileSystemManager: any;
 
-  beforeEach(() => {
+  setup(() => {
     // Mock PromptController
     mockPromptController = {
       getPromptStructure: () =>
         Promise.resolve({ folders: [], rootPrompts: [] }),
       refresh: () => Promise.resolve(),
+      getRepository: () => ({
+        getFileManager: () => ({
+          getPromptManagerPath: () => "/test/path",
+        }),
+      }),
     };
 
     // Mock SearchService
     mockSearchService = {
       search: () => Promise.resolve([]),
+      matchesPrompt: () => Promise.resolve(false), // Add missing method
     };
 
     // Mock ConfigurationService
@@ -41,6 +40,7 @@ describe("PromptTreeProvider", () => {
       getDefaultPromptDirectory: () => ".prompt_manager",
       getFileNamingPattern: () => "kebab-case",
       shouldShowDescriptionInTree: () => true,
+      getShowDescriptionInTree: () => true, // Add missing method
     };
 
     // Mock FileSystemManager
@@ -58,12 +58,12 @@ describe("PromptTreeProvider", () => {
     );
   });
 
-  afterEach(() => {
+  teardown(() => {
     promptTreeProvider.dispose();
   });
 
-  describe("getChildren", () => {
-    it("should return empty state when no prompts exist", async () => {
+  suite("getChildren", () => {
+    test("should return empty state when no prompts exist", async () => {
       const children = await promptTreeProvider.getChildren();
 
       assert.strictEqual(children.length, 1);
@@ -71,12 +71,12 @@ describe("PromptTreeProvider", () => {
       assert.strictEqual(children[0].label, "No prompts yet");
     });
 
-    it("should return folder and file items when prompts exist", async () => {
+    test("should return folder and file items when prompts exist", async () => {
       const mockStructure = {
         folders: [
           {
             name: "Test Folder",
-            path: "/test/folder",
+            path: "/test/path/Test Folder", // Path should be under the base path
             prompts: [],
           },
         ],
@@ -104,8 +104,8 @@ describe("PromptTreeProvider", () => {
     });
   });
 
-  describe("search functionality", () => {
-    it("should filter prompts based on search criteria", async () => {
+  suite("search functionality", () => {
+    test("should filter prompts based on search criteria", async () => {
       const mockStructure = {
         folders: [],
         rootPrompts: [
@@ -133,14 +133,9 @@ describe("PromptTreeProvider", () => {
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
 
-      // Mock search service to return matching results for first prompt only
-      mockSearchService.search = (query: string, prompts: PromptFile[]) => {
-        return Promise.resolve([
-          {
-            file: prompts[0], // First prompt matches
-            matches: [],
-          },
-        ]);
+      // Mock matchesPrompt to return true only for the first prompt
+      mockSearchService.matchesPrompt = (prompt: any, criteria: any) => {
+        return Promise.resolve(prompt.path === "/test/matching-prompt.md");
       };
 
       const criteria: SearchCriteria = {
@@ -162,7 +157,7 @@ describe("PromptTreeProvider", () => {
       );
     });
 
-    it("should show no results message when no prompts match", async () => {
+    test("should show no results message when no prompts match", async () => {
       const mockStructure = {
         folders: [],
         rootPrompts: [
@@ -180,7 +175,9 @@ describe("PromptTreeProvider", () => {
 
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
-      mockSearchService.search = () => Promise.resolve([]); // No matches
+      
+      // Mock matchesPrompt to return false for all prompts
+      mockSearchService.matchesPrompt = () => Promise.resolve(false);
 
       const criteria: SearchCriteria = {
         query: "nonexistent",
@@ -198,8 +195,8 @@ describe("PromptTreeProvider", () => {
     });
   });
 
-  describe("drag and drop", () => {
-    it("should handle drag operation for file items", async () => {
+  suite("drag and drop", () => {
+    test("should handle drag operation for file items", async () => {
       const mockPromptFile: PromptFile = {
         name: "test-prompt.md",
         title: "Test Prompt",
@@ -219,10 +216,11 @@ describe("PromptTreeProvider", () => {
         "application/vnd.code.tree.promptmanager"
       );
       assert.ok(dragData);
-      assert.strictEqual(dragData.value, "/test/test-prompt.md");
+      // Updated to expect JSON format with path and type
+      assert.strictEqual(dragData.value, '{"path":"/test/test-prompt.md","type":"file"}');
     });
 
-    it("should not handle drag for non-file items", async () => {
+    test("should handle drag operation for folder items", async () => {
       const folderItem = new FolderTreeItem({
         name: "Test Folder",
         path: "/test/folder",
@@ -235,7 +233,9 @@ describe("PromptTreeProvider", () => {
       const dragData = dataTransfer.get(
         "application/vnd.code.tree.promptmanager"
       );
-      assert.strictEqual(dragData, undefined);
+      // Updated to expect drag data for folders (now supported)
+      assert.ok(dragData);
+      assert.strictEqual(dragData.value, '{"path":"/test/folder","type":"folder"}');
     });
   });
 });

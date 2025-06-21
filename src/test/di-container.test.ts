@@ -6,6 +6,7 @@ import { ConfigurationService } from "@infra/config/config";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
 
 suite("DI Container Test Suite", () => {
   let mockContext: vscode.ExtensionContext;
@@ -41,12 +42,12 @@ suite("DI Container Test Suite", () => {
       languageModelAccessInformation: {} as any,
     };
 
-    // Configure dependencies with mock context using simplified API
+    // Configure dependencies with mock context
     setupDependencyInjection(mockContext);
   });
 
   suiteTeardown(() => {
-    // Simplified cleanup - just clear container instances
+    // Clear container instances
     container.clearInstances();
   });
 
@@ -58,6 +59,24 @@ suite("DI Container Test Suite", () => {
     assert.ok(
       configService instanceof ConfigurationService,
       "Should be instance of ConfigurationService"
+    );
+  });
+
+  test("EnvironmentDetector should be resolvable", () => {
+    const envDetector = container.resolve<EnvironmentDetector>(
+      DI_TOKENS.EnvironmentDetector
+    );
+    assert.ok(envDetector, "EnvironmentDetector should be resolved");
+    assert.ok(
+      envDetector instanceof EnvironmentDetector,
+      "Should be instance of EnvironmentDetector"
+    );
+
+    // Test that it can detect environment (should work with real vscode.env)
+    const environment = envDetector.getEnvironment();
+    assert.ok(
+      typeof environment === "string",
+      "getEnvironment should return string"
     );
   });
 
@@ -171,6 +190,18 @@ suite("DI Container Test Suite", () => {
       fileManager1,
       fileManager2,
       "FileManager should be singleton"
+    );
+
+    const envDetector1 = container.resolve<EnvironmentDetector>(
+      DI_TOKENS.EnvironmentDetector
+    );
+    const envDetector2 = container.resolve<EnvironmentDetector>(
+      DI_TOKENS.EnvironmentDetector
+    );
+    assert.strictEqual(
+      envDetector1,
+      envDetector2,
+      "EnvironmentDetector should be singleton"
     );
   });
 });

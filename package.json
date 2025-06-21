@@ -6,7 +6,7 @@
   "engines": {
     "vscode": "^1.96.0"
   },
-  "type": "module",
+  "type": "commonjs",
   "categories": [
     "Other"
   ],
@@ -186,8 +186,8 @@
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run check-types && npm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
+    "compile-tests": "tsc --outDir out/test",
+    "watch-tests": "tsc --outDir out/test -w",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",

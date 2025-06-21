@@ -11,7 +11,7 @@ import { SearchService } from "@features/search/services/searchService";
 import { ConfigurationService } from "@infra/config/config";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { CommandHandler } from "../../extension/commands/commandHandler";
-import { EnvironmentDetectorImpl } from "@infra/config/EnvironmentDetector";
+import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
 
 /**
  * Configure and register all services with the DI container
@@ -48,9 +48,9 @@ export function setupDependencyInjection(context: vscode.ExtensionContext) {
   container.registerSingleton(DI_TOKENS.CommandHandler, CommandHandler);
 
   // Environment detection
-  container.registerSingleton(
+  container.registerInstance(
     DI_TOKENS.EnvironmentDetector,
-    EnvironmentDetectorImpl
+    new EnvironmentDetector(vscode.env)
   );
 }
 

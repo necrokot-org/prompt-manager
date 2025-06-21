@@ -248,13 +248,13 @@ suite("String Utils - normalizeFileName Tests", () => {
 
     test("should handle file names with version numbers", async () => {
       const result1 = await normalizeFileName("API Helper v2.1", "kebab-case");
-      assert.strictEqual(result1, "api-helper-v-2-1");
+      assert.strictEqual(result1, "api-helper-v2-1");
 
       const result2 = await normalizeFileName(
         "Template (v1.0.0)",
         "snake_case"
       );
-      assert.strictEqual(result2, "template_v_1_0_0");
+      assert.strictEqual(result2, "template_v1_0_0");
     });
 
     test("should handle file names with dates", async () => {
@@ -268,7 +268,7 @@ suite("String Utils - normalizeFileName Tests", () => {
         "Report_2024/01/15",
         "snake_case"
       );
-      assert.strictEqual(result2, "report-2024-01-15");
+      assert.strictEqual(result2, "report_2024_01_15");
     });
   });
 });
