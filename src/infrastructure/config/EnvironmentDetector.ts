@@ -3,22 +3,45 @@ import { injectable } from "tsyringe";
 import { Environment, EnvironmentDetector } from "./environment";
 
 /**
+ * VS Code environment interface for dependency injection
+ */
+export interface VSCodeEnv {
+  appName?: string;
+  appHost?: string;
+}
+
+/**
  * Implementation of environment detection service
- * Detects VS Code, Cursor, and Windserf editors at runtime
+ *
+ * Detects VS Code, Cursor, and Windsurf editors at runtime using:
+ * 1. vscode.env.appHost (prioritized - more reliable host identification)
+ * 2. vscode.env.appName (fallback - may vary between editors)
+ *
+ * Uses word boundary detection to prevent false positives.
+ * Results are cached at initialization for performance.
  */
 @injectable()
 export class EnvironmentDetectorImpl implements EnvironmentDetector {
   /**
-   * Detected environment (cached at initialization)
+   * Detected environment (cached after first detection)
    */
-  private readonly env: Environment = this.detect();
+  private _env: Environment | null = null;
+
+  /**
+   * Create an EnvironmentDetector instance
+   * @param vscodeEnv - VS Code environment object (defaults to real vscode.env)
+   */
+  constructor(private readonly vscodeEnv: VSCodeEnv = vscode.env) {}
 
   /**
    * Get the detected environment
    * @returns The current editor environment
    */
   getEnvironment(): Environment {
-    return this.env;
+    if (this._env === null) {
+      this._env = this.detect();
+    }
+    return this._env;
   }
 
   /**
@@ -26,7 +49,7 @@ export class EnvironmentDetectorImpl implements EnvironmentDetector {
    * @returns true if the current environment is VS Code
    */
   isVSCode(): boolean {
-    return this.env === Environment.VSCode;
+    return this.getEnvironment() === Environment.VSCode;
   }
 
   /**
@@ -34,7 +57,7 @@ export class EnvironmentDetectorImpl implements EnvironmentDetector {
    * @returns true if the current environment is Cursor
    */
   isCursor(): boolean {
-    return this.env === Environment.Cursor;
+    return this.getEnvironment() === Environment.Cursor;
   }
 
   /**
@@ -42,7 +65,7 @@ export class EnvironmentDetectorImpl implements EnvironmentDetector {
    * @returns true if the current environment is Windserf
    */
   isWindserf(): boolean {
-    return this.env === Environment.Windserf;
+    return this.getEnvironment() === Environment.Windserf;
   }
 
   /**
@@ -50,33 +73,56 @@ export class EnvironmentDetectorImpl implements EnvironmentDetector {
    * @returns true if the current environment is unknown
    */
   isUnknown(): boolean {
-    return this.env === Environment.Unknown;
+    return this.getEnvironment() === Environment.Unknown;
   }
 
   /**
    * Internal method to detect the current environment
-   * Uses VS Code API properties to identify the host editor
+   *
+   * Priority order:
+   * 1. Check vscode.env.appHost (most reliable)
+   * 2. Check vscode.env.appName (fallback)
+   * 3. Return Unknown if no matches found
+   *
+   * Uses word boundaries to avoid false positives (e.g., "precursor" matching "cursor")
+   *
    * @returns The detected environment or Unknown for unrecognized hosts
    */
   private detect(): Environment {
-    // Try multiple detection methods for reliability
-    const host = vscode.env.appName ?? "";
-    const name = host.toLowerCase();
+    // Get both host and name properties with fallbacks
+    const appHost = this.vscodeEnv.appHost ?? "";
+    const appName = this.vscodeEnv.appName ?? "";
 
-    // Use word boundaries to avoid false positives (e.g., "precursor" matching "cursor")
-    // Check for Cursor editor
-    if (/(^|\W)cursor($|\W)/.test(name)) {
-      return Environment.Cursor;
+    // Prioritize appHost over appName for more reliable detection
+    const hostLower = appHost.toLowerCase();
+    const nameLower = appName.toLowerCase();
+
+    // Check appHost first (higher priority)
+    if (hostLower) {
+      // Use word boundaries to avoid false positives
+      if (/(^|\W)cursor($|\W)/.test(hostLower)) {
+        return Environment.Cursor;
+      }
+      if (/(^|\W)windserf($|\W)/.test(hostLower)) {
+        return Environment.Windserf;
+      }
+      if (/(^|\W)(vscode|visual\s*studio\s*code)($|\W)/.test(hostLower)) {
+        return Environment.VSCode;
+      }
     }
 
-    // Check for Windserf editor
-    if (/(^|\W)windserf($|\W)/.test(name)) {
-      return Environment.Windserf;
-    }
-
-    // Check for VS Code (various possible names)
-    if (/(^|\W)(vscode|visual\s*studio\s*code)($|\W)/.test(name)) {
-      return Environment.VSCode;
+    // Fall back to appName if appHost doesn't match
+    if (nameLower) {
+      // Use word boundaries to avoid false positives
+      if (/(^|\W)cursor($|\W)/.test(nameLower)) {
+        return Environment.Cursor;
+      }
+      if (/(^|\W)windserf($|\W)/.test(nameLower)) {
+        return Environment.Windserf;
+      }
+      if (/(^|\W)(vscode|visual\s*studio\s*code)($|\W)/.test(nameLower)) {
+        return Environment.VSCode;
+      }
     }
 
     // Return Unknown for unrecognized environments instead of silent fallback

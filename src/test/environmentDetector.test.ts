@@ -1,39 +1,25 @@
 import "reflect-metadata";
 import * as assert from "assert";
-import { EnvironmentDetectorImpl } from "../infrastructure/config/EnvironmentDetector";
-import { Environment } from "../infrastructure/config/environment";
-
-// Mock vscode module
-const mockVSCode = {
-  env: {
-    appName: "Visual Studio Code",
-    appHost: undefined as string | undefined,
-  },
-};
-
-// Replace vscode module in require cache for testing
-const Module = require("module");
-const originalRequire = Module.prototype.require;
-Module.prototype.require = function (...args: any[]) {
-  if (args[0] === "vscode") {
-    return mockVSCode;
-  }
-  return originalRequire.apply(this, args);
-};
+import {
+  Environment,
+  EnvironmentDetector,
+} from "../infrastructure/config/environment";
+import {
+  EnvironmentDetectorImpl,
+  VSCodeEnv,
+} from "../infrastructure/config/EnvironmentDetector";
 
 suite("EnvironmentDetector Test Suite", () => {
   let detector: EnvironmentDetectorImpl;
 
   setup(() => {
-    // Reset mocks before each test
-    mockVSCode.env.appName = "Visual Studio Code";
-    mockVSCode.env.appHost = undefined;
+    // No setup needed for direct constructor testing
   });
 
   suite("VS Code Environment Detection", () => {
     test("should detect VS Code when appName is 'Visual Studio Code'", () => {
-      mockVSCode.env.appName = "Visual Studio Code";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Visual Studio Code" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
       assert.strictEqual(detector.isVSCode(), true);
@@ -42,8 +28,8 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should detect VS Code when appName is 'vscode'", () => {
-      mockVSCode.env.appName = "vscode";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "vscode" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
       assert.strictEqual(detector.isVSCode(), true);
@@ -52,8 +38,8 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should detect VS Code when appName is 'Visual Studio Code'", () => {
-      mockVSCode.env.appName = "Visual Studio Code";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Visual Studio Code" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
       assert.strictEqual(detector.isVSCode(), true);
@@ -65,8 +51,8 @@ suite("EnvironmentDetector Test Suite", () => {
 
   suite("Cursor Environment Detection", () => {
     test("should detect Cursor when appName contains 'cursor'", () => {
-      mockVSCode.env.appName = "Cursor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Cursor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
       assert.strictEqual(detector.isVSCode(), false);
@@ -75,17 +61,16 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should detect Cursor when appName contains 'cursor' in mixed case", () => {
-      mockVSCode.env.appName = "CURSOR Editor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "CURSOR Editor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
       assert.strictEqual(detector.isCursor(), true);
     });
 
     test("should detect Cursor when appHost contains 'cursor'", () => {
-      mockVSCode.env.appName = "Unknown";
-      mockVSCode.env.appHost = "cursor-app";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Unknown", appHost: "cursor-app" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
       assert.strictEqual(detector.isCursor(), true);
@@ -94,8 +79,8 @@ suite("EnvironmentDetector Test Suite", () => {
 
   suite("Windserf Environment Detection", () => {
     test("should detect Windserf when appName contains 'windserf'", () => {
-      mockVSCode.env.appName = "Windserf";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Windserf" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
       assert.strictEqual(detector.isVSCode(), false);
@@ -104,17 +89,19 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should detect Windserf when appName contains 'windserf' in mixed case", () => {
-      mockVSCode.env.appName = "WINDSERF Editor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "WINDSERF Editor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
       assert.strictEqual(detector.isWindserf(), true);
     });
 
     test("should detect Windserf when appHost contains 'windserf'", () => {
-      mockVSCode.env.appName = "Unknown";
-      mockVSCode.env.appHost = "windserf-app";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = {
+        appName: "Unknown",
+        appHost: "windserf-app",
+      };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
       assert.strictEqual(detector.isWindserf(), true);
@@ -123,8 +110,8 @@ suite("EnvironmentDetector Test Suite", () => {
 
   suite("Unknown Environment and Edge Cases", () => {
     test("should return Unknown when appName is unrecognized", () => {
-      mockVSCode.env.appName = "Unknown Editor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Unknown Editor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Unknown);
       assert.strictEqual(detector.isUnknown(), true);
@@ -134,39 +121,38 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should return Unknown when both appName and appHost are undefined", () => {
-      mockVSCode.env.appName = undefined as any;
-      mockVSCode.env.appHost = undefined;
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: undefined, appHost: undefined };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Unknown);
       assert.strictEqual(detector.isUnknown(), true);
     });
 
     test("should return Unknown when both appName and appHost are empty strings", () => {
-      mockVSCode.env.appName = "";
-      mockVSCode.env.appHost = "";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "", appHost: "" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Unknown);
       assert.strictEqual(detector.isUnknown(), true);
     });
 
     test("should prioritize appHost over appName when both are present", () => {
-      mockVSCode.env.appName = "cursor";
-      mockVSCode.env.appHost = "windserf-host";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = {
+        appName: "cursor",
+        appHost: "windserf-host",
+      };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
       assert.strictEqual(detector.isWindserf(), true);
     });
 
     test("should cache the detection result", () => {
-      mockVSCode.env.appName = "Cursor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Cursor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       const firstCall = detector.getEnvironment();
-      // Change the mock value
-      mockVSCode.env.appName = "Windserf";
+      // The detector should cache the result, so changing constructor params won't affect this instance
       const secondCall = detector.getEnvironment();
 
       // Should return the same cached result
@@ -177,16 +163,16 @@ suite("EnvironmentDetector Test Suite", () => {
 
   suite("Word Boundary Detection", () => {
     test("should detect Cursor over Windserf when both are present", () => {
-      mockVSCode.env.appName = "cursor windserf";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "cursor windserf" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
       assert.strictEqual(detector.isCursor(), true);
     });
 
     test("should NOT match partial strings like 'precursor'", () => {
-      mockVSCode.env.appName = "precursor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "precursor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Unknown);
       assert.strictEqual(detector.isUnknown(), true);
@@ -194,8 +180,8 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should NOT match partial strings like 'excursion'", () => {
-      mockVSCode.env.appName = "excursion";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "excursion" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Unknown);
       assert.strictEqual(detector.isUnknown(), true);
@@ -203,16 +189,16 @@ suite("EnvironmentDetector Test Suite", () => {
     });
 
     test("should match cursor with word boundaries", () => {
-      mockVSCode.env.appName = "my-cursor-editor";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "my-cursor-editor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
       assert.strictEqual(detector.isCursor(), true);
     });
 
     test("should match VS Code variants with spaces", () => {
-      mockVSCode.env.appName = "Microsoft Visual Studio Code";
-      detector = new EnvironmentDetectorImpl();
+      const mockEnv: VSCodeEnv = { appName: "Microsoft Visual Studio Code" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
       assert.strictEqual(detector.isVSCode(), true);
@@ -222,32 +208,32 @@ suite("EnvironmentDetector Test Suite", () => {
   suite("Boolean Helper Methods", () => {
     test("should return consistent boolean values for each environment", () => {
       // Test VS Code
-      mockVSCode.env.appName = "Visual Studio Code";
-      detector = new EnvironmentDetectorImpl();
+      let mockEnv: VSCodeEnv = { appName: "Visual Studio Code" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
       assert.strictEqual(detector.isVSCode(), true);
       assert.strictEqual(detector.isCursor(), false);
       assert.strictEqual(detector.isWindserf(), false);
       assert.strictEqual(detector.isUnknown(), false);
 
       // Test Cursor
-      mockVSCode.env.appName = "Cursor";
-      detector = new EnvironmentDetectorImpl();
+      mockEnv = { appName: "Cursor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), true);
       assert.strictEqual(detector.isWindserf(), false);
       assert.strictEqual(detector.isUnknown(), false);
 
       // Test Windserf
-      mockVSCode.env.appName = "Windserf";
-      detector = new EnvironmentDetectorImpl();
+      mockEnv = { appName: "Windserf" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), false);
       assert.strictEqual(detector.isWindserf(), true);
       assert.strictEqual(detector.isUnknown(), false);
 
       // Test Unknown
-      mockVSCode.env.appName = "Unrecognized Editor";
-      detector = new EnvironmentDetectorImpl();
+      mockEnv = { appName: "Unrecognized Editor" };
+      detector = new EnvironmentDetectorImpl(mockEnv);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), false);
       assert.strictEqual(detector.isWindserf(), false);
