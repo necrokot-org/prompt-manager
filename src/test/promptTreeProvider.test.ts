@@ -1,20 +1,13 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import { SearchService } from "@features/search/services/searchService";
-import { ConfigurationService } from "@infra/config/config";
 import {
   FileTreeItem,
   FolderTreeItem,
   EmptyStateTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
-import { PromptController } from "@features/prompt-manager/domain/promptController";
-import {
-  PromptFile,
-  PromptFolder,
-} from "@features/prompt-manager/data/fileManager";
+import { PromptFile } from "@features/prompt-manager/data/fileManager";
 import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
-import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
 suite("PromptTreeProvider", () => {
   let promptTreeProvider: PromptTreeProvider;
@@ -223,10 +216,11 @@ suite("PromptTreeProvider", () => {
         "application/vnd.code.tree.promptmanager"
       );
       assert.ok(dragData);
-      assert.strictEqual(dragData.value, "/test/test-prompt.md");
+      // Updated to expect JSON format with path and type
+      assert.strictEqual(dragData.value, '{"path":"/test/test-prompt.md","type":"file"}');
     });
 
-    test("should not handle drag for non-file items", async () => {
+    test("should handle drag operation for folder items", async () => {
       const folderItem = new FolderTreeItem({
         name: "Test Folder",
         path: "/test/folder",
@@ -239,7 +233,9 @@ suite("PromptTreeProvider", () => {
       const dragData = dataTransfer.get(
         "application/vnd.code.tree.promptmanager"
       );
-      assert.strictEqual(dragData, undefined);
+      // Updated to expect drag data for folders (now supported)
+      assert.ok(dragData);
+      assert.strictEqual(dragData.value, '{"path":"/test/folder","type":"folder"}');
     });
   });
 });
