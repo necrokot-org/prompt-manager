@@ -47,6 +47,7 @@ suite("PromptTreeProvider", () => {
     mockFileSystemManager = {
       getPromptManagerPath: () => "/test/path",
       moveFile: () => Promise.resolve(),
+      moveFolder: () => Promise.resolve(),
       fileExists: () => false,
     };
 

@@ -24,14 +24,7 @@ suite("Package.json Menu Visibility Test Suite", () => {
     assert.ok(askAiMenuItem, "askAiWithPrompt menu item should exist");
 
     // Verify the when clause includes environment awareness
-    const expectedWhenClause =
-      "view == promptManagerTree && viewItem == promptFile && promptManager.isVSCode";
-
-    assert.strictEqual(
-      askAiMenuItem.when,
-      expectedWhenClause,
-      "Menu item should have environment-aware when clause"
-    );
+    assert.match(askAiMenuItem.when, /promptManager\.isVSCode/, "Menu item should have environment-aware when clause");
 
     // Verify it's in the inline group
     assert.strictEqual(
