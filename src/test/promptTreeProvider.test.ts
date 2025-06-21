@@ -29,11 +29,17 @@ suite("PromptTreeProvider", () => {
       getPromptStructure: () =>
         Promise.resolve({ folders: [], rootPrompts: [] }),
       refresh: () => Promise.resolve(),
+      getRepository: () => ({
+        getFileManager: () => ({
+          getPromptManagerPath: () => "/test/path",
+        }),
+      }),
     };
 
     // Mock SearchService
     mockSearchService = {
       search: () => Promise.resolve([]),
+      matchesPrompt: () => Promise.resolve(false), // Add missing method
     };
 
     // Mock ConfigurationService
@@ -41,6 +47,7 @@ suite("PromptTreeProvider", () => {
       getDefaultPromptDirectory: () => ".prompt_manager",
       getFileNamingPattern: () => "kebab-case",
       shouldShowDescriptionInTree: () => true,
+      getShowDescriptionInTree: () => true, // Add missing method
     };
 
     // Mock FileSystemManager
@@ -76,7 +83,7 @@ suite("PromptTreeProvider", () => {
         folders: [
           {
             name: "Test Folder",
-            path: "/test/folder",
+            path: "/test/path/Test Folder", // Path should be under the base path
             prompts: [],
           },
         ],
@@ -133,14 +140,9 @@ suite("PromptTreeProvider", () => {
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
 
-      // Mock search service to return matching results for first prompt only
-      mockSearchService.search = (query: string, prompts: PromptFile[]) => {
-        return Promise.resolve([
-          {
-            file: prompts[0], // First prompt matches
-            matches: [],
-          },
-        ]);
+      // Mock matchesPrompt to return true only for the first prompt
+      mockSearchService.matchesPrompt = (prompt: any, criteria: any) => {
+        return Promise.resolve(prompt.path === "/test/matching-prompt.md");
       };
 
       const criteria: SearchCriteria = {
@@ -180,7 +182,9 @@ suite("PromptTreeProvider", () => {
 
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
-      mockSearchService.search = () => Promise.resolve([]); // No matches
+      
+      // Mock matchesPrompt to return false for all prompts
+      mockSearchService.matchesPrompt = () => Promise.resolve(false);
 
       const criteria: SearchCriteria = {
         query: "nonexistent",

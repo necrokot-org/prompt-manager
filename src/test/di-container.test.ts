@@ -11,6 +11,27 @@ suite("DI Container Test Suite", () => {
   let mockContext: vscode.ExtensionContext;
 
   suiteSetup(() => {
+    // Try to mock vscode.env to include required properties
+    try {
+      const vscode = require("vscode");
+      if (!vscode.env) {
+        vscode.env = {};
+      }
+      vscode.env.appName = "Visual Studio Code";
+      vscode.env.appHost = "desktop";
+      // Avoid potential issues with vscode.env.file
+      if (!vscode.env.file) {
+        try {
+          vscode.env.file = vscode.Uri ? vscode.Uri.file("/test/file") : undefined;
+        } catch (e) {
+          // Ignore file property if it causes issues
+        }
+      }
+    } catch (e) {
+      // If vscode module mocking fails, continue with defaults
+      console.warn("Failed to mock vscode.env:", e);
+    }
+
     // Create a mock extension context for testing
     mockContext = {
       subscriptions: [],

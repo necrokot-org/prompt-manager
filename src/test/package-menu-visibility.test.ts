@@ -5,8 +5,8 @@ import * as fs from "fs";
 
 suite("Package.json Menu Visibility Test Suite", () => {
   test("askAiWithPrompt menu item should have environment-aware when clause", () => {
-    // Read package.json from the project root
-    const packageJsonPath = path.join(__dirname, "../..", "package.json");
+    // Read package.json from the project root (go up from out/test/test to project root)
+    const packageJsonPath = path.join(__dirname, "../../../package.json");
     assert.ok(fs.existsSync(packageJsonPath), "package.json should exist");
 
     const packageContent = fs.readFileSync(packageJsonPath, "utf8");
@@ -42,7 +42,7 @@ suite("Package.json Menu Visibility Test Suite", () => {
   });
 
   test("package.json should have valid JSON structure", () => {
-    const packageJsonPath = path.join(__dirname, "../..", "package.json");
+    const packageJsonPath = path.join(__dirname, "../../../package.json");
     const packageContent = fs.readFileSync(packageJsonPath, "utf8");
 
     // This will throw if JSON is invalid
