@@ -1,6 +1,15 @@
 import * as vscode from "vscode";
 import { injectable } from "tsyringe";
-import { Environment, EnvironmentDetector } from "./environment";
+
+/**
+ * Supported editor environments for the prompt manager
+ */
+export enum Environment {
+  VSCode = "vscode",
+  Cursor = "cursor",
+  Windserf = "windserf",
+  Unknown = "unknown",
+}
 
 /**
  * VS Code environment interface for dependency injection
@@ -11,7 +20,7 @@ export interface VSCodeEnv {
 }
 
 /**
- * Implementation of environment detection service
+ * Environment detection service
  *
  * Detects VS Code, Cursor, and Windsurf editors at runtime using:
  * 1. vscode.env.appHost (prioritized - more reliable host identification)
@@ -21,7 +30,7 @@ export interface VSCodeEnv {
  * Results are cached at initialization for performance.
  */
 @injectable()
-export class EnvironmentDetectorImpl implements EnvironmentDetector {
+export class EnvironmentDetector {
   /**
    * Detected environment (cached after first detection)
    */

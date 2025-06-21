@@ -6,7 +6,7 @@ import { ConfigurationService } from "@infra/config/config";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import { EnvironmentDetectorImpl } from "@infra/config/EnvironmentDetector";
+import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
 
 suite("DI Container Test Suite", () => {
   let mockContext: vscode.ExtensionContext;
@@ -63,13 +63,13 @@ suite("DI Container Test Suite", () => {
   });
 
   test("EnvironmentDetector should be resolvable", () => {
-    const envDetector = container.resolve<EnvironmentDetectorImpl>(
+    const envDetector = container.resolve<EnvironmentDetector>(
       DI_TOKENS.EnvironmentDetector
     );
     assert.ok(envDetector, "EnvironmentDetector should be resolved");
     assert.ok(
-      envDetector instanceof EnvironmentDetectorImpl,
-      "Should be instance of EnvironmentDetectorImpl"
+      envDetector instanceof EnvironmentDetector,
+      "Should be instance of EnvironmentDetector"
     );
 
     // Test that it can detect environment (should work with real vscode.env)
@@ -192,10 +192,10 @@ suite("DI Container Test Suite", () => {
       "FileManager should be singleton"
     );
 
-    const envDetector1 = container.resolve<EnvironmentDetectorImpl>(
+    const envDetector1 = container.resolve<EnvironmentDetector>(
       DI_TOKENS.EnvironmentDetector
     );
-    const envDetector2 = container.resolve<EnvironmentDetectorImpl>(
+    const envDetector2 = container.resolve<EnvironmentDetector>(
       DI_TOKENS.EnvironmentDetector
     );
     assert.strictEqual(
