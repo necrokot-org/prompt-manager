@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { injectable } from "tsyringe";
 import { FileNamingPattern } from "../../utils/string";
 import { eventBus } from "@infra/vscode/ExtensionBus";
+import { log } from "@infra/vscode/log";
 
 /**
  * Centralized configuration management for Prompt Manager
@@ -94,6 +95,9 @@ export class ConfigurationService {
    * Watch for configuration changes and publish events
    */
   private setupConfigWatcher(): void {
+    if (this.configWatcher) {
+      this.configWatcher.dispose();
+    }
     this.configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("promptManager")) {
         this.handleConfigurationChange(e);
@@ -118,6 +122,11 @@ export class ConfigurationService {
           newValue,
           oldValue: undefined,
         });
+
+        // Handle debug logging integration
+        if (configKey === CONFIG_KEYS.DEBUG_LOGGING) {
+          log.debug(newValue as boolean);
+        }
       }
     }
   }
