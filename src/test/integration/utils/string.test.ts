@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { normalizeFileName, FileNamingPattern } from "../../utils/string";
+import { normalizeFileName, FileNamingPattern } from "@utils/string";
 
 suite("String Utils - normalizeFileName Tests", () => {
   suite("kebab-case pattern", () => {

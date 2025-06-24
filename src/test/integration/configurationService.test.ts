@@ -199,7 +199,7 @@ describe("ConfigurationService", () => {
       // Simulate new configuration value after cache refresh
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) return true;
+        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
         return mockConfiguration.get(key, defaultValue);
       });
       workspaceGetConfigStub.returns(newMockConfig);
@@ -232,8 +232,8 @@ describe("ConfigurationService", () => {
       // Setup new configuration values after cache refresh
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) return true;
-        if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) return false;
+        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
+        if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {return false;}
         return mockConfiguration.get(key, defaultValue);
       });
       workspaceGetConfigStub.returns(newMockConfig);
@@ -278,7 +278,7 @@ describe("ConfigurationService", () => {
       // Setup new configuration that will be returned after cache refresh
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) return true;
+        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
         return mockConfiguration.get(key, defaultValue);
       });
       
@@ -320,7 +320,7 @@ describe("ConfigurationService", () => {
       // Setup new configuration value
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) return true;
+        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
         return mockConfiguration.get(key, defaultValue);
       });
       workspaceGetConfigStub.returns(newMockConfig);
@@ -363,7 +363,7 @@ describe("ConfigurationService", () => {
       // Setup new configuration value after cache refresh
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) return true;
+        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
         return mockConfiguration.get(key, defaultValue);
       });
       workspaceGetConfigStub.returns(newMockConfig);
@@ -395,7 +395,7 @@ describe("ConfigurationService", () => {
       // Setup new configuration value after cache refresh
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) return false;
+        if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {return false;}
         return mockConfiguration.get(key, defaultValue);
       });
       workspaceGetConfigStub.returns(newMockConfig);
@@ -425,7 +425,7 @@ describe("ConfigurationService", () => {
       // Setup new configuration value after cache refresh (false to disable)
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) return false;
+        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return false;}
         return mockConfiguration.get(key, defaultValue);
       });
       workspaceGetConfigStub.returns(newMockConfig);
@@ -442,7 +442,7 @@ describe("ConfigurationService", () => {
       // Mock invalid configuration
       getConfigStub.restore();
       getConfigStub = sinon.stub(config, "get").callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.FILE_NAMING_PATTERN) return "invalid-pattern";
+        if (key === CONFIG_KEYS.FILE_NAMING_PATTERN) {return "invalid-pattern";}
         return defaultValue;
       });
 
@@ -456,7 +456,7 @@ describe("ConfigurationService", () => {
       // Mock undefined configuration
       getConfigStub.restore();
       getConfigStub = sinon.stub(config, "get").callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEFAULT_PROMPT_DIRECTORY) return undefined;
+        if (key === CONFIG_KEYS.DEFAULT_PROMPT_DIRECTORY) {return undefined;}
         return defaultValue;
       });
 

@@ -163,4 +163,92 @@ There are **no public API changes**, only _internal_ package boundaries. Extensi
 
 Happy hacking! 💻
 
+## 🧪 Test Infrastructure
+
+The extension uses a comprehensive test infrastructure with the following components:
+
+### VS Code Mock System
+
+All tests run with a complete VS Code API mock that eliminates dependencies on the actual VS Code editor:
+
+- **Location**: `test/__mocks__/vscode.ts`
+- **Automatic replacement**: VS Code imports are automatically redirected to the mock during test execution
+- **Full API coverage**: Covers `commands`, `window`, `workspace`, `Uri`, `TreeView`, and all other APIs used by the extension
+- **Typed interfaces**: Maintains TypeScript compatibility with proper type checking
+
+### Code Coverage
+
+Code coverage is enforced via [nyc](https://github.com/istanbuljs/nyc) (Istanbul):
+
+```bash
+# Run tests with coverage
+npm test
+
+# Check coverage thresholds
+npm run check-coverage
+```
+
+**Coverage Requirements:**
+- Lines: ≥80%
+- Functions: ≥80%
+- Branches: ≥70%
+- Statements: ≥80%
+
+Coverage reports are generated in `coverage/` directory and uploaded as CI artifacts.
+
+### Fake Timers Helper
+
+For tests involving debounced operations or timeouts, use the `withFakeTimers` helper:
+
+```typescript
+import { withFakeTimers } from './fakeTimers';
+
+it('debounces refresh calls', () =>
+  withFakeTimers(async (clock) => {
+    // Your test code here
+    controller.refresh();
+    clock.tick(300); // Advance time by 300ms
+    expect(spy.calledOnce).to.be.true;
+  }));
+```
+
+This helper automatically:
+- Sets up sinon fake timers before your test
+- Passes the clock instance to your test function
+- Restores real timers after test completion (even if test fails)
+
+### Running Tests
+
+```bash
+# Run all tests with coverage
+npm test
+
+# Run tests for VS Code extension (integration tests)
+npm run test:vscode
+
+# Check coverage thresholds
+npm run check-coverage
+
+# Compile tests only
+npm run compile-tests
+```
+
+### Test Files Structure
+
+- `src/test/**/*.test.ts` - All test files
+- `src/test/helpers.ts` - Common test utilities and workspace setup
+- `src/test/fakeTimers.ts` - Fake timers helper utility
+- `src/test/setup.ts` - Test environment bootstrap (VS Code mocking, path resolution)
+- `test/__mocks__/vscode.ts` - Complete VS Code API mock
+
+### CI Integration
+
+The GitHub Actions CI pipeline:
+1. Runs type checking (`npm run check-types`)
+2. Runs linting (`npm run lint`)
+3. Executes all tests with coverage (`npm test`)
+4. **Enforces coverage thresholds** - pipeline fails if coverage drops below requirements
+5. Uploads coverage reports as artifacts
+6. Builds the extension package
+
 **Enjoy!**

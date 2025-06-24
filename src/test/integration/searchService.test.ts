@@ -3,11 +3,11 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { FileManager } from "@features/prompt-manager/data/fileManager";
-import { SearchService } from "@features/search/services/searchService";
-import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
-import { FileSystemManager } from "@infra/fs/FileSystemManager";
-import { ConfigurationService } from "@infra/config/config";
+import { FileManager } from "../../features/prompt-manager/data/fileManager";
+import { SearchService } from "../../features/search/services/searchService";
+import { SearchCriteria } from "../../features/search/ui/SearchPanelProvider";
+import { FileSystemManager } from "../../infrastructure/fs/FileSystemManager";
+import { ConfigurationService } from "../../infrastructure/config/config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
 
 suite("SearchService Tests", () => {
@@ -268,4 +268,4 @@ suite("SearchService Tests", () => {
     assert.strictEqual(results.length, 1);
     assert.strictEqual(results[0].file.title, "Folder Prompt");
   });
-}); 
+});

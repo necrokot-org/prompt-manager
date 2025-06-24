@@ -1,14 +1,14 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import * as sinon from "sinon";
-import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { PromptTreeProvider } from "../../features/prompt-manager/ui/tree/PromptTreeProvider";
 import {
   FileTreeItem,
   FolderTreeItem,
   EmptyStateTreeItem,
-} from "@features/prompt-manager/ui/tree/items";
-import { PromptFile } from "@features/prompt-manager/data/fileManager";
-import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+} from "../../features/prompt-manager/ui/tree/items";
+import { PromptFile } from "../../features/prompt-manager/data/fileManager";
+import { SearchCriteria } from "../../features/search/ui/SearchPanelProvider";
 
 suite("PromptTreeProvider", () => {
   let promptTreeProvider: PromptTreeProvider;
@@ -177,7 +177,7 @@ suite("PromptTreeProvider", () => {
 
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
-      
+
       // Mock matchesPrompt to return false for all prompts
       mockSearchService.matchesPrompt = () => Promise.resolve(false);
 
@@ -219,7 +219,10 @@ suite("PromptTreeProvider", () => {
       );
       assert.ok(dragData);
       // Updated to expect JSON format with path and type
-      assert.strictEqual(dragData.value, '{"path":"/test/test-prompt.md","type":"file"}');
+      assert.strictEqual(
+        dragData.value,
+        '{"path":"/test/test-prompt.md","type":"file"}'
+      );
     });
 
     test("should handle drag operation for folder items", async () => {
@@ -237,7 +240,10 @@ suite("PromptTreeProvider", () => {
       );
       // Updated to expect drag data for folders (now supported)
       assert.ok(dragData);
-      assert.strictEqual(dragData.value, '{"path":"/test/folder","type":"folder"}');
+      assert.strictEqual(
+        dragData.value,
+        '{"path":"/test/folder","type":"folder"}'
+      );
     });
   });
 
@@ -250,14 +256,18 @@ suite("PromptTreeProvider", () => {
     setup(() => {
       // Clean up any existing stubs
       sinon.restore();
-      
-      showErrorMessageStub = sinon.stub(vscode.window, "showErrorMessage").resolves();
-      showInformationMessageStub = sinon.stub(vscode.window, "showInformationMessage").resolves();
-      
+
+      showErrorMessageStub = sinon
+        .stub(vscode.window, "showErrorMessage")
+        .resolves();
+      showInformationMessageStub = sinon
+        .stub(vscode.window, "showInformationMessage")
+        .resolves();
+
       // Mock fs-extra pathExists
       const fsExtra = require("fs-extra");
       fsExtraStub = sinon.stub(fsExtra, "pathExists").resolves(false); // Default: no conflicts
-      
+
       // Reset file system manager mocks
       mockFileSystemManager.moveFile = sinon.stub().returns("not called");
       mockFileSystemManager.moveFolder = sinon.stub().returns("not called");
@@ -275,7 +285,7 @@ suite("PromptTreeProvider", () => {
       });
 
       const subfolderItem = new FolderTreeItem({
-        name: "Sub Folder", 
+        name: "Sub Folder",
         path: "/test/parent-folder/sub-folder",
         prompts: [],
       });
@@ -284,7 +294,9 @@ suite("PromptTreeProvider", () => {
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem('{"path":"/test/parent-folder","type":"folder"}')
+        new vscode.DataTransferItem(
+          '{"path":"/test/parent-folder","type":"folder"}'
+        )
       );
 
       // Set current drag state (simulating drag start)
@@ -296,7 +308,9 @@ suite("PromptTreeProvider", () => {
       // Verify error message was shown
       assert.ok(showErrorMessageStub.calledOnce, "Should show error message");
       assert.ok(
-        showErrorMessageStub.firstCall.args[0].includes("Cannot move folder into itself"),
+        showErrorMessageStub.firstCall.args[0].includes(
+          "Cannot move folder into itself"
+        ),
         "Error message should mention folder self-containment"
       );
     });
@@ -319,12 +333,16 @@ suite("PromptTreeProvider", () => {
       });
 
       // Mock pathExists to return true for the conflicting target path
-      fsExtraStub.withArgs("/test/target-folder/existing-prompt.md").resolves(true);
+      fsExtraStub
+        .withArgs("/test/target-folder/existing-prompt.md")
+        .resolves(true);
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem('{"path":"/test/existing-prompt.md","type":"file"}')
+        new vscode.DataTransferItem(
+          '{"path":"/test/existing-prompt.md","type":"file"}'
+        )
       );
 
       // Set current drag state
@@ -336,7 +354,9 @@ suite("PromptTreeProvider", () => {
       // Verify error message was shown for conflicting name
       assert.ok(showErrorMessageStub.calledOnce, "Should show error message");
       assert.ok(
-        showErrorMessageStub.firstCall.args[0].includes("target already exists"),
+        showErrorMessageStub.firstCall.args[0].includes(
+          "target already exists"
+        ),
         "Error message should mention target conflict"
       );
     });
@@ -355,7 +375,9 @@ suite("PromptTreeProvider", () => {
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem('{"path":"/test/test-prompt.md","type":"file"}')
+        new vscode.DataTransferItem(
+          '{"path":"/test/test-prompt.md","type":"file"}'
+        )
       );
 
       // Set current drag state
@@ -365,9 +387,19 @@ suite("PromptTreeProvider", () => {
       await promptTreeProvider.handleDrop(fileItem, dataTransfer);
 
       // Should return early without any messages or operations
-      assert.ok(showErrorMessageStub.notCalled, "Should not show error message");
-      assert.ok(showInformationMessageStub.notCalled, "Should not show success message");
-      assert.strictEqual(mockFileSystemManager.moveFile.callCount, 0, "Should not attempt file move");
+      assert.ok(
+        showErrorMessageStub.notCalled,
+        "Should not show error message"
+      );
+      assert.ok(
+        showInformationMessageStub.notCalled,
+        "Should not show success message"
+      );
+      assert.strictEqual(
+        mockFileSystemManager.moveFile.callCount,
+        0,
+        "Should not attempt file move"
+      );
     });
 
     test("should handle successful file move with immediate refresh", async () => {
@@ -394,7 +426,9 @@ suite("PromptTreeProvider", () => {
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem('{"path":"/test/source-prompt.md","type":"file"}')
+        new vscode.DataTransferItem(
+          '{"path":"/test/source-prompt.md","type":"file"}'
+        )
       );
 
       // Set current drag state
@@ -404,18 +438,33 @@ suite("PromptTreeProvider", () => {
       await promptTreeProvider.handleDrop(targetFolderItem, dataTransfer);
 
       // Verify move operation was called
-      assert.ok(mockFileSystemManager.moveFile.calledOnce, "Should call moveFile");
-      
+      assert.ok(
+        mockFileSystemManager.moveFile.calledOnce,
+        "Should call moveFile"
+      );
+
       // Use path.normalize for cross-platform compatibility
       const actualSourcePath = mockFileSystemManager.moveFile.firstCall.args[0];
       const actualTargetPath = mockFileSystemManager.moveFile.firstCall.args[1];
-      
-      assert.ok(actualSourcePath.includes("source-prompt.md"), "Should move from source file");
-      assert.ok(actualTargetPath.includes("target-folder"), "Should move to target folder");
-      assert.ok(actualTargetPath.includes("source-prompt.md"), "Should preserve filename");
+
+      assert.ok(
+        actualSourcePath.includes("source-prompt.md"),
+        "Should move from source file"
+      );
+      assert.ok(
+        actualTargetPath.includes("target-folder"),
+        "Should move to target folder"
+      );
+      assert.ok(
+        actualTargetPath.includes("source-prompt.md"),
+        "Should preserve filename"
+      );
 
       // Verify success message and refresh
-      assert.ok(showInformationMessageStub.calledOnce, "Should show success message");
+      assert.ok(
+        showInformationMessageStub.calledOnce,
+        "Should show success message"
+      );
       assert.ok(mockPromptController.refresh.calledOnce, "Should refresh tree");
     });
   });
@@ -425,8 +474,10 @@ suite("PromptTreeProvider", () => {
 
     setup(() => {
       sinon.restore();
-      showInformationMessageStub = sinon.stub(vscode.window, "showInformationMessage").resolves();
-      
+      showInformationMessageStub = sinon
+        .stub(vscode.window, "showInformationMessage")
+        .resolves();
+
       // Mock fs-extra pathExists to return false (no conflicts)
       const fsExtra = require("fs-extra");
       sinon.stub(fsExtra, "pathExists").resolves(false);
@@ -444,7 +495,7 @@ suite("PromptTreeProvider", () => {
       });
 
       const targetFolderItem = new FolderTreeItem({
-        name: "Target Folder", 
+        name: "Target Folder",
         path: "/test/target-folder",
         prompts: [],
       });
@@ -465,7 +516,9 @@ suite("PromptTreeProvider", () => {
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem('{"path":"/test/source-folder","type":"folder"}')
+        new vscode.DataTransferItem(
+          '{"path":"/test/source-folder","type":"folder"}'
+        )
       );
 
       // Set current drag state and drop
@@ -473,10 +526,19 @@ suite("PromptTreeProvider", () => {
       await promptTreeProvider.handleDrop(targetFolderItem, dataTransfer);
 
       // Verify immediate operations
-      assert.ok(mockFileSystemManager.moveFolder.calledOnce, "Should call moveFolder");
-      assert.ok(mockFileManager.clearContentCache.calledOnce, "Should clear content cache");
-      assert.ok(showInformationMessageStub.calledOnce, "Should show success message");
-      
+      assert.ok(
+        mockFileSystemManager.moveFolder.calledOnce,
+        "Should call moveFolder"
+      );
+      assert.ok(
+        mockFileManager.clearContentCache.calledOnce,
+        "Should clear content cache"
+      );
+      assert.ok(
+        showInformationMessageStub.calledOnce,
+        "Should show success message"
+      );
+
       // Note: The setTimeout-based forceRebuildIndex is tested at integration level
       // as it requires complex timing control that's difficult to test in unit tests
     });
@@ -484,19 +546,25 @@ suite("PromptTreeProvider", () => {
     test("should handle folder move failure gracefully", async () => {
       const sourceFolderItem = new FolderTreeItem({
         name: "Source Folder",
-        path: "/test/source-folder", 
+        path: "/test/source-folder",
         prompts: [],
       });
 
       // Mock failed folder move
-      mockFileSystemManager.moveFolder = sinon.stub().rejects(new Error("Move failed"));
-      
-      const showErrorStub = sinon.stub(vscode.window, "showErrorMessage").resolves();
+      mockFileSystemManager.moveFolder = sinon
+        .stub()
+        .rejects(new Error("Move failed"));
+
+      const showErrorStub = sinon
+        .stub(vscode.window, "showErrorMessage")
+        .resolves();
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem('{"path":"/test/source-folder","type":"folder"}')
+        new vscode.DataTransferItem(
+          '{"path":"/test/source-folder","type":"folder"}'
+        )
       );
 
       // Set current drag state and drop on root
@@ -504,9 +572,15 @@ suite("PromptTreeProvider", () => {
       await promptTreeProvider.handleDrop(undefined, dataTransfer);
 
       // Verify error handling
-      assert.ok(mockFileSystemManager.moveFolder.calledOnce, "Should attempt folder move");
+      assert.ok(
+        mockFileSystemManager.moveFolder.calledOnce,
+        "Should attempt folder move"
+      );
       assert.ok(showErrorStub.calledOnce, "Should show error message");
-      assert.ok(showInformationMessageStub.notCalled, "Should not show success message");
+      assert.ok(
+        showInformationMessageStub.notCalled,
+        "Should not show success message"
+      );
     });
   });
 });
