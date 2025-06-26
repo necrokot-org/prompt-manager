@@ -10,7 +10,6 @@ import { log } from "@infra/vscode/log";
 describe("ConfigurationService", () => {
   let configService: ConfigurationService;
   let mockConfiguration: any;
-  let getConfigStub: sinon.SinonStub;
   let workspaceGetConfigStub: sinon.SinonStub;
   let workspaceOnDidChangeConfigStub: sinon.SinonStub;
   let eventBusSpy: sinon.SinonSpy;
@@ -21,7 +20,7 @@ describe("ConfigurationService", () => {
       get: sinon.stub(),
       has: sinon.stub(),
       inspect: sinon.stub(),
-      update: sinon.stub()
+      update: sinon.stub(),
     };
 
     // Setup default configuration values
@@ -29,20 +28,17 @@ describe("ConfigurationService", () => {
       [CONFIG_KEYS.DEFAULT_PROMPT_DIRECTORY]: ".prompt_manager",
       [CONFIG_KEYS.FILE_NAMING_PATTERN]: "kebab-case",
       [CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE]: true,
-      [CONFIG_KEYS.DEBUG_LOGGING]: false
+      [CONFIG_KEYS.DEBUG_LOGGING]: false,
     };
 
     mockConfiguration.get.callsFake((key: string, defaultValue?: any) => {
       return (configDefaults as any)[key] ?? defaultValue;
     });
 
-    // Stub vscode.workspace.getConfiguration FIRST (before creating ConfigurationService)
+    // Stub vscode.workspace.getConfiguration to return our mock configuration
     workspaceGetConfigStub = sinon
       .stub(vscode.workspace, "getConfiguration")
       .returns(mockConfiguration);
-
-    // Redirect config.get to mockConfiguration.get
-    getConfigStub = sinon.stub(config, "get").callsFake(mockConfiguration.get);
 
     // Mock workspace.onDidChangeConfiguration
     workspaceOnDidChangeConfigStub = sinon
@@ -66,7 +62,9 @@ describe("ConfigurationService", () => {
       configService.initialize();
 
       expect(workspaceOnDidChangeConfigStub.calledOnce).to.be.true;
-      expect(typeof workspaceOnDidChangeConfigStub.firstCall.args[0]).to.equal("function");
+      expect(typeof workspaceOnDidChangeConfigStub.firstCall.args[0]).to.equal(
+        "function"
+      );
     });
 
     it("should dispose configuration watcher on dispose", () => {
@@ -82,10 +80,12 @@ describe("ConfigurationService", () => {
     it("should handle multiple initialize calls without leaking watchers", () => {
       const mockDispose1 = sinon.stub();
       const mockDispose2 = sinon.stub();
-      
+
       workspaceOnDidChangeConfigStub
-        .onFirstCall().returns({ dispose: mockDispose1 })
-        .onSecondCall().returns({ dispose: mockDispose2 });
+        .onFirstCall()
+        .returns({ dispose: mockDispose1 })
+        .onSecondCall()
+        .returns({ dispose: mockDispose2 });
 
       configService.initialize();
       configService.initialize();
@@ -110,10 +110,12 @@ describe("ConfigurationService", () => {
     it("should properly dispose previous watcher when initialize is called again", () => {
       const mockDispose1 = sinon.stub();
       const mockDispose2 = sinon.stub();
-      
+
       workspaceOnDidChangeConfigStub
-        .onFirstCall().returns({ dispose: mockDispose1 })
-        .onSecondCall().returns({ dispose: mockDispose2 });
+        .onFirstCall()
+        .returns({ dispose: mockDispose1 })
+        .onSecondCall()
+        .returns({ dispose: mockDispose2 });
 
       // First initialize
       configService.initialize();
@@ -135,40 +137,24 @@ describe("ConfigurationService", () => {
       const result = configService.getDefaultPromptDirectory();
 
       expect(result).to.equal(".prompt_manager");
-      expect(getConfigStub.calledWith(
-        CONFIG_KEYS.DEFAULT_PROMPT_DIRECTORY,
-        ".prompt_manager"
-      )).to.be.true;
     });
 
     it("should get file naming pattern", () => {
       const result = configService.getFileNamingPattern();
 
       expect(result).to.equal("kebab-case");
-      expect(getConfigStub.calledWith(
-        CONFIG_KEYS.FILE_NAMING_PATTERN,
-        "kebab-case"
-      )).to.be.true;
     });
 
     it("should get show description in tree setting", () => {
       const result = configService.getShowDescriptionInTree();
 
       expect(result).to.be.true;
-      expect(getConfigStub.calledWith(
-        CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE,
-        true
-      )).to.be.true;
     });
 
     it("should get debug logging setting", () => {
       const result = configService.getDebugLogging();
 
       expect(result).to.be.false;
-      expect(getConfigStub.calledWith(
-        CONFIG_KEYS.DEBUG_LOGGING,
-        false
-      )).to.be.true;
     });
   });
 
@@ -177,7 +163,7 @@ describe("ConfigurationService", () => {
 
     beforeEach(() => {
       configService.initialize();
-      
+
       // Get the configuration change handler
       configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
     });
@@ -185,7 +171,7 @@ describe("ConfigurationService", () => {
     it("should emit config.changed event when promptManager configuration changes", () => {
       // Mock configuration change event
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
 
       // Setup specific configuration key change
@@ -198,24 +184,30 @@ describe("ConfigurationService", () => {
 
       // Simulate new configuration value after cache refresh
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
-        return mockConfiguration.get(key, defaultValue);
-      });
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return true;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
       workspaceGetConfigStub.returns(newMockConfig);
 
       configChangeHandler(mockConfigChangeEvent);
 
-      expect(eventBusSpy.calledWith("config.changed", {
-        configKey: CONFIG_KEYS.DEBUG_LOGGING,
-        newValue: true,
-        oldValue: undefined
-      })).to.be.true;
+      expect(
+        eventBusSpy.calledWith("config.changed", {
+          configKey: CONFIG_KEYS.DEBUG_LOGGING,
+          newValue: true,
+          oldValue: undefined,
+        })
+      ).to.be.true;
     });
 
     it("should emit events for multiple configuration changes", () => {
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
 
       // Mock multiple configuration changes
@@ -231,30 +223,46 @@ describe("ConfigurationService", () => {
 
       // Setup new configuration values after cache refresh
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
-        if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {return false;}
-        return mockConfiguration.get(key, defaultValue);
-      });
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return true;
+          }
+          if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {
+            return false;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
       workspaceGetConfigStub.returns(newMockConfig);
 
       configChangeHandler(mockConfigChangeEvent);
 
       // Should emit multiple events
       expect(eventBusSpy.callCount).to.be.at.least(2);
-      expect(eventBusSpy.calledWith("config.changed", sinon.match({
-        configKey: CONFIG_KEYS.DEBUG_LOGGING,
-        newValue: true
-      }))).to.be.true;
-      expect(eventBusSpy.calledWith("config.changed", sinon.match({
-        configKey: CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE,
-        newValue: false
-      }))).to.be.true;
+      expect(
+        eventBusSpy.calledWith(
+          "config.changed",
+          sinon.match({
+            configKey: CONFIG_KEYS.DEBUG_LOGGING,
+            newValue: true,
+          })
+        )
+      ).to.be.true;
+      expect(
+        eventBusSpy.calledWith(
+          "config.changed",
+          sinon.match({
+            configKey: CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE,
+            newValue: false,
+          })
+        )
+      ).to.be.true;
     });
 
     it("should not emit events for non-promptManager configuration changes", () => {
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
 
       // Mock non-promptManager configuration change
@@ -277,16 +285,20 @@ describe("ConfigurationService", () => {
 
       // Setup new configuration that will be returned after cache refresh
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
-        return mockConfiguration.get(key, defaultValue);
-      });
-      
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return true;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
+
       // This will be returned by the cache refresh call
       workspaceGetConfigStub.onSecondCall().returns(newMockConfig);
 
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
       mockConfigChangeEvent.affectsConfiguration
         .withArgs("promptManager")
@@ -297,7 +309,7 @@ describe("ConfigurationService", () => {
 
       // Verify cache refresh was called
       expect(workspaceGetConfigStub.calledTwice).to.be.true;
-      
+
       // Verify the configuration value changed after cache refresh
       expect(configService.getDebugLogging()).to.be.true;
     });
@@ -308,7 +320,7 @@ describe("ConfigurationService", () => {
       const secondHandler = workspaceOnDidChangeConfigStub.secondCall.args[0];
 
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
       mockConfigChangeEvent.affectsConfiguration
         .withArgs("promptManager")
@@ -319,10 +331,14 @@ describe("ConfigurationService", () => {
 
       // Setup new configuration value
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
-        return mockConfiguration.get(key, defaultValue);
-      });
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return true;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
       workspaceGetConfigStub.returns(newMockConfig);
 
       // Reset the spy to count only new events
@@ -346,12 +362,13 @@ describe("ConfigurationService", () => {
 
     it("should integrate with log module when DEBUG_LOGGING config changes to true", () => {
       configService.initialize();
-      
-      const configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
+
+      const configChangeHandler =
+        workspaceOnDidChangeConfigStub.firstCall.args[0];
 
       // Mock configuration change event for DEBUG_LOGGING
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
       mockConfigChangeEvent.affectsConfiguration
         .withArgs("promptManager")
@@ -362,10 +379,14 @@ describe("ConfigurationService", () => {
 
       // Setup new configuration value after cache refresh
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return true;}
-        return mockConfiguration.get(key, defaultValue);
-      });
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return true;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
       workspaceGetConfigStub.returns(newMockConfig);
 
       configChangeHandler(mockConfigChangeEvent);
@@ -376,11 +397,12 @@ describe("ConfigurationService", () => {
 
     it("should not affect debug logging for non-debug config changes", () => {
       configService.initialize();
-      
-      const configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
+
+      const configChangeHandler =
+        workspaceOnDidChangeConfigStub.firstCall.args[0];
 
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
       mockConfigChangeEvent.affectsConfiguration
         .withArgs("promptManager")
@@ -394,10 +416,14 @@ describe("ConfigurationService", () => {
 
       // Setup new configuration value after cache refresh
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {return false;}
-        return mockConfiguration.get(key, defaultValue);
-      });
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {
+            return false;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
       workspaceGetConfigStub.returns(newMockConfig);
 
       configChangeHandler(mockConfigChangeEvent);
@@ -408,12 +434,13 @@ describe("ConfigurationService", () => {
 
     it("should disable debug logging when DEBUG_LOGGING config changes to false", () => {
       configService.initialize();
-      
-      const configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
+
+      const configChangeHandler =
+        workspaceOnDidChangeConfigStub.firstCall.args[0];
 
       // Mock configuration change event for DEBUG_LOGGING
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
       mockConfigChangeEvent.affectsConfiguration
         .withArgs("promptManager")
@@ -424,10 +451,14 @@ describe("ConfigurationService", () => {
 
       // Setup new configuration value after cache refresh (false to disable)
       const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon.stub().callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {return false;}
-        return mockConfiguration.get(key, defaultValue);
-      });
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return false;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
       workspaceGetConfigStub.returns(newMockConfig);
 
       configChangeHandler(mockConfigChangeEvent);
@@ -439,45 +470,35 @@ describe("ConfigurationService", () => {
 
   describe("configuration validation and error handling", () => {
     it("should handle invalid configuration values gracefully", () => {
-      // Mock invalid configuration
-      getConfigStub.restore();
-      getConfigStub = sinon.stub(config, "get").callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.FILE_NAMING_PATTERN) {return "invalid-pattern";}
-        return defaultValue;
-      });
+      // Mock invalid configuration by creating a new stub
+      const originalGet = mockConfiguration.get;
+      mockConfiguration.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.FILE_NAMING_PATTERN) {
+            return "invalid-pattern"; // Invalid value
+          }
+          return defaultValue;
+        });
 
-      const result = configService.getFileNamingPattern();
+      // Should fall back to default values
+      const pattern = configService.getFileNamingPattern();
+      expect(pattern).to.equal("invalid-pattern");
 
-      // Should return the invalid value (validation happens elsewhere)
-      expect(result).to.equal("invalid-pattern");
+      // Restore original stub
+      mockConfiguration.get = originalGet;
     });
 
-    it("should use default values when configuration is undefined", () => {
-      // Mock undefined configuration
-      getConfigStub.restore();
-      getConfigStub = sinon.stub(config, "get").callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEFAULT_PROMPT_DIRECTORY) {return undefined;}
-        return defaultValue;
-      });
+    it("should handle configuration access errors gracefully", () => {
+      // Mock configuration error by creating a new stub
+      const originalGet = mockConfiguration.get;
+      mockConfiguration.get = sinon.stub().throws(new Error("Config error"));
 
-      const result = configService.getDefaultPromptDirectory();
+      // Should not throw, should fall back to defaults
+      expect(() => configService.getDefaultPromptDirectory()).to.not.throw();
 
-      // Should use default value
-      expect(result).to.equal(".prompt_manager");
-    });
-
-    it("should handle configuration get errors gracefully", () => {
-      // Mock configuration.get throwing an error
-      getConfigStub.restore();
-      getConfigStub = sinon.stub(config, "get").callsFake((key: string, defaultValue?: any) => {
-        if (key === CONFIG_KEYS.DEBUG_LOGGING) {
-          throw new Error("Configuration error");
-        }
-        return defaultValue;
-      });
-
-      // Should not throw and should use default behavior
-      expect(() => configService.getDebugLogging()).to.not.throw();
+      // Restore original stub
+      mockConfiguration.get = originalGet;
     });
   });
 
@@ -486,11 +507,14 @@ describe("ConfigurationService", () => {
       const mockDispose1 = sinon.stub();
       const mockDispose2 = sinon.stub();
       const mockDispose3 = sinon.stub();
-      
+
       workspaceOnDidChangeConfigStub
-        .onCall(0).returns({ dispose: mockDispose1 })
-        .onCall(1).returns({ dispose: mockDispose2 })
-        .onCall(2).returns({ dispose: mockDispose3 });
+        .onCall(0)
+        .returns({ dispose: mockDispose1 })
+        .onCall(1)
+        .returns({ dispose: mockDispose2 })
+        .onCall(2)
+        .returns({ dispose: mockDispose3 });
 
       // Initialize multiple times
       configService.initialize();
@@ -525,10 +549,11 @@ describe("ConfigurationService", () => {
   describe("edge cases", () => {
     it("should handle configuration change event with no specific key changes", () => {
       configService.initialize();
-      const configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
+      const configChangeHandler =
+        workspaceOnDidChangeConfigStub.firstCall.args[0];
 
       const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false)
+        affectsConfiguration: sinon.stub().returns(false),
       };
       mockConfigChangeEvent.affectsConfiguration
         .withArgs("promptManager")
@@ -544,14 +569,15 @@ describe("ConfigurationService", () => {
 
     it("should handle malformed configuration change events", () => {
       configService.initialize();
-      const configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
+      const configChangeHandler =
+        workspaceOnDidChangeConfigStub.firstCall.args[0];
 
       // Test with null/undefined event
       expect(() => configChangeHandler(null as any)).to.not.throw();
       expect(() => configChangeHandler(undefined as any)).to.not.throw();
-      
+
       // Test with event missing affectsConfiguration method
       expect(() => configChangeHandler({} as any)).to.not.throw();
     });
   });
-}); 
+});

@@ -5,8 +5,8 @@ import * as fs from "fs";
 
 suite("Package.json Menu Visibility Test Suite", () => {
   test("askAiWithPrompt menu item should have environment-aware when clause", () => {
-    // Read package.json from the project root (go up from out/test/test to project root)
-    const packageJsonPath = path.join(__dirname, "../../../package.json");
+    // Read package.json from the project root (compiled tests are in out/test/test/, so go up 4 levels)
+    const packageJsonPath = path.join(__dirname, "../../../../package.json");
     assert.ok(fs.existsSync(packageJsonPath), "package.json should exist");
 
     const packageContent = fs.readFileSync(packageJsonPath, "utf8");
@@ -24,7 +24,11 @@ suite("Package.json Menu Visibility Test Suite", () => {
     assert.ok(askAiMenuItem, "askAiWithPrompt menu item should exist");
 
     // Verify the when clause includes environment awareness
-    assert.match(askAiMenuItem.when, /promptManager\.isVSCode/, "Menu item should have environment-aware when clause");
+    assert.match(
+      askAiMenuItem.when,
+      /promptManager\.isVSCode/,
+      "Menu item should have environment-aware when clause"
+    );
 
     // Verify it's in the inline group
     assert.strictEqual(
@@ -35,7 +39,7 @@ suite("Package.json Menu Visibility Test Suite", () => {
   });
 
   test("package.json should have valid JSON structure", () => {
-    const packageJsonPath = path.join(__dirname, "../../../package.json");
+    const packageJsonPath = path.join(__dirname, "../../../../package.json");
     const packageContent = fs.readFileSync(packageJsonPath, "utf8");
 
     // This will throw if JSON is invalid

@@ -98,6 +98,32 @@ export class SearchEngine {
     for (const fuseResult of fuseResults) {
       const item = fuseResult.item;
       const score = this.convertFuseScore(fuseResult.score || 0);
+
+      // For exact matches, be very strict about what we accept
+      if (criteria.exact) {
+        // Only accept perfect matches (score must be 1.0 or very close)
+        if (score < 0.99) {
+          continue;
+        }
+
+        // Additional check: ensure the query appears as exact text in searchable fields
+        const searchText = this.getSearchableText(item, criteria.scope);
+        const queryToCheck = criteria.caseSensitive
+          ? criteria.query
+          : criteria.query.toLowerCase();
+        const textToCheck = criteria.caseSensitive
+          ? searchText
+          : searchText.toLowerCase();
+
+        // Check for exact word matches (not just substring)
+        const wordBoundaryRegex = new RegExp(
+          `\\b${this.escapeRegExp(queryToCheck)}\\b`
+        );
+        if (!wordBoundaryRegex.test(textToCheck)) {
+          continue;
+        }
+      }
+
       const matches = this.extractMatches(fuseResult, criteria.query);
       const snippet = this.createSnippet(matches);
 
@@ -281,10 +307,7 @@ export class SearchEngine {
   ): Array<{ name: string; weight: number }> {
     switch (scope) {
       case "titles":
-        return [
-          { name: "parsed.title", weight: 0.6 },
-          { name: "parsed.description", weight: 0.4 },
-        ];
+        return [{ name: "parsed.title", weight: 1.0 }];
       case "content":
         return [
           { name: "parsed.content", weight: 0.7 },
@@ -307,8 +330,8 @@ export class SearchEngine {
 
   private convertFuseScore(fuseScore: number): number {
     // Fuse scores are 0-1 where 0 is perfect match, 1 is no match
-    // Convert to our scoring system where higher is better
-    return Math.round((1 - fuseScore) * 100);
+    // Convert to our scoring system where higher is better (0-1 range)
+    return Math.max(0, Math.min(1, 1 - fuseScore));
   }
 
   private extractMatches(
@@ -372,8 +395,17 @@ export class SearchEngine {
     length: number,
     contextSize: number
   ): string {
-    const start = Math.max(0, position - contextSize);
-    const end = Math.min(text.length, position + length + contextSize);
+    // Ensure we capture the full matched word and surrounding context
+    let start = Math.max(0, position - contextSize);
+    let end = Math.min(text.length, position + length + contextSize);
+
+    // Extend to word boundaries to avoid cutting off words
+    while (start > 0 && /\w/.test(text[start - 1])) {
+      start--;
+    }
+    while (end < text.length && /\w/.test(text[end])) {
+      end++;
+    }
 
     let context = text.substring(start, end);
 
@@ -385,7 +417,7 @@ export class SearchEngine {
       context = context + "...";
     }
 
-    return context;
+    return context.trim();
   }
 
   private createSnippet(matches: SearchMatch[]): string {
@@ -420,5 +452,33 @@ export class SearchEngine {
 
   private getFileNameFromPath(filePath: string): string {
     return filePath.split("/").pop() || filePath;
+  }
+
+  private getSearchableText(
+    item: SearchableContent,
+    scope: SearchCriteria["scope"]
+  ): string {
+    switch (scope) {
+      case "titles":
+        return item.parsed.title; // Only search titles, not description
+      case "content":
+        return item.parsed.content + " " + item.parsed.tags.join(" ");
+      case "both":
+        return (
+          item.parsed.title +
+          " " +
+          item.parsed.description +
+          " " +
+          item.parsed.content +
+          " " +
+          item.parsed.tags.join(" ")
+        );
+      default:
+        return "";
+    }
+  }
+
+  private escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }

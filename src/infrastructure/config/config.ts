@@ -109,13 +109,13 @@ export class ConfigurationService {
    * Handle configuration changes and publish appropriate events
    */
   private handleConfigurationChange(e: vscode.ConfigurationChangeEvent): void {
-    // Refresh the configuration cache
-    Object.assign(config, vscode.workspace.getConfiguration("promptManager"));
+    // Get fresh configuration values directly (no need to update the config object)
+    const freshConfig = vscode.workspace.getConfiguration("promptManager");
 
     // Check which specific settings changed and publish events
     for (const [key, configKey] of Object.entries(CONFIG_KEYS)) {
       if (e.affectsConfiguration(`promptManager.${configKey}`)) {
-        const newValue = config.get(configKey);
+        const newValue = freshConfig.get(configKey);
 
         eventBus.emit("config.changed", {
           configKey,

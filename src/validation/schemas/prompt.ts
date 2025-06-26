@@ -145,9 +145,15 @@ export function parsePromptContentSync(
     }
   }
 
-  // If no title from front matter, use filename fallback
-  if (!promptData.title && fileName) {
-    promptData.title = fileName.replace(/-/g, " ");
+  // If no title from front matter, try to extract from first heading
+  if (!promptData.title) {
+    const headingMatch = body.match(/^#\s+(.+)$/m);
+    if (headingMatch && headingMatch[1]) {
+      promptData.title = headingMatch[1].trim();
+    } else if (fileName) {
+      // Fall back to filename conversion
+      promptData.title = fileName.replace(/-/g, " ");
+    }
   }
 
   // Validate using relaxed schema (size + frontmatter only)
