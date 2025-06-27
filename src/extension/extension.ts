@@ -101,26 +101,28 @@ async function initializeExtension(
   );
 
   // Set environment context keys for VS Code 'when' clauses
-  await vscode.commands.executeCommand(
-    "setContext",
-    "promptManager.isCursor",
-    environmentDetector.isCursor()
-  );
-  await vscode.commands.executeCommand(
-    "setContext",
-    "promptManager.isWindserf",
-    environmentDetector.isWindserf()
-  );
-  await vscode.commands.executeCommand(
-    "setContext",
-    "promptManager.isVSCode",
-    environmentDetector.isVSCode()
-  );
-  await vscode.commands.executeCommand(
-    "setContext",
-    "promptManager.isUnknown",
-    environmentDetector.isUnknown()
-  );
+  await Promise.all([
+    vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.isCursor",
+      environmentDetector.isCursor()
+    ),
+    vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.isWindserf",
+      environmentDetector.isWindserf()
+    ),
+    vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.isVSCode",
+      environmentDetector.isVSCode()
+    ),
+    vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.isUnknown",
+      environmentDetector.isUnknown()
+    ),
+  ]);
 
   const detectedEnv = environmentDetector.getEnvironment();
   log.info(`Environment detected: ${detectedEnv}`);

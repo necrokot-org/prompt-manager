@@ -33,28 +33,39 @@ export class FilesystemWalker {
       ext.startsWith(".") ? `**/*${ext}` : `**/*.${ext}`
     );
 
-    const ignore = ["**/README.md", ...excludePatterns];
+    // Build ignore patterns - include standard ignores plus user-provided excludePatterns
+    const ignore = [
+      "**/README.md",
+      ...excludePatterns,
+      // Handle hidden files if not including them
+      ...(includeHidden ? [] : [".*", "**/.*"]),
+    ];
 
-    const entries = await fg(patterns, {
-      cwd: dirPath,
-      dot: includeHidden,
-      deep: maxDepth,
-      ignore,
-      onlyFiles: true,
-      absolute: false,
-    });
+    try {
+      const entries = await fg(patterns, {
+        cwd: dirPath,
+        dot: includeHidden,
+        deep: maxDepth,
+        ignore,
+        onlyFiles: true,
+        absolute: false,
+      });
 
-    const promptFiles: PromptFile[] = [];
+      const promptFiles: PromptFile[] = [];
 
-    for (const relativePath of entries) {
-      const fullPath = path.join(dirPath, relativePath);
-      const promptFile = await this.parsePromptFile(fullPath);
-      if (promptFile) {
-        promptFiles.push(promptFile);
+      for (const relativePath of entries) {
+        const fullPath = path.join(dirPath, relativePath);
+        const promptFile = await this.parsePromptFile(fullPath);
+        if (promptFile) {
+          promptFiles.push(promptFile);
+        }
       }
-    }
 
-    return promptFiles;
+      return promptFiles;
+    } catch (error) {
+      log.error("FilesystemWalker: Failed to scan directory", error);
+      return [];
+    }
   }
 
   private async parsePromptFile(filePath: string): Promise<PromptFile | null> {
