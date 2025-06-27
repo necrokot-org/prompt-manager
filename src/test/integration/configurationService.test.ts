@@ -3,7 +3,6 @@ import { expect } from "chai";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
 import { ConfigurationService, CONFIG_KEYS } from "@infra/config/config";
-import { config } from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
 

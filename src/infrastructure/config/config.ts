@@ -11,9 +11,6 @@ import { log } from "@infra/vscode/log";
  * Now integrated with the centralized event system and dependency injection.
  */
 
-// Get the base configuration object
-export const config = vscode.workspace.getConfiguration("promptManager");
-
 /**
  * Configuration keys - used internally for type safety
  */
@@ -51,6 +48,13 @@ export class ConfigurationService {
   private configWatcher?: vscode.Disposable;
 
   /**
+   * Get the VS Code configuration object for prompt manager
+   */
+  private getConfig(): vscode.WorkspaceConfiguration {
+    return vscode.workspace.getConfiguration("promptManager");
+  }
+
+  /**
    * Initialize the configuration service and start watching for changes
    */
   public initialize(): void {
@@ -61,7 +65,7 @@ export class ConfigurationService {
    * Get the default prompt directory name
    */
   public getDefaultPromptDirectory(): string {
-    return config.get<string>(
+    return this.getConfig().get<string>(
       CONFIG_KEYS.DEFAULT_PROMPT_DIRECTORY,
       EXTENSION_CONSTANTS.DEFAULT_DIRECTORY
     );
@@ -71,7 +75,7 @@ export class ConfigurationService {
    * Get the file naming pattern for prompt files
    */
   public getFileNamingPattern(): FileNamingPattern {
-    return config.get<string>(
+    return this.getConfig().get<string>(
       CONFIG_KEYS.FILE_NAMING_PATTERN,
       EXTENSION_CONSTANTS.DEFAULT_NAMING_PATTERN
     ) as FileNamingPattern;
@@ -81,14 +85,17 @@ export class ConfigurationService {
    * Get whether to show descriptions in the tree view
    */
   public getShowDescriptionInTree(): boolean {
-    return config.get<boolean>(CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE, true);
+    return this.getConfig().get<boolean>(
+      CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE,
+      true
+    );
   }
 
   /**
    * Get whether verbose debug logging is enabled
    */
   public getDebugLogging(): boolean {
-    return config.get<boolean>(CONFIG_KEYS.DEBUG_LOGGING, false);
+    return this.getConfig().get<boolean>(CONFIG_KEYS.DEBUG_LOGGING, false);
   }
 
   /**
@@ -110,7 +117,7 @@ export class ConfigurationService {
    */
   private handleConfigurationChange(e: vscode.ConfigurationChangeEvent): void {
     // Get fresh configuration values directly (no need to update the config object)
-    const freshConfig = vscode.workspace.getConfiguration("promptManager");
+    const freshConfig = this.getConfig();
 
     // Check which specific settings changed and publish events
     for (const [key, configKey] of Object.entries(CONFIG_KEYS)) {
