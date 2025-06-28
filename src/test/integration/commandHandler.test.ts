@@ -70,6 +70,7 @@ describe("CommandHandler", () => {
         "promptManager.openDirectory",
         "promptManager.addPromptToFolder",
         "promptManager.copyPromptContent",
+        "promptManager.copyPromptWithMeta",
         "promptManager.askAiWithPrompt",
       ];
 
@@ -77,8 +78,8 @@ describe("CommandHandler", () => {
         expect(vscodeStubs.commands.calledWith(commandId)).to.be.true;
       });
 
-      // Should register 9 commands total
-      expect(vscodeStubs.commands.callCount).to.equal(9);
+      // Should register 10 commands total
+      expect(vscodeStubs.commands.callCount).to.equal(10);
     });
 
     it("should add all commands to extension subscriptions", () => {
@@ -89,7 +90,7 @@ describe("CommandHandler", () => {
       commandHandler.registerCommands();
 
       // All commands should be added to subscriptions for cleanup
-      expect(mockContext.subscriptions).to.have.lengthOf(9);
+      expect(mockContext.subscriptions).to.have.lengthOf(10);
       expect(mockContext.subscriptions.every((sub) => sub === mockDisposable))
         .to.be.true;
     });
@@ -439,7 +440,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
       expect(
         vscodeStubs.window.showInformationMessage.calledWith(
-          'Copied content from "Test Prompt"'
+          'Copied content from "Test Prompt" (without meta)'
         )
       ).to.be.true;
     });
@@ -497,6 +498,105 @@ describe("CommandHandler", () => {
       expect(
         vscodeStubs.window.showErrorMessage.calledWith(
           "Failed to copy prompt content: Error: Copy failed"
+        )
+      ).to.be.true;
+    });
+  });
+
+  describe("copyPromptWithMeta command", () => {
+    let mockFileTreeItem: FileTreeItem;
+
+    beforeEach(() => {
+      const mockPromptFile: PromptFile = {
+        name: "prompt.md",
+        path: "/test/prompt.md",
+        title: "Test Prompt",
+        description: "",
+        tags: [],
+        fileSize: 100,
+        isDirectory: false,
+      };
+
+      mockFileTreeItem = new FileTreeItem(mockPromptFile);
+    });
+
+    it("should copy content with meta and show success message", async () => {
+      commandHandler.registerCommands();
+
+      const copyHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.copyPromptWithMeta")
+        ?.args[1];
+
+      mockPromptController.copyPromptWithMetaToClipboard.resolves(true);
+
+      await copyHandler(mockFileTreeItem);
+
+      expect(
+        mockPromptController.copyPromptWithMetaToClipboard.calledWith(
+          "/test/prompt.md"
+        )
+      ).to.be.true;
+      expect(
+        vscodeStubs.window.showInformationMessage.calledWith(
+          'Copied content from "Test Prompt" (with meta)'
+        )
+      ).to.be.true;
+    });
+
+    it("should not show message when copy returns false", async () => {
+      commandHandler.registerCommands();
+
+      const copyHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.copyPromptWithMeta")
+        ?.args[1];
+
+      mockPromptController.copyPromptWithMetaToClipboard.resolves(false);
+
+      await copyHandler(mockFileTreeItem);
+
+      expect(
+        mockPromptController.copyPromptWithMetaToClipboard.calledWith(
+          "/test/prompt.md"
+        )
+      ).to.be.true;
+      expect(vscodeStubs.window.showInformationMessage.called).to.be.false;
+    });
+
+    it("should show error when no item provided", async () => {
+      commandHandler.registerCommands();
+
+      const copyHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.copyPromptWithMeta")
+        ?.args[1];
+
+      await copyHandler(); // No item provided
+
+      expect(
+        vscodeStubs.window.showErrorMessage.calledWith(
+          "No prompt selected for copying"
+        )
+      ).to.be.true;
+    });
+
+    it("should show error message when copy fails", async () => {
+      commandHandler.registerCommands();
+
+      const copyHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.copyPromptWithMeta")
+        ?.args[1];
+
+      const error = new Error("Copy failed");
+      mockPromptController.copyPromptWithMetaToClipboard.rejects(error);
+
+      await copyHandler(mockFileTreeItem);
+
+      expect(
+        vscodeStubs.window.showErrorMessage.calledWith(
+          "Failed to copy prompt with meta: Error: Copy failed"
         )
       ).to.be.true;
     });
