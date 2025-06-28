@@ -4,7 +4,6 @@ import * as sinon from "sinon";
 import * as vscode from "vscode";
 import { ConfigurationService, CONFIG_KEYS } from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
-import { log } from "@infra/vscode/log";
 
 describe("ConfigurationService", () => {
   let configService: ConfigurationService;
@@ -355,14 +354,43 @@ describe("ConfigurationService", () => {
   });
 
   describe("debug logging integration", () => {
-    let logDebugStub: sinon.SinonStub;
+    it("should allow log module to read DEBUG_LOGGING config via getter", () => {
+      // Setup configuration with debug logging enabled
+      const newMockConfig = { ...mockConfiguration };
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return true;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
+      workspaceGetConfigStub.returns(newMockConfig);
 
-    beforeEach(() => {
-      // Mock the log module to verify debug logging integration
-      logDebugStub = sinon.stub(log, "debug");
+      // Verify the configuration service can read the debug logging setting
+      const debugEnabled = configService.getDebugLogging();
+      expect(debugEnabled).to.be.true;
     });
 
-    it("should integrate with log module when DEBUG_LOGGING config changes to true", () => {
+    it("should handle debug logging config disabled", () => {
+      // Setup configuration with debug logging disabled
+      const newMockConfig = { ...mockConfiguration };
+      newMockConfig.get = sinon
+        .stub()
+        .callsFake((key: string, defaultValue?: any) => {
+          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
+            return false;
+          }
+          return mockConfiguration.get(key, defaultValue);
+        });
+      workspaceGetConfigStub.returns(newMockConfig);
+
+      // Verify the configuration service can read the debug logging setting
+      const debugEnabled = configService.getDebugLogging();
+      expect(debugEnabled).to.be.false;
+    });
+
+    it("should emit config change events for debug logging changes", () => {
       configService.initialize();
 
       const configChangeHandler =
@@ -393,80 +421,14 @@ describe("ConfigurationService", () => {
 
       configChangeHandler(mockConfigChangeEvent);
 
-      // Verify debug logging was enabled in log module
-      expect(logDebugStub.calledWith(true)).to.be.true;
-    });
-
-    it("should not affect debug logging for non-debug config changes", () => {
-      configService.initialize();
-
-      const configChangeHandler =
-        workspaceOnDidChangeConfigStub.firstCall.args[0];
-
-      const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false),
-      };
-      mockConfigChangeEvent.affectsConfiguration
-        .withArgs("promptManager")
-        .returns(true);
-      mockConfigChangeEvent.affectsConfiguration
-        .withArgs(`promptManager.${CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE}`)
-        .returns(true);
-      mockConfigChangeEvent.affectsConfiguration
-        .withArgs(`promptManager.${CONFIG_KEYS.DEBUG_LOGGING}`)
-        .returns(false);
-
-      // Setup new configuration value after cache refresh
-      const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon
-        .stub()
-        .callsFake((key: string, defaultValue?: any) => {
-          if (key === CONFIG_KEYS.SHOW_DESCRIPTION_IN_TREE) {
-            return false;
-          }
-          return mockConfiguration.get(key, defaultValue);
-        });
-      workspaceGetConfigStub.returns(newMockConfig);
-
-      configChangeHandler(mockConfigChangeEvent);
-
-      // Debug logging should not be affected
-      expect(logDebugStub.called).to.be.false;
-    });
-
-    it("should disable debug logging when DEBUG_LOGGING config changes to false", () => {
-      configService.initialize();
-
-      const configChangeHandler =
-        workspaceOnDidChangeConfigStub.firstCall.args[0];
-
-      // Mock configuration change event for DEBUG_LOGGING
-      const mockConfigChangeEvent = {
-        affectsConfiguration: sinon.stub().returns(false),
-      };
-      mockConfigChangeEvent.affectsConfiguration
-        .withArgs("promptManager")
-        .returns(true);
-      mockConfigChangeEvent.affectsConfiguration
-        .withArgs(`promptManager.${CONFIG_KEYS.DEBUG_LOGGING}`)
-        .returns(true);
-
-      // Setup new configuration value after cache refresh (false to disable)
-      const newMockConfig = { ...mockConfiguration };
-      newMockConfig.get = sinon
-        .stub()
-        .callsFake((key: string, defaultValue?: any) => {
-          if (key === CONFIG_KEYS.DEBUG_LOGGING) {
-            return false;
-          }
-          return mockConfiguration.get(key, defaultValue);
-        });
-      workspaceGetConfigStub.returns(newMockConfig);
-
-      configChangeHandler(mockConfigChangeEvent);
-
-      // Verify debug logging was disabled in log module
-      expect(logDebugStub.calledWith(false)).to.be.true;
+      // Verify config change event was emitted (log module will read config when needed)
+      expect(
+        eventBusSpy.calledWith("config.changed", {
+          configKey: CONFIG_KEYS.DEBUG_LOGGING,
+          newValue: true,
+          oldValue: undefined,
+        })
+      ).to.be.true;
     });
   });
 

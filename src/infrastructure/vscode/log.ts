@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 
-import { eventBus } from "@infra/vscode/ExtensionBus";
 import { CONFIG_KEYS } from "@infra/config/config";
 
 // Singleton OutputChannel for the entire extension. In unit-test environments
@@ -20,9 +19,6 @@ const outputChannel: vscode.OutputChannel & {
         show: () => {},
       } as unknown as vscode.OutputChannel);
 
-// Track whether verbose debug logging is enabled via user settings
-let debugEnabled: boolean = false;
-
 /**
  * Get current debug logging status from VS Code configuration
  */
@@ -32,16 +28,9 @@ function getDebugEnabled(): boolean {
     return config.get<boolean>(CONFIG_KEYS.DEBUG_LOGGING, false);
   } catch {
     // Fallback if VS Code API is not available (e.g., during tests)
-    return debugEnabled;
+    return true;
   }
 }
-
-// Update debug flag when configuration changes
-eventBus.on("config.changed", ({ configKey, newValue }) => {
-  if (configKey === CONFIG_KEYS.DEBUG_LOGGING) {
-    debugEnabled = Boolean(newValue);
-  }
-});
 
 /**
  * Format a log entry with ISO timestamp and level prefix
