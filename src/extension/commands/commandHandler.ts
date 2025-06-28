@@ -49,6 +49,10 @@ export class CommandHandler {
         (item: PromptTreeItem) => this.copyPromptContent(item)
       ),
       vscode.commands.registerCommand(
+        "promptManager.copyPromptWithMeta",
+        (item: PromptTreeItem) => this.copyPromptWithMeta(item)
+      ),
+      vscode.commands.registerCommand(
         "promptManager.askAiWithPrompt",
         (item: PromptTreeItem) => this.askAiWithPrompt(item)
       ),
@@ -173,11 +177,33 @@ export class CommandHandler {
       );
       if (success) {
         vscode.window.showInformationMessage(
-          `Copied content from "${item.promptFile.title}"`
+          `Copied content from "${item.promptFile.title}" (without meta)`
         );
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to copy prompt content: ${error}`);
+    }
+  }
+
+  private async copyPromptWithMeta(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item || !(item instanceof FileTreeItem)) {
+        vscode.window.showErrorMessage("No prompt selected for copying");
+        return;
+      }
+
+      const success = await this.promptController.copyPromptWithMetaToClipboard(
+        item.promptFile.path
+      );
+      if (success) {
+        vscode.window.showInformationMessage(
+          `Copied content from "${item.promptFile.title}" (with meta)`
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to copy prompt with meta: ${error}`
+      );
     }
   }
 
