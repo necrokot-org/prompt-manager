@@ -129,11 +129,6 @@ export class ConfigurationService {
           newValue,
           oldValue: undefined,
         });
-
-        // Handle debug logging integration
-        if (configKey === CONFIG_KEYS.DEBUG_LOGGING) {
-          log.debug(newValue as boolean);
-        }
       }
     }
   }
