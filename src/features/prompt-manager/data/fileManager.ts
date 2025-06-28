@@ -90,12 +90,12 @@ export class FileManager {
     await this.directoryScanner.buildIndex();
   }
 
-  public invalidateIndex(): void {
-    this.directoryScanner.invalidateIndex();
+  public async rebuildIndex(): Promise<void> {
+    await this.directoryScanner.rebuildIndex();
   }
 
-  public async forceRebuildIndex(): Promise<void> {
-    await this.directoryScanner.forceRebuildIndex();
+  public async rebuildIndexForce(): Promise<void> {
+    await this.directoryScanner.rebuildIndexForce();
   }
 
   public async scanPrompts(): Promise<PromptStructure> {

@@ -70,7 +70,12 @@ export class PromptRepository {
    */
   private handleFileCreated(uri: vscode.Uri): void {
     log.debug("PromptRepository: File created, invalidating index");
-    this.invalidateCache();
+    this.invalidateCache().catch((error) => {
+      log.error(
+        "PromptRepository: Failed to invalidate cache on file creation",
+        error
+      );
+    });
   }
 
   /**
@@ -78,7 +83,12 @@ export class PromptRepository {
    */
   private handleFileDeleted(uri: vscode.Uri): void {
     log.debug("PromptRepository: File deleted, invalidating index");
-    this.invalidateCache();
+    this.invalidateCache().catch((error) => {
+      log.error(
+        "PromptRepository: Failed to invalidate cache on file deletion",
+        error
+      );
+    });
   }
 
   /**
@@ -86,14 +96,14 @@ export class PromptRepository {
    */
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
     // File change handling without timestamp updates
-    this.invalidateCache();
+    await this.invalidateCache();
   }
 
   /**
    * Invalidate cache and notify listeners of structure changes
    */
-  private invalidateCache(): void {
-    this.fileManager.invalidateIndex();
+  private async invalidateCache(): Promise<void> {
+    await this.fileManager.rebuildIndex();
   }
 
   /**
@@ -115,7 +125,7 @@ export class PromptRepository {
       targetFolderPath
     );
     if (filePath) {
-      this.invalidateCache();
+      await this.invalidateCache();
     }
     return filePath;
   }
@@ -126,7 +136,7 @@ export class PromptRepository {
   public async createFolder(folderName: string): Promise<string | null> {
     const folderPath = await this.fileManager.createFolder(folderName);
     if (folderPath) {
-      this.invalidateCache();
+      await this.invalidateCache();
     }
     return folderPath;
   }
@@ -137,7 +147,7 @@ export class PromptRepository {
   public async deletePromptFile(filePath: string): Promise<boolean> {
     const success = await this.fileManager.deletePromptFile(filePath);
     if (success) {
-      this.invalidateCache();
+      await this.invalidateCache();
     }
     return success;
   }

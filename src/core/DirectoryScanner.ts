@@ -4,7 +4,7 @@ import { eventBus } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
 import { FilesystemWalker } from "../scanner/FilesystemWalker";
 import { PromptOrganizer } from "../scanner/PromptOrganizer";
-import { IndexCache } from "../scanner/IndexCache";
+import { IndexManager } from "../scanner/IndexManager";
 import {
   PromptFile,
   PromptFolder,
@@ -24,44 +24,37 @@ export type {
  * filesystem, organising prompts and caching the resulting structure to
  * focused collaborators.
  *
- *  – FilesystemWalker: converts prompt files on disk to PromptFile objects
- *  – PromptOrganizer: groups PromptFile objects into folders / root prompts
- *  – IndexCache: keeps a debounced, in-memory copy of the PromptStructure
+ *  – IndexManager: encapsulates all cache operations and index building logic
+ *  – FilesystemWalker: converts prompt files on disk to PromptFile objects (via IndexManager)
+ *  – PromptOrganizer: groups PromptFile objects into folders / root prompts (via IndexManager)
  */
 export class DirectoryScanner {
   private walker: FilesystemWalker;
   private organizer: PromptOrganizer;
-  private cache: IndexCache;
-  private indexBuildPromise: Promise<void> | null = null;
+  private indexManager: IndexManager;
 
   constructor(private fileSystemManager: FileSystemManager) {
     this.walker = new FilesystemWalker(fileSystemManager);
     this.organizer = new PromptOrganizer(fileSystemManager);
-    this.cache = new IndexCache();
+    this.indexManager = new IndexManager(
+      fileSystemManager,
+      this.walker,
+      this.organizer
+    );
   }
 
   /**
    * Force a rebuild of the cached index immediately.
    */
   public async buildIndex(): Promise<void> {
-    // Prevent concurrent builds
-    if (this.indexBuildPromise) {
-      return this.indexBuildPromise;
-    }
-
-    this.indexBuildPromise = this.performIndexBuild();
-    await this.indexBuildPromise;
-    this.indexBuildPromise = null;
+    return this.indexManager.buildIndex();
   }
 
   /**
    * Get the current PromptStructure from cache, rebuilding if necessary.
    */
   public async scanPrompts(): Promise<PromptStructure> {
-    if (!this.cache.isValid()) {
-      await this.buildIndex();
-    }
-    return this.cache.get() || { folders: [], rootPrompts: [] };
+    return this.indexManager.getStructure();
   }
 
   /**
@@ -106,24 +99,21 @@ export class DirectoryScanner {
   }
 
   /**
-   * Invalidate the current cache and schedule a debounced rebuild.
+   * Rebuild the index with debounced cache invalidation.
+   * Combines cache invalidation, index building, and UI refresh into a single atomic operation.
    * A ui.tree.refresh.requested event will be emitted once finished.
    */
-  public async invalidateIndex(): Promise<void> {
-    await this.cache.invalidate();
-    await this.buildIndex();
-    eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
+  public async rebuildIndex(): Promise<void> {
+    return this.indexManager.rebuildIndex();
   }
 
   /**
-   * Force immediate cache clear and index rebuild (bypasses debouncing).
+   * Force immediate index rebuild (bypasses debouncing).
+   * Combines cache invalidation, index building, and UI refresh into a single atomic operation.
    * Use this for operations like folder moves that require immediate refresh.
    */
-  public async forceRebuildIndex(): Promise<void> {
-    await this.cache.forceInvalidate();
-    // Immediately rebuild the index
-    await this.buildIndex();
-    eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
+  public async rebuildIndexForce(): Promise<void> {
+    return this.indexManager.rebuildIndexForce();
   }
 
   /**
@@ -162,29 +152,5 @@ export class DirectoryScanner {
     }
 
     return stats;
-  }
-
-  // Internal helpers
-  private async performIndexBuild(): Promise<void> {
-    log.debug("DirectoryScanner: Building in-memory index ...");
-    const promptRoot = this.fileSystemManager.getPromptManagerPath();
-
-    if (!promptRoot || !this.fileSystemManager.fileExists(promptRoot)) {
-      this.cache.set({ folders: [], rootPrompts: [] });
-      return;
-    }
-
-    try {
-      const promptFiles = await this.walker.scanDirectory(promptRoot);
-      const structure = await this.organizer.organize(promptFiles, promptRoot);
-      this.cache.set(structure);
-
-      log.debug(
-        `DirectoryScanner: Index built – ${structure.folders.length} folders, ${structure.rootPrompts.length} root prompts`
-      );
-    } catch (error) {
-      log.error("DirectoryScanner: Failed to build index", error);
-      this.cache.set({ folders: [], rootPrompts: [] });
-    }
   }
 }

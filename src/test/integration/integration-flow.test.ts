@@ -32,13 +32,13 @@ suite("Integration Flow Tests", () => {
 
     // Ensure prompt manager directory exists and build initial index
     await fileManager.ensurePromptManagerDirectory();
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
   });
 
   setup(async () => {
     // Set up stubs for each test (skip clipboard stub as it's non-configurable)
     showErrorStub = sinon.stub(vscode.window, "showErrorMessage").resolves();
-    
+
     // Mock clipboard functionality instead of stubbing the non-configurable property
     const originalWriteText = vscode.env.clipboard.writeText;
     clipboardStub = sinon.stub().resolves();
@@ -46,12 +46,12 @@ suite("Integration Flow Tests", () => {
 
     // Clear search cache before each test
     searchService.clearCache();
-    
+
     // Force rebuild index to ensure clean state
-    await fileManager.forceRebuildIndex();
-    
+    await fileManager.rebuildIndexForce();
+
     // Small delay to ensure operations complete
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
 
   teardown(async () => {
@@ -59,8 +59,8 @@ suite("Integration Flow Tests", () => {
     const structure = await fileManager.scanPrompts();
     const testFiles = [
       ...structure.rootPrompts,
-      ...structure.folders.flatMap(f => f.prompts)
-    ].filter(f => f.name.includes("test") || f.name.includes("integration"));
+      ...structure.folders.flatMap((f) => f.prompts),
+    ].filter((f) => f.name.includes("test") || f.name.includes("integration"));
 
     for (const file of testFiles) {
       try {
@@ -71,13 +71,13 @@ suite("Integration Flow Tests", () => {
     }
 
     // Force rebuild after cleanup
-    await fileManager.forceRebuildIndex();
-    
+    await fileManager.rebuildIndexForce();
+
     // Restore all stubs after each test
     sinon.restore();
-    
+
     // Small delay to ensure cleanup completes
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
 
   suiteTeardown(async () => {
@@ -103,33 +103,49 @@ suite("Integration Flow Tests", () => {
 
       // Verify prompt was created
       assert.ok(filePath, "Should return file path");
-      assert.ok(filePath!.includes(promptName), "File path should contain prompt name");
+      assert.ok(
+        filePath!.includes(promptName),
+        "File path should contain prompt name"
+      );
 
       // Force rebuild index to ensure changes are reflected
-      await fileManager.forceRebuildIndex();
+      await fileManager.rebuildIndexForce();
 
       // Wait a moment for event to be processed
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify filesystem.file.created event was emitted
-      assert.ok(fileCreatedEvent, "filesystem.file.created event should be emitted");
+      assert.ok(
+        fileCreatedEvent,
+        "filesystem.file.created event should be emitted"
+      );
       assert.strictEqual(fileCreatedEvent.fileName, `${promptName}.md`);
       assert.ok(fileCreatedEvent.filePath.includes(promptName));
 
       // Verify tree refresh would be triggered (via DirectoryScanner index update)
       const updatedStructure = await fileManager.scanPrompts();
       const updatedFileCount = updatedStructure.rootPrompts.length;
-      assert.strictEqual(updatedFileCount, initialFileCount + 1, "File count should increase by 1");
+      assert.strictEqual(
+        updatedFileCount,
+        initialFileCount + 1,
+        "File count should increase by 1"
+      );
 
       // Verify the created prompt exists in the structure
-      const createdPrompt = updatedStructure.rootPrompts.find(p => p.name === promptName);
-      assert.ok(createdPrompt, `Created prompt should exist in directory structure. Available: ${updatedStructure.rootPrompts.map(p => p.name).join(', ')}`);
+      const createdPrompt = updatedStructure.rootPrompts.find(
+        (p) => p.name === promptName
+      );
+      assert.ok(
+        createdPrompt,
+        `Created prompt should exist in directory structure. Available: ${updatedStructure.rootPrompts
+          .map((p) => p.name)
+          .join(", ")}`
+      );
       assert.strictEqual(createdPrompt.title, promptName);
 
       // Clean up the created file
       await fileManager.deletePromptFile(filePath!);
-      await fileManager.forceRebuildIndex();
-
+      await fileManager.rebuildIndexForce();
     } finally {
       subscription.dispose();
     }
@@ -146,18 +162,22 @@ suite("Integration Flow Tests", () => {
     await fileSystemManager.writeFile(filePath!, testContent);
 
     // Force rebuild index to ensure file is indexed
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
 
     // Read content through repository (simulating clipboard operation)
     const content = await promptRepository.readFileContent(filePath!);
     assert.ok(content, "Should read file content");
-    assert.strictEqual(content, testContent, "Content should match written content");
+    assert.strictEqual(
+      content,
+      testContent,
+      "Content should match written content"
+    );
 
     // Clean up
     await fileManager.deletePromptFile(filePath!);
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
 
-    // Note: clipboard operation would normally be tested here, but 
+    // Note: clipboard operation would normally be tested here, but
     // vscode.env.clipboard.writeText is non-configurable in test environment
     // The actual functionality can be verified through integration tests
   });
@@ -176,7 +196,7 @@ suite("Integration Flow Tests", () => {
       assert.ok(filePath);
 
       // Force rebuild to ensure file is indexed
-      await fileManager.forceRebuildIndex();
+      await fileManager.rebuildIndexForce();
 
       // Get initial index stats
       const initialStructure = await fileManager.scanPrompts();
@@ -187,25 +207,37 @@ suite("Integration Flow Tests", () => {
       assert.ok(deleteResult, "Prompt deletion should succeed");
 
       // Force rebuild index to ensure changes are reflected
-      await fileManager.forceRebuildIndex();
+      await fileManager.rebuildIndexForce();
 
       // Wait a moment for event to be processed
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify filesystem.file.deleted event was emitted
-      assert.ok(fileDeletedEvent, "filesystem.file.deleted event should be emitted");
+      assert.ok(
+        fileDeletedEvent,
+        "filesystem.file.deleted event should be emitted"
+      );
       assert.strictEqual(fileDeletedEvent.fileName, `${promptName}.md`);
       assert.ok(fileDeletedEvent.filePath.includes(promptName));
 
       // Ensure cache invalidated and tree refresh triggered
       const updatedStructure = await fileManager.scanPrompts();
       const updatedFileCount = updatedStructure.rootPrompts.length;
-      assert.strictEqual(updatedFileCount, initialFileCount - 1, "File count should decrease by 1");
+      assert.strictEqual(
+        updatedFileCount,
+        initialFileCount - 1,
+        "File count should decrease by 1"
+      );
 
       // Verify the deleted prompt no longer exists in the structure
-      const deletedPrompt = updatedStructure.rootPrompts.find(p => p.name === `${promptName}.md`);
-      assert.strictEqual(deletedPrompt, undefined, "Deleted prompt should not exist in directory structure");
-
+      const deletedPrompt = updatedStructure.rootPrompts.find(
+        (p) => p.name === `${promptName}.md`
+      );
+      assert.strictEqual(
+        deletedPrompt,
+        undefined,
+        "Deleted prompt should not exist in directory structure"
+      );
     } finally {
       subscription.dispose();
     }
@@ -214,50 +246,55 @@ suite("Integration Flow Tests", () => {
   test("should verify EventBus payload correctness", async () => {
     // Track all events during prompt lifecycle
     const events: Array<{ type: string; payload: any }> = [];
-    
-    const createdSubscription = eventBus.on("filesystem.file.created", (payload) => 
-      events.push({ type: "created", payload })
+
+    const createdSubscription = eventBus.on(
+      "filesystem.file.created",
+      (payload) => events.push({ type: "created", payload })
     );
-    const deletedSubscription = eventBus.on("filesystem.file.deleted", (payload) => 
-      events.push({ type: "deleted", payload })
+    const deletedSubscription = eventBus.on(
+      "filesystem.file.deleted",
+      (payload) => events.push({ type: "deleted", payload })
     );
 
     try {
       const promptName = "eventbus-test-prompt";
-      
+
       // Create prompt
       const filePath = await fileManager.createPromptFile(promptName);
       assert.ok(filePath);
 
       // Force rebuild and wait for create event
-      await fileManager.forceRebuildIndex();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await fileManager.rebuildIndexForce();
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Delete prompt
       const deleteResult = await fileManager.deletePromptFile(filePath!);
       assert.ok(deleteResult);
 
       // Force rebuild and wait for delete event
-      await fileManager.forceRebuildIndex();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await fileManager.rebuildIndexForce();
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify event payload correctness
-      assert.strictEqual(events.length, 2, "Should have exactly 2 events (created + deleted)");
+      assert.strictEqual(
+        events.length,
+        2,
+        "Should have exactly 2 events (created + deleted)"
+      );
 
       // Verify created event payload
-      const createdEvent = events.find(e => e.type === "created");
+      const createdEvent = events.find((e) => e.type === "created");
       assert.ok(createdEvent, "Should have created event");
       assert.strictEqual(createdEvent.payload.fileName, `${promptName}.md`);
       assert.ok(createdEvent.payload.filePath);
       assert.ok(createdEvent.payload.filePath.endsWith(`${promptName}.md`));
 
       // Verify deleted event payload
-      const deletedEvent = events.find(e => e.type === "deleted");
+      const deletedEvent = events.find((e) => e.type === "deleted");
       assert.ok(deletedEvent, "Should have deleted event");
       assert.strictEqual(deletedEvent.payload.fileName, `${promptName}.md`);
       assert.ok(deletedEvent.payload.filePath);
       assert.ok(deletedEvent.payload.filePath.endsWith(`${promptName}.md`));
-
     } finally {
       createdSubscription.dispose();
       deletedSubscription.dispose();
@@ -280,12 +317,12 @@ suite("Integration Flow Tests", () => {
     }
 
     // Force rebuild to ensure all files are indexed
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
 
     // Verify index stats after creation
     const afterCreation = await fileManager.scanPrompts();
     assert.strictEqual(
-      afterCreation.rootPrompts.length, 
+      afterCreation.rootPrompts.length,
       baselineCount + promptNames.length,
       "File count should increase by number of created prompts"
     );
@@ -297,7 +334,7 @@ suite("Integration Flow Tests", () => {
     }
 
     // Force rebuild after deletions
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
 
     // Verify index stats after deletion
     const afterDeletion = await fileManager.scanPrompts();
@@ -312,7 +349,7 @@ suite("Integration Flow Tests", () => {
     assert.ok(finalResult);
 
     // Force rebuild after final cleanup
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
 
     // Verify back to baseline
     const final = await fileManager.scanPrompts();
@@ -330,26 +367,42 @@ suite("Integration Flow Tests", () => {
     assert.ok(prompt1 && prompt2);
 
     // Write searchable content
-    await fileSystemManager.writeFile(prompt1!, "# Search Test 1\n\nThis is a testing prompt.");
-    await fileSystemManager.writeFile(prompt2!, "# Search Test 2\n\nThis is a different prompt.");
+    await fileSystemManager.writeFile(
+      prompt1!,
+      "# Search Test 1\n\nThis is a testing prompt."
+    );
+    await fileSystemManager.writeFile(
+      prompt2!,
+      "# Search Test 2\n\nThis is a different prompt."
+    );
 
     // Force rebuild index and clear search cache to ensure fresh data
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
     searchService.clearCache();
-    
+
     // Small delay to ensure indexing completes
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Test search functionality
-    const titleResults = await searchService.searchInTitle("Search Test", { exact: false });
-    assert.ok(titleResults.length >= 2, `Should find both test prompts by title, but found ${titleResults.length}`);
+    const titleResults = await searchService.searchInTitle("Search Test", {
+      exact: false,
+    });
+    assert.ok(
+      titleResults.length >= 2,
+      `Should find both test prompts by title, but found ${titleResults.length}`
+    );
 
-    const contentResults = await searchService.searchInContent("testing", { exact: false });
-    assert.ok(contentResults.length >= 1, `Should find prompt with 'testing' in content, but found ${contentResults.length}`);
+    const contentResults = await searchService.searchInContent("testing", {
+      exact: false,
+    });
+    assert.ok(
+      contentResults.length >= 1,
+      `Should find prompt with 'testing' in content, but found ${contentResults.length}`
+    );
 
     // Clean up
     await fileManager.deletePromptFile(prompt1!);
     await fileManager.deletePromptFile(prompt2!);
-    await fileManager.forceRebuildIndex();
+    await fileManager.rebuildIndexForce();
   });
-}); 
+});

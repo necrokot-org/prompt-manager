@@ -3,7 +3,10 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { FileManager, ContentSearchResult } from "@features/prompt-manager/data/fileManager";
+import {
+  FileManager,
+  ContentSearchResult,
+} from "@features/prompt-manager/data/fileManager";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { ConfigurationService } from "@infra/config/config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
@@ -163,7 +166,7 @@ suite("FileManager Core Tests", () => {
 
   test("File System Operations - Index Management", async () => {
     // Test index invalidation and rebuilding
-    fileManager.invalidateIndex();
+    await fileManager.rebuildIndex();
 
     // Build index should work without errors
     await fileManager.buildIndex();

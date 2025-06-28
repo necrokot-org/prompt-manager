@@ -503,7 +503,7 @@ suite("PromptTreeProvider", () => {
       // Mock the fileManager methods
       const mockFileManager = {
         clearContentCache: sinon.stub(),
-        forceRebuildIndex: sinon.stub().resolves(),
+        rebuildIndexForce: sinon.stub().resolves(),
       };
 
       mockPromptController.getRepository = sinon.stub().returns({
@@ -539,7 +539,7 @@ suite("PromptTreeProvider", () => {
         "Should show success message"
       );
 
-      // Note: The setTimeout-based forceRebuildIndex is tested at integration level
+      // Note: The setTimeout-based rebuildIndexForce is tested at integration level
       // as it requires complex timing control that's difficult to test in unit tests
     });
 

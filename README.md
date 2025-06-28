@@ -136,7 +136,7 @@ There are **no public API changes**, only _internal_ package boundaries. Extensi
 | ---------------------------------------------- | --------------------------------- | ------------------------------------------ |
 | File traversal & Markdown front-matter parsing | `core/DirectoryScanner.ts`        | `scanner/FilesystemWalker.ts`              |
 | Grouping flat file list into `PromptStructure` | `core/DirectoryScanner.ts`        | `scanner/PromptOrganizer.ts`               |
-| In-memory cache & debounce logic               | `core/DirectoryScanner.ts`        | `scanner/IndexCache.ts`                    |
+| In-memory cache & index management             | `core/DirectoryScanner.ts`        | `scanner/IndexManager.ts`                  |
 | Orchestration facade                           | `core/DirectoryScanner.ts` (kept) | `core/DirectoryScanner.ts` (now delegates) |
 
 ### Tree-view layer (`src/tree/*`)
