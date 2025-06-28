@@ -144,6 +144,7 @@ export class ConfigurationService {
   public dispose(): void {
     if (this.configWatcher) {
       this.configWatcher.dispose();
+      this.configWatcher = undefined;
     }
   }
 }

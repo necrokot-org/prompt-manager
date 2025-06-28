@@ -9,9 +9,7 @@ suite("Basic Integration Test Suite", () => {
   });
 
   test("Extension should be active", async () => {
-    const extension = vscode.extensions.getExtension(
-      "undefined_publisher.prompt-manager"
-    );
+    const extension = vscode.extensions.getExtension("prompt-manager");
     if (extension && !extension.isActive) {
       await extension.activate();
     }
