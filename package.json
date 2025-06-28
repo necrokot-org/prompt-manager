@@ -73,6 +73,10 @@
         "title": "Add Prompt to Folder"
       },
       {
+        "command": "promptManager.deleteFolder",
+        "title": "Delete Folder"
+      },
+      {
         "command": "promptManager.copyPromptContent",
         "title": "Copy without meta",
         "icon": "$(copy)"
@@ -156,6 +160,11 @@
         {
           "command": "promptManager.addPromptToFolder",
           "when": "view == promptManagerTree && viewItem == promptFolder"
+        },
+        {
+          "command": "promptManager.deleteFolder",
+          "when": "view == promptManagerTree && viewItem == promptFolder",
+          "group": "delete"
         },
         {
           "command": "promptManager.askAiWithPrompt",

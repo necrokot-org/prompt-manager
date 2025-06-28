@@ -53,6 +53,10 @@ export class CommandHandler {
         (item: PromptTreeItem) => this.copyPromptWithMeta(item)
       ),
       vscode.commands.registerCommand(
+        "promptManager.deleteFolder",
+        (item: PromptTreeItem) => this.deleteFolder(item)
+      ),
+      vscode.commands.registerCommand(
         "promptManager.askAiWithPrompt",
         (item: PromptTreeItem) => this.askAiWithPrompt(item)
       ),
@@ -109,14 +113,22 @@ export class CommandHandler {
 
       const filePath = item.promptFile.path;
       await this.promptController.deletePromptFile(filePath);
-
-      // Emit file deleted event
-      eventBus.emit("filesystem.file.deleted", {
-        filePath,
-        fileName: filePath.split(/[\\/]/).pop() || filePath,
-      });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
+    }
+  }
+
+  private async deleteFolder(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item || !(item instanceof FolderTreeItem)) {
+        vscode.window.showErrorMessage("No folder selected for deletion");
+        return;
+      }
+
+      const folderPath = item.promptFolder.path;
+      await this.promptController.deleteFolderWithContents(folderPath);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to delete folder: ${error}`);
     }
   }
 
