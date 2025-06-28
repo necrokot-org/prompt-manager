@@ -249,9 +249,9 @@ export class FileManager {
   }
 
   private publishFolderDeleted(folderPath: string): void {
-    eventBus.emit("filesystem.file.deleted", {
-      filePath: folderPath,
-      fileName: folderPath.split(/[\\/]/).pop() || folderPath,
+    eventBus.emit("filesystem.directory.deleted", {
+      dirPath: folderPath,
+      dirName: folderPath.split(/[\\/]/).pop() || folderPath,
     });
   }
 }
