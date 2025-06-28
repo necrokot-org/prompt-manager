@@ -74,7 +74,12 @@
       },
       {
         "command": "promptManager.copyPromptContent",
-        "title": "Copy Content",
+        "title": "Copy without meta",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "promptManager.copyPromptWithMeta",
+        "title": "Copy with meta",
         "icon": "$(copy)"
       },
       {
@@ -130,8 +135,19 @@
           "group": "inline"
         },
         {
+          "command": "promptManager.copyPromptContent",
+          "when": "view == promptManagerTree && viewItem == promptFile",
+          "group": "copy"
+        },
+        {
+          "command": "promptManager.copyPromptWithMeta",
+          "when": "view == promptManagerTree && viewItem == promptFile",
+          "group": "copy"
+        },
+        {
           "command": "promptManager.deletePrompt",
-          "when": "view == promptManagerTree && viewItem == promptFile"
+          "when": "view == promptManagerTree && viewItem == promptFile",
+          "group": "delete"
         },
         {
           "command": "promptManager.createFolder",

@@ -228,6 +228,30 @@ export class PromptController {
   }
 
   /**
+   * Copy prompt content to clipboard (with front matter/meta)
+   */
+  public async copyPromptWithMetaToClipboard(
+    filePath: string
+  ): Promise<boolean> {
+    try {
+      const content = await this.repository.readFileContent(filePath);
+      if (!content) {
+        vscode.window.showErrorMessage("Failed to read prompt file");
+        return false;
+      }
+
+      await vscode.env.clipboard.writeText(content);
+      return true;
+    } catch (error) {
+      log.error(`Failed to copy content with meta to clipboard: ${error}`);
+      vscode.window.showErrorMessage(
+        `Failed to copy content with meta: ${error}`
+      );
+      return false;
+    }
+  }
+
+  /**
    * Strip front matter from content
    */
   private stripFrontMatter(content: string): string {
