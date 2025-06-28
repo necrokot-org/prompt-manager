@@ -263,11 +263,8 @@ describe("CommandHandler", () => {
 
   describe("deletePrompt command", () => {
     let mockFileTreeItem: FileTreeItem;
-    let eventBusSpy: sinon.SinonSpy;
 
     beforeEach(() => {
-      eventBusSpy = sinon.spy(eventBus, "emit");
-
       // Create mock FileTreeItem
       const mockPromptFile: PromptFile = {
         name: "prompt.md",
@@ -282,7 +279,7 @@ describe("CommandHandler", () => {
       mockFileTreeItem = new FileTreeItem(mockPromptFile);
     });
 
-    it("should delete file and emit event", async () => {
+    it("should delete file via controller", async () => {
       commandHandler.registerCommands();
 
       const deleteHandler = vscodeStubs.commands
@@ -295,12 +292,6 @@ describe("CommandHandler", () => {
 
       expect(
         mockPromptController.deletePromptFile.calledWith("/test/prompt.md")
-      ).to.be.true;
-      expect(
-        eventBusSpy.calledWith("filesystem.file.deleted", {
-          filePath: "/test/prompt.md",
-          fileName: "prompt.md",
-        })
       ).to.be.true;
     });
 
@@ -616,14 +607,13 @@ describe("CommandHandler", () => {
       mockFolderTreeItem = new FolderTreeItem(mockPromptFolder);
     });
 
-    it("should delete folder and emit event", async () => {
+    it("should delete folder via controller", async () => {
       commandHandler.registerCommands();
 
       const deleteFolderHandler = vscodeStubs.commands
         .getCalls()
         .find((call) => call.args[0] === "promptManager.deleteFolder")?.args[1];
 
-      const eventBusSpy = sinon.spy(eventBus, "emit");
       mockPromptController.deleteFolderWithContents.resolves();
 
       await deleteFolderHandler(mockFolderTreeItem);
@@ -633,14 +623,6 @@ describe("CommandHandler", () => {
           "/test/test-folder"
         )
       ).to.be.true;
-      expect(
-        eventBusSpy.calledWith("filesystem.file.deleted", {
-          filePath: "/test/test-folder",
-          fileName: "test-folder",
-        })
-      ).to.be.true;
-
-      eventBusSpy.restore();
     });
 
     it("should show error when no folder selected", async () => {

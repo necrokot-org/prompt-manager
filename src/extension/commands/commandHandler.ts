@@ -113,12 +113,6 @@ export class CommandHandler {
 
       const filePath = item.promptFile.path;
       await this.promptController.deletePromptFile(filePath);
-
-      // Emit file deleted event
-      eventBus.emit("filesystem.file.deleted", {
-        filePath,
-        fileName: filePath.split(/[\\/]/).pop() || filePath,
-      });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete prompt: ${error}`);
     }
@@ -133,12 +127,6 @@ export class CommandHandler {
 
       const folderPath = item.promptFolder.path;
       await this.promptController.deleteFolderWithContents(folderPath);
-
-      // Emit folder deleted event (using the same event as file deletion)
-      eventBus.emit("filesystem.file.deleted", {
-        filePath: folderPath,
-        fileName: folderPath.split(/[\\/]/).pop() || folderPath,
-      });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to delete folder: ${error}`);
     }
