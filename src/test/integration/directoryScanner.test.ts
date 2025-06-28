@@ -8,7 +8,6 @@ import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { ConfigurationService } from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
-import { withFakeTimers } from "./fakeTimers";
 
 describe("DirectoryScanner", () => {
   let scanner: DirectoryScanner;
