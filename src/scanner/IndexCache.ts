@@ -31,12 +31,16 @@ export class IndexCache {
       clearTimeout(this.rebuildTimer);
     }
 
-    this.rebuildTimer = setTimeout(() => {
-      this.rebuildTimer = null;
-      // Run callback without awaiting to prevent blocking
-      callback().catch((err) => {
+    this.rebuildTimer = setTimeout(async () => {
+      try {
+        // Keep timer active while callback executes to prevent concurrent rebuilds
+        await callback();
+      } catch (err) {
         log.error("IndexCache: Rebuild callback failed", err);
-      });
+      } finally {
+        // Only clear timer after callback completes
+        this.rebuildTimer = null;
+      }
     }, this.debounceMs);
   }
 
