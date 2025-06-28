@@ -136,7 +136,7 @@ There are **no public API changes**, only _internal_ package boundaries. Extensi
 | ---------------------------------------------- | --------------------------------- | ------------------------------------------ |
 | File traversal & Markdown front-matter parsing | `core/DirectoryScanner.ts`        | `scanner/FilesystemWalker.ts`              |
 | Grouping flat file list into `PromptStructure` | `core/DirectoryScanner.ts`        | `scanner/PromptOrganizer.ts`               |
-| In-memory cache & debounce logic               | `core/DirectoryScanner.ts`        | `scanner/IndexCache.ts`                    |
+| In-memory cache & index management             | `core/DirectoryScanner.ts`        | `scanner/IndexManager.ts`                  |
 | Orchestration facade                           | `core/DirectoryScanner.ts` (kept) | `core/DirectoryScanner.ts` (now delegates) |
 
 ### Tree-view layer (`src/tree/*`)
@@ -162,5 +162,58 @@ There are **no public API changes**, only _internal_ package boundaries. Extensi
   When a class grows beyond ~200 LOC, consider spinning out a helper.
 
 Happy hacking! 💻
+
+## 🧪 Test Infrastructure
+
+### Code Coverage
+
+Code coverage is enforced via [nyc](https://github.com/istanbuljs/nyc) (Istanbul):
+
+```bash
+# Run tests with coverage
+npm test
+
+# Check coverage thresholds
+npm run check-coverage
+```
+
+**Coverage Requirements:**
+
+- Lines: ≥80%
+- Functions: ≥80%
+- Branches: ≥70%
+- Statements: ≥80%
+
+Coverage reports are generated in `coverage/` directory and uploaded as CI artifacts.
+
+### Running Tests
+
+```bash
+# Run all tests (unit + integration) with coverage
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests for VS Code extension
+npm run test:integration
+
+# Check coverage thresholds
+npm run check-coverage
+
+# Compile tests only
+npm run compile-tests
+```
+
+### CI Integration
+
+The GitHub Actions CI pipeline:
+
+1. Runs type checking (`npm run check-types`)
+2. Runs linting (`npm run lint`)
+3. Executes all tests with coverage (`npm test`)
+4. **Enforces coverage thresholds** - pipeline fails if coverage drops below requirements
+5. Uploads coverage reports as artifacts
+6. Builds the extension package
 
 **Enjoy!**

@@ -30,3 +30,6 @@ if (tsconfigPath) {
     paths: tsconfig.compilerOptions.paths,
   });
 }
+
+// Initialize any global test setup needed for VS Code Extension Host testing
+console.log("Integration test setup loaded in Extension Host");

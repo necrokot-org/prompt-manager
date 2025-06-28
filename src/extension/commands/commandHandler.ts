@@ -8,7 +8,6 @@ import {
 } from "@features/prompt-manager/ui/tree/items";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
-import { log } from "@infra/vscode/log";
 
 @injectable()
 export class CommandHandler {

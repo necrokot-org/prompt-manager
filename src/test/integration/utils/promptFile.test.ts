@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import { searchResultToPromptFile } from "@features/search/utils/promptFile";
-import { PromptFile } from "../../core/DirectoryScanner";
+import { PromptFile } from "@root/scanner/types";
 import { SearchResult } from "@features/search/core/SearchEngine";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 

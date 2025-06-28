@@ -36,6 +36,9 @@ jobs:
       - name: Run tests
         run: xvfb-run -a npm run test -- --ci
 
+      - name: Check code coverage
+        run: npm run check-coverage
+
       - name: Build extension
         run: npm run package
 

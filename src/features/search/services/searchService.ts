@@ -4,7 +4,8 @@ import {
   ContentSearchResult,
   PromptFile,
 } from "@features/prompt-manager/data/fileManager";
-import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria as PanelSearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/core/SearchEngine";
 import { FileContent, SearchEngine } from "@features/search/core/SearchEngine";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
@@ -68,6 +69,8 @@ export class SearchService {
       query,
       scope: "content",
       caseSensitive: options.caseSensitive || false,
+      exact: options.exact,
+      threshold: options.threshold,
       isActive: true,
     };
 
@@ -89,6 +92,8 @@ export class SearchService {
       query,
       scope: "titles",
       caseSensitive: options.caseSensitive || false,
+      exact: options.exact,
+      threshold: options.threshold,
       isActive: true,
     };
 
@@ -110,6 +115,8 @@ export class SearchService {
       query,
       scope: "both",
       caseSensitive: options.caseSensitive || false,
+      exact: options.exact,
+      threshold: options.threshold,
       isActive: true,
     };
 

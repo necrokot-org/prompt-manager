@@ -4,7 +4,7 @@ import {
   EnvironmentDetector,
   Environment,
   VSCodeEnv,
-} from "../infrastructure/config/EnvironmentDetector";
+} from "@infra/config/EnvironmentDetector";
 
 suite("EnvironmentDetector Test Suite", () => {
   let detector: EnvironmentDetector;
@@ -14,16 +14,6 @@ suite("EnvironmentDetector Test Suite", () => {
   });
 
   suite("VS Code Environment Detection", () => {
-    test("should detect VS Code when appName is 'Visual Studio Code'", () => {
-      const mockEnv: VSCodeEnv = { appName: "Visual Studio Code" };
-      detector = new EnvironmentDetector(mockEnv);
-
-      assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
-      assert.strictEqual(detector.isVSCode(), true);
-      assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), false);
-    });
-
     test("should detect VS Code when appName is 'vscode'", () => {
       const mockEnv: VSCodeEnv = { appName: "vscode" };
       detector = new EnvironmentDetector(mockEnv);

@@ -509,7 +509,7 @@ export class PromptTreeProvider
         // Small delay to ensure file system operations are complete, then force rebuild
         setTimeout(async () => {
           try {
-            await fileManager.forceRebuildIndex();
+            await fileManager.rebuildIndexForce();
             this.refresh();
           } catch (error) {
             log.error("Failed to rebuild index after folder move:", error);

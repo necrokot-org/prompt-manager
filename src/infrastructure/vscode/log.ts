@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 
-import { eventBus } from "@infra/vscode/ExtensionBus";
-import { config, CONFIG_KEYS } from "@infra/config/config";
+import { CONFIG_KEYS } from "@infra/config/config";
 
 // Singleton OutputChannel for the entire extension. In unit-test environments
 // the VS Code API might be stubbed. Provide a graceful fallback to prevent
@@ -20,18 +19,18 @@ const outputChannel: vscode.OutputChannel & {
         show: () => {},
       } as unknown as vscode.OutputChannel);
 
-// Track whether verbose debug logging is enabled via user settings
-let debugEnabled: boolean = config.get<boolean>(
-  CONFIG_KEYS.DEBUG_LOGGING,
-  false
-);
-
-// Update debug flag when configuration changes
-eventBus.on("config.changed", ({ configKey, newValue }) => {
-  if (configKey === CONFIG_KEYS.DEBUG_LOGGING) {
-    debugEnabled = Boolean(newValue);
+/**
+ * Get current debug logging status from VS Code configuration
+ */
+function getDebugEnabled(): boolean {
+  try {
+    const config = vscode.workspace.getConfiguration("promptManager");
+    return config.get<boolean>(CONFIG_KEYS.DEBUG_LOGGING, false);
+  } catch {
+    // Fallback if VS Code API is not available (e.g., during tests)
+    return true;
   }
-});
+}
 
 /**
  * Format a log entry with ISO timestamp and level prefix
@@ -60,7 +59,7 @@ function logLine(
   level: "DEBUG" | "INFO" | "WARN" | "ERROR",
   ...args: unknown[]
 ): void {
-  if (level === "DEBUG" && !debugEnabled) {
+  if (level === "DEBUG" && !getDebugEnabled()) {
     return; // Skip debug messages when disabled
   }
 
