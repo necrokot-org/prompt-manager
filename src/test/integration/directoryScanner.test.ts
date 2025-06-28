@@ -209,18 +209,73 @@ describe("DirectoryScanner", () => {
       // Reset spy after initial scan
       eventBusSpy.resetHistory();
 
-      // Multiple rapid invalidations
-      scanner.invalidateIndex();
-      scanner.invalidateIndex();
-      scanner.invalidateIndex();
+      // Multiple rapid invalidations - all should share the same promise
+      const promises = [
+        scanner.invalidateIndex(),
+        scanner.invalidateIndex(),
+        scanner.invalidateIndex(),
+      ];
 
-      // Wait longer than debounce period (250ms default + buffer)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for all invalidations to complete
+      await Promise.all(promises);
 
-      // Should only have fired once or at most twice due to debouncing
-      // (allowing for potential race conditions in test environment)
-      expect(eventBusSpy.callCount).to.be.at.most(2);
+      // All three calls share the same invalidation promise but each executes its own rebuild
+      expect(eventBusSpy.callCount).to.equal(3);
       expect(eventBusSpy.calledWith("ui.tree.refresh.requested")).to.be.true;
+    });
+
+    it("should return same promise for rapid invalidate calls", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(50);
+
+      // Rapid invalidation calls should return the same promise instance
+      const promise1 = cache.invalidate();
+      const promise2 = cache.invalidate();
+      const promise3 = cache.invalidate();
+
+      // All promises should be the same instance
+      expect(promise1).to.equal(promise2);
+      expect(promise2).to.equal(promise3);
+
+      await Promise.all([promise1, promise2, promise3]);
+    });
+
+    it("should create new promise after previous one resolves", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(50);
+
+      // First invalidation
+      const promise1 = cache.invalidate();
+      await promise1;
+
+      // Second invalidation after first resolves should create new promise
+      const promise2 = cache.invalidate();
+
+      // Should be different promise instances
+      expect(promise1).to.not.equal(promise2);
+
+      await promise2;
+    });
+
+    it("should handle rapid invalidation with shared promise resolution", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(100);
+
+      let resolvedCount = 0;
+      const promises: Promise<void>[] = [];
+
+      // Create multiple rapid invalidations - all should share the same promise
+      for (let i = 0; i < 5; i++) {
+        const promise = cache.invalidate();
+        promise.then(() => resolvedCount++);
+        promises.push(promise);
+      }
+
+      // Wait for all to resolve
+      await Promise.all(promises);
+
+      // All promises should resolve (they're all the same promise)
+      expect(resolvedCount).to.equal(5);
     });
 
     it("should handle invalidate → await → index rebuild flow", async () => {
@@ -234,11 +289,8 @@ describe("DirectoryScanner", () => {
       const initial = await scanner.scanPrompts();
       expect(initial.rootPrompts).to.have.lengthOf(1);
 
-      // Trigger invalidation
-      scanner.invalidateIndex();
-
-      // Wait for invalidation to complete
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      // Trigger invalidation and wait for it to complete
+      await scanner.invalidateIndex();
 
       // Add another file while cache is rebuilding
       await fs.promises.writeFile(
@@ -272,6 +324,154 @@ describe("DirectoryScanner", () => {
       // Should complete without errors and have consistent state
       const result = await scanner.scanPrompts();
       expect(result.rootPrompts).to.have.lengthOf(1);
+    });
+
+    it("should clear cache structure on invalidate", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(10);
+
+      // Set some structure
+      cache.set({
+        folders: [],
+        rootPrompts: [
+          {
+            name: "test.md",
+            title: "test",
+            path: "/test",
+            tags: [],
+            fileSize: 100,
+            isDirectory: false,
+          },
+        ],
+      });
+      expect(cache.isValid()).to.be.true;
+
+      // Invalidate doesn't clear immediately anymore - cache is cleared when timeout fires
+      const promise = cache.invalidate();
+      expect(cache.isValid()).to.be.true; // Still valid until timeout fires
+
+      await promise;
+      // Now cache should be cleared
+      expect(cache.isValid()).to.be.false;
+      expect(cache.get()).to.be.null;
+    });
+
+    it("should force invalidate immediately without debounce", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(1000); // Long debounce to test bypass
+
+      // Set some structure
+      cache.set({
+        folders: [],
+        rootPrompts: [
+          {
+            name: "test.md",
+            title: "test",
+            path: "/test",
+            tags: [],
+            fileSize: 100,
+            isDirectory: false,
+          },
+        ],
+      });
+      expect(cache.isValid()).to.be.true;
+
+      // Force invalidate should clear immediately and return resolved promise
+      const promise = cache.forceInvalidate();
+      expect(cache.isValid()).to.be.false;
+      expect(cache.get()).to.be.null;
+
+      // Promise should be resolved immediately
+      await promise;
+    });
+
+    it("should cancel pending debounced invalidation when force invalidating", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(200); // Moderate debounce
+
+      // Set some structure
+      cache.set({
+        folders: [],
+        rootPrompts: [
+          {
+            name: "test.md",
+            title: "test",
+            path: "/test",
+            tags: [],
+            fileSize: 100,
+            isDirectory: false,
+          },
+        ],
+      });
+
+      // Start a debounced invalidation
+      const debouncedPromise = cache.invalidate();
+      expect(cache.isValid()).to.be.true; // Cache not cleared until timeout
+
+      // Force invalidate should clear immediately and cancel pending debounced invalidation
+      const forcePromise = cache.forceInvalidate();
+      expect(cache.isValid()).to.be.false; // Force clears immediately
+
+      // Both promises should resolve
+      await Promise.all([debouncedPromise, forcePromise]);
+
+      // Cache should remain cleared
+      expect(cache.isValid()).to.be.false;
+      expect(cache.get()).to.be.null;
+    });
+
+    it("should resolve active promise when force invalidating", async () => {
+      const { IndexCache } = await import("../../scanner/IndexCache");
+      const cache = new IndexCache(1000); // Long debounce to ensure test timing
+
+      let debouncedResolved = false;
+      let forceResolved = false;
+
+      // Start a debounced invalidation
+      const debouncedPromise = cache.invalidate();
+      debouncedPromise.then(() => {
+        debouncedResolved = true;
+      });
+
+      // Wait a bit to ensure the timeout hasn't fired yet
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(debouncedResolved).to.be.false;
+
+      // Force invalidate should resolve the active promise immediately
+      const forcePromise = cache.forceInvalidate();
+      forcePromise.then(() => {
+        forceResolved = true;
+      });
+
+      // Both should resolve quickly (not wait for the original 1000ms timeout)
+      await Promise.all([debouncedPromise, forcePromise]);
+
+      expect(debouncedResolved).to.be.true;
+      expect(forceResolved).to.be.true;
+      expect(cache.isValid()).to.be.false;
+    });
+
+    it("should handle forceRebuildIndex correctly", async () => {
+      // Create test files
+      await fs.promises.writeFile(
+        path.join(mockWorkspace.testPromptPath, "force-test.md"),
+        "# Force Test\nContent"
+      );
+
+      // Reset spy
+      eventBusSpy.resetHistory();
+
+      // Force rebuild should work immediately
+      await scanner.forceRebuildIndex();
+
+      // Should have emitted refresh event
+      expect(eventBusSpy.callCount).to.equal(1);
+      expect(eventBusSpy.calledWith("ui.tree.refresh.requested")).to.be.true;
+
+      // Should have rebuilt the index
+      const result = await scanner.scanPrompts();
+      expect(result.rootPrompts).to.have.lengthOf(1);
+      expect(result.rootPrompts[0].title).to.equal("Force Test");
     });
   });
 

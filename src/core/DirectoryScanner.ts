@@ -109,11 +109,10 @@ export class DirectoryScanner {
    * Invalidate the current cache and schedule a debounced rebuild.
    * A ui.tree.refresh.requested event will be emitted once finished.
    */
-  public invalidateIndex(): void {
-    this.cache.invalidate(async () => {
-      await this.buildIndex();
-      eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
-    });
+  public async invalidateIndex(): Promise<void> {
+    await this.cache.invalidate();
+    await this.buildIndex();
+    eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
   }
 
   /**
@@ -121,9 +120,7 @@ export class DirectoryScanner {
    * Use this for operations like folder moves that require immediate refresh.
    */
   public async forceRebuildIndex(): Promise<void> {
-    this.cache.invalidate(async () => {
-      // This will be called immediately due to the 0ms debounce override
-    });
+    await this.cache.forceInvalidate();
     // Immediately rebuild the index
     await this.buildIndex();
     eventBus.emit("ui.tree.refresh.requested", { reason: "file-change" });
