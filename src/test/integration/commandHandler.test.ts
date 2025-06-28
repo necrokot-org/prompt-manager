@@ -71,6 +71,7 @@ describe("CommandHandler", () => {
         "promptManager.addPromptToFolder",
         "promptManager.copyPromptContent",
         "promptManager.copyPromptWithMeta",
+        "promptManager.deleteFolder",
         "promptManager.askAiWithPrompt",
       ];
 
@@ -78,8 +79,8 @@ describe("CommandHandler", () => {
         expect(vscodeStubs.commands.calledWith(commandId)).to.be.true;
       });
 
-      // Should register 10 commands total
-      expect(vscodeStubs.commands.callCount).to.equal(10);
+      // Should register 11 commands total
+      expect(vscodeStubs.commands.callCount).to.equal(11);
     });
 
     it("should add all commands to extension subscriptions", () => {
@@ -90,7 +91,7 @@ describe("CommandHandler", () => {
       commandHandler.registerCommands();
 
       // All commands should be added to subscriptions for cleanup
-      expect(mockContext.subscriptions).to.have.lengthOf(10);
+      expect(mockContext.subscriptions).to.have.lengthOf(11);
       expect(mockContext.subscriptions.every((sub) => sub === mockDisposable))
         .to.be.true;
     });
@@ -597,6 +598,82 @@ describe("CommandHandler", () => {
       expect(
         vscodeStubs.window.showErrorMessage.calledWith(
           "Failed to copy prompt with meta: Error: Copy failed"
+        )
+      ).to.be.true;
+    });
+  });
+
+  describe("deleteFolder command", () => {
+    let mockFolderTreeItem: FolderTreeItem;
+
+    beforeEach(() => {
+      const mockPromptFolder: PromptFolder = {
+        name: "test-folder",
+        path: "/test/test-folder",
+        prompts: [],
+      };
+
+      mockFolderTreeItem = new FolderTreeItem(mockPromptFolder);
+    });
+
+    it("should delete folder and emit event", async () => {
+      commandHandler.registerCommands();
+
+      const deleteFolderHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.deleteFolder")?.args[1];
+
+      const eventBusSpy = sinon.spy(eventBus, "emit");
+      mockPromptController.deleteFolderWithContents.resolves();
+
+      await deleteFolderHandler(mockFolderTreeItem);
+
+      expect(
+        mockPromptController.deleteFolderWithContents.calledWith(
+          "/test/test-folder"
+        )
+      ).to.be.true;
+      expect(
+        eventBusSpy.calledWith("filesystem.file.deleted", {
+          filePath: "/test/test-folder",
+          fileName: "test-folder",
+        })
+      ).to.be.true;
+
+      eventBusSpy.restore();
+    });
+
+    it("should show error when no folder selected", async () => {
+      commandHandler.registerCommands();
+
+      const deleteFolderHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.deleteFolder")?.args[1];
+
+      await deleteFolderHandler(); // No item provided
+
+      expect(
+        vscodeStubs.window.showErrorMessage.calledWith(
+          "No folder selected for deletion"
+        )
+      ).to.be.true;
+    });
+
+    it("should show error message when delete fails", async () => {
+      commandHandler.registerCommands();
+
+      const deleteFolderHandler = vscodeStubs.commands
+        .getCalls()
+        .find((call) => call.args[0] === "promptManager.deleteFolder")?.args[1];
+
+      const error = new Error("Delete failed");
+      mockPromptController.deleteFolderWithContents.rejects(error);
+
+      await deleteFolderHandler(mockFolderTreeItem);
+
+      expect(
+        vscodeStubs.window.showErrorMessage.calledWith(
+          "Failed to delete folder: Error: Delete failed"
         )
       ).to.be.true;
     });

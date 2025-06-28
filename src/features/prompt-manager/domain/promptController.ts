@@ -178,6 +178,27 @@ export class PromptController {
   }
 
   /**
+   * Delete a folder and all its contents with confirmation
+   */
+  public async deleteFolderWithContents(folderPath: string): Promise<void> {
+    const folderName = folderPath.split(/[\\/]/).pop();
+    const confirmation = await vscode.window.showWarningMessage(
+      `Are you sure you want to delete folder "${folderName}" and all its contents?`,
+      { modal: true },
+      "Delete"
+    );
+
+    if (confirmation === "Delete") {
+      const success = await this.repository.deleteFolderWithContents(
+        folderPath
+      );
+      if (success) {
+        vscode.window.showInformationMessage(`Deleted folder "${folderName}"`);
+      }
+    }
+  }
+
+  /**
    * Create a folder in a specific location
    */
   public async createFolderInLocation(folderPath?: string): Promise<void> {

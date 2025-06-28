@@ -193,6 +193,20 @@ export class FileManager {
     }
   }
 
+  public async deleteFolder(folderPath: string): Promise<boolean> {
+    try {
+      await this.fileSystemManager.deleteFile(folderPath); // fs-extra.remove() handles both files and directories
+
+      // Publish folder deleted event
+      this.publishFolderDeleted(folderPath);
+
+      return true;
+    } catch (error) {
+      log.error(`Failed to delete folder: ${error}`);
+      return false;
+    }
+  }
+
   // Cache management
 
   public clearContentCache(): void {
@@ -231,6 +245,13 @@ export class FileManager {
     eventBus.emit("filesystem.directory.created", {
       dirPath,
       dirName: dirPath.split(/[\\/]/).pop() || dirPath,
+    });
+  }
+
+  private publishFolderDeleted(folderPath: string): void {
+    eventBus.emit("filesystem.file.deleted", {
+      filePath: folderPath,
+      fileName: folderPath.split(/[\\/]/).pop() || folderPath,
     });
   }
 }

@@ -153,6 +153,17 @@ export class PromptRepository {
   }
 
   /**
+   * Delete a folder and all its contents
+   */
+  public async deleteFolderWithContents(folderPath: string): Promise<boolean> {
+    const success = await this.fileManager.deleteFolder(folderPath);
+    if (success) {
+      await this.invalidateCache();
+    }
+    return success;
+  }
+
+  /**
    * Read file content - used for clipboard operations
    */
   public async readFileContent(filePath: string): Promise<string | null> {
