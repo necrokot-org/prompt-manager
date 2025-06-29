@@ -100,6 +100,22 @@
         "command": "promptManager.askAiWithPrompt",
         "title": "Ask AI",
         "icon": "$(rocket)"
+      },
+      {
+        "command": "promptManager.selectTag",
+        "title": "Filter by Tag"
+      },
+      {
+        "command": "promptManager.clearTagFilter",
+        "title": "Clear Tag Filter"
+      },
+      {
+        "command": "promptManager.renameTag",
+        "title": "Rename Tag"
+      },
+      {
+        "command": "promptManager.deleteTag",
+        "title": "Delete Tag"
       }
     ],
     "menus": {
@@ -170,6 +186,21 @@
           "command": "promptManager.askAiWithPrompt",
           "when": "view == promptManagerTree && viewItem == promptFile && promptManager.isVSCode",
           "group": "inline"
+        },
+        {
+          "command": "promptManager.renameTag",
+          "when": "view == promptManagerTree && viewItem == tag",
+          "group": "tag"
+        },
+        {
+          "command": "promptManager.deleteTag",
+          "when": "view == promptManagerTree && viewItem == tag",
+          "group": "tag"
+        },
+        {
+          "command": "promptManager.clearTagFilter",
+          "when": "view == promptManagerTree && viewItem == tagRoot",
+          "group": "tag"
         }
       ]
     },
@@ -240,6 +271,7 @@
     "remark-stringify": "^11.0.0",
     "safe-regex2": "^5.0.0",
     "tsyringe": "^4.10.0",
+    "yaml": "^2.8.0",
     "zod": "^3.25.64"
   },
   "devDependencies": {
@@ -251,6 +283,7 @@
     "@types/reflect-metadata": "^0.0.5",
     "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.96.0",
+    "@types/yaml": "^1.9.6",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",

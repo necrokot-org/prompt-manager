@@ -50,7 +50,12 @@ describe("CommandHandler", () => {
     sinon.stub(vscode.env, "openExternal").resolves(true);
 
     // Create CommandHandler instance
-    commandHandler = new CommandHandler(mockPromptController, mockContext);
+    const mockTagService = {} as any;
+    commandHandler = new CommandHandler(
+      mockPromptController,
+      mockContext,
+      mockTagService
+    );
   });
 
   afterEach(() => {
@@ -74,14 +79,19 @@ describe("CommandHandler", () => {
         "promptManager.copyPromptWithMeta",
         "promptManager.deleteFolder",
         "promptManager.askAiWithPrompt",
+        // Tag commands
+        "promptManager.selectTag",
+        "promptManager.clearTagFilter",
+        "promptManager.renameTag",
+        "promptManager.deleteTag",
       ];
 
       expectedCommands.forEach((commandId) => {
         expect(vscodeStubs.commands.calledWith(commandId)).to.be.true;
       });
 
-      // Should register 11 commands total
-      expect(vscodeStubs.commands.callCount).to.equal(11);
+      // Should register 15 commands total
+      expect(vscodeStubs.commands.callCount).to.equal(15);
     });
 
     it("should add all commands to extension subscriptions", () => {
@@ -92,7 +102,7 @@ describe("CommandHandler", () => {
       commandHandler.registerCommands();
 
       // All commands should be added to subscriptions for cleanup
-      expect(mockContext.subscriptions).to.have.lengthOf(11);
+      expect(mockContext.subscriptions).to.have.lengthOf(15);
       expect(mockContext.subscriptions.every((sub) => sub === mockDisposable))
         .to.be.true;
     });

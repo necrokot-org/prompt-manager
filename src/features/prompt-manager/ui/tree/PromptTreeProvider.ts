@@ -19,16 +19,26 @@ import {
   FileTreeItem,
   FolderTreeItem,
   EmptyStateTreeItem,
+  TagRootTreeItem,
+  TagTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
 import { ItemFactory } from "@features/prompt-manager/ui/tree/factory/ItemFactory";
+import { TagItemFactory } from "@features/prompt-manager/ui/tree/factory/TagItemFactory";
 import { SearchFilter } from "@features/prompt-manager/ui/tree/filter/SearchFilter";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
+import { TagService } from "@features/prompt-manager/application/services/TagService";
+import { Tag } from "@features/prompt-manager/domain/Tag";
 
 // NOTE: The tree item classes (FileTreeItem, FolderTreeItem, EmptyStateTreeItem) have
 // been extracted to dedicated modules under `src/tree/items/` to improve
 // separation of concerns and unit-testability.
 
-export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
+export type PromptTreeItem =
+  | FileTreeItem
+  | FolderTreeItem
+  | EmptyStateTreeItem
+  | TagRootTreeItem
+  | TagTreeItem;
 
 // Simple state for drag operations
 let currentDrag: { uri: vscode.Uri; type: "file" | "folder" } | undefined;
@@ -52,6 +62,7 @@ export class PromptTreeProvider
 
   private _currentSearchCriteria: SearchCriteria | null = null;
   private itemFactory: ItemFactory;
+  private tagItemFactory: TagItemFactory;
   private searchFilter: SearchFilter;
   private subscriptions: any[] = [];
 
@@ -62,10 +73,13 @@ export class PromptTreeProvider
     @inject(DI_TOKENS.ConfigurationService)
     private configurationService: ConfigurationService,
     @inject(DI_TOKENS.FileSystemManager)
-    private fileSystemManager: FileSystemManager
+    private fileSystemManager: FileSystemManager,
+    @inject(DI_TOKENS.TagService)
+    private tagService: TagService
   ) {
     // Initialize modular helpers
     this.itemFactory = new ItemFactory(this.configurationService);
+    this.tagItemFactory = new TagItemFactory();
     this.searchFilter = new SearchFilter(searchService);
 
     // Listen to tree refresh events
@@ -111,8 +125,13 @@ export class PromptTreeProvider
 
   async getChildren(element?: PromptTreeItem): Promise<PromptTreeItem[]> {
     if (!element) {
-      // Root level - return folders and root prompts
+      // Root level - return tags root and files root
       return this.getRootItems();
+    }
+
+    if (element instanceof TagRootTreeItem) {
+      // Return all available tags
+      return this.getTagItems();
     }
 
     if (element instanceof FolderTreeItem) {
@@ -135,10 +154,32 @@ export class PromptTreeProvider
 
       const items: PromptTreeItem[] = [];
 
-      // If search is active, apply filtering
+      // Check if tag filter is active for TagRoot display
+      const activeTag = this.tagService.getActiveTag();
+      const hasActiveFilter = activeTag !== undefined;
+
+      // Always show the Tags root first with active filter info
+      items.push(
+        this.tagItemFactory.createTagRootItem(hasActiveFilter, activeTag?.value)
+      );
+
+      // If search is active, apply filtering to remaining items
       if (this._currentSearchCriteria?.isActive) {
         log.debug("getRootItems: Search is active, getting filtered items");
-        return this.getFilteredItems(structure);
+        const filteredItems = await this.getFilteredItems(structure);
+        items.push(...filteredItems);
+        return items;
+      }
+
+      // Check if tag filter is active
+      if (activeTag) {
+        log.debug("getRootItems: Tag filter is active, filtering by tag");
+        const tagFilteredItems = await this.getTagFilteredItems(
+          structure,
+          activeTag
+        );
+        items.push(...tagFilteredItems);
+        return items;
       }
 
       // Add folders that are in the root (no parent folders)
@@ -185,7 +226,8 @@ export class PromptTreeProvider
       }
 
       // If no items, show empty state message
-      if (items.length === 0) {
+      if (items.length === 1) {
+        // Only TagRoot exists
         log.debug("getRootItems: No items found, showing empty state");
         items.push(
           this.itemFactory.createEmptyStateItem(
@@ -202,9 +244,132 @@ export class PromptTreeProvider
       log.error("Error in getRootItems:", error);
       vscode.window.showErrorMessage(`Error getting root items: ${error}`);
       return [
+        this.tagItemFactory.createTagRootItem(),
         new EmptyStateTreeItem(
           "Error loading prompts",
           "Check console for details",
+          "error"
+        ),
+      ];
+    }
+  }
+
+  /**
+   * Get all tag items for the tag root
+   */
+  private async getTagItems(): Promise<PromptTreeItem[]> {
+    try {
+      const tags = await this.tagService.refreshTags();
+      const activeTag = this.tagService.getActiveTag();
+
+      if (tags.length === 0) {
+        return [
+          this.itemFactory.createEmptyStateItem(
+            "No tags found",
+            "Add tags to your prompts to see them here",
+            "emptyTags"
+          ),
+        ];
+      }
+
+      // Calculate prompt counts for each tag
+      const promptCounts = await this.calculatePromptCounts(tags);
+
+      return this.tagItemFactory.createTagItems(tags, activeTag, promptCounts);
+    } catch (error) {
+      log.error("getTagItems: Error getting tags:", error);
+      return [
+        this.itemFactory.createEmptyStateItem(
+          "Error loading tags",
+          "Check the logs for details",
+          "error"
+        ),
+      ];
+    }
+  }
+
+  /**
+   * Calculate how many prompts have each tag
+   */
+  private async calculatePromptCounts(
+    tags: Tag[]
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+
+    try {
+      const structure = await this.promptController.getPromptStructure();
+      const allPrompts = [
+        ...structure.rootPrompts,
+        ...structure.folders.flatMap((f: any) => f.prompts),
+      ];
+
+      // Initialize counts
+      tags.forEach((tag) => counts.set(tag.value, 0));
+
+      // Count prompts for each tag
+      for (const prompt of allPrompts) {
+        if (prompt.tags && Array.isArray(prompt.tags)) {
+          prompt.tags.forEach((tagValue: string) => {
+            if (counts.has(tagValue)) {
+              counts.set(tagValue, counts.get(tagValue)! + 1);
+            }
+          });
+        }
+      }
+    } catch (error) {
+      log.error(
+        "calculatePromptCounts: Error calculating prompt counts:",
+        error
+      );
+      // Return empty counts in case of error
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get items filtered by a specific tag
+   */
+  private async getTagFilteredItems(
+    structure: any,
+    activeTag: any
+  ): Promise<PromptTreeItem[]> {
+    try {
+      const items: PromptTreeItem[] = [];
+      const allPrompts = [
+        ...structure.rootPrompts,
+        ...structure.folders.flatMap((f: any) => f.prompts),
+      ];
+
+      // Filter prompts that have the active tag
+      for (const prompt of allPrompts) {
+        if (prompt.tags && prompt.tags.includes(activeTag.value)) {
+          const promptItem = this.createFileTreeItem(prompt, {
+            command: "promptManager.openPrompt",
+            title: "Open Prompt",
+            arguments: [prompt.path],
+          });
+          items.push(promptItem);
+        }
+      }
+
+      if (items.length === 0) {
+        items.push(
+          this.itemFactory.createEmptyStateItem(
+            `No prompts with tag "${activeTag.value}"`,
+            "Click on Tags to browse all tags",
+            "emptyTagFilter"
+          )
+        );
+      }
+
+      return items;
+    } catch (error) {
+      log.error("getTagFilteredItems: Error filtering by tag:", error);
+      return [
+        this.itemFactory.createEmptyStateItem(
+          "Error filtering by tag",
+          "Check the logs for details",
           "error"
         ),
       ];

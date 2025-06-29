@@ -24,7 +24,14 @@ export interface EventMap {
 
   // UI
   "ui.tree.refresh.requested": {
-    reason: "manual" | "file-change" | "search-change";
+    reason:
+      | "manual"
+      | "file-change"
+      | "search-change"
+      | "tag-filter-changed"
+      | "tag-filter-cleared"
+      | "tag-renamed"
+      | "tag-deleted";
   };
   "ui.tree.item.selected": {
     itemType: "file" | "folder";

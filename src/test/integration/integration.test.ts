@@ -27,8 +27,14 @@ suite("Integration Tests", () => {
     mockContext = {
       extensionUri: vscode.Uri.file("/test/extension"),
       subscriptions: [],
-      workspaceState: {} as any,
-      globalState: {} as any,
+      workspaceState: {
+        get: () => undefined,
+        update: () => Promise.resolve(),
+      } as any,
+      globalState: {
+        get: () => undefined,
+        update: () => Promise.resolve(),
+      } as any,
       secrets: {} as any,
       extensionMode: vscode.ExtensionMode.Test,
       extension: {} as any,

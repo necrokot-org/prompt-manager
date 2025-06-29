@@ -6,6 +6,7 @@ import {
   FileTreeItem,
   FolderTreeItem,
   EmptyStateTreeItem,
+  TagRootTreeItem,
 } from "../../features/prompt-manager/ui/tree/items";
 import { PromptFile } from "../../features/prompt-manager/data/fileManager";
 import { SearchCriteria } from "../../features/search/ui/SearchPanelProvider";
@@ -52,11 +53,20 @@ suite("PromptTreeProvider", () => {
       fileExists: () => false,
     };
 
+    const mockTagService = {
+      getActiveTag: () => undefined,
+      refreshTags: () => Promise.resolve([]),
+      selectTag: () => Promise.resolve(),
+      clearTagSelection: () => Promise.resolve(),
+      renameTag: () => Promise.resolve(),
+      deleteTag: () => Promise.resolve(),
+    } as any;
     promptTreeProvider = new PromptTreeProvider(
       mockPromptController,
       mockSearchService,
       mockConfigurationService,
-      mockFileSystemManager
+      mockFileSystemManager,
+      mockTagService
     );
   });
 
@@ -68,9 +78,10 @@ suite("PromptTreeProvider", () => {
     test("should return empty state when no prompts exist", async () => {
       const children = await promptTreeProvider.getChildren();
 
-      assert.strictEqual(children.length, 1);
-      assert.ok(children[0] instanceof EmptyStateTreeItem);
-      assert.strictEqual(children[0].label, "No prompts yet");
+      assert.strictEqual(children.length, 2);
+      assert.ok(children[0] instanceof TagRootTreeItem);
+      assert.ok(children[1] instanceof EmptyStateTreeItem);
+      assert.strictEqual(children[1].label, "No prompts yet");
     });
 
     test("should return folder and file items when prompts exist", async () => {
@@ -100,9 +111,10 @@ suite("PromptTreeProvider", () => {
 
       const children = await promptTreeProvider.getChildren();
 
-      assert.strictEqual(children.length, 2);
-      assert.ok(children[0] instanceof FolderTreeItem);
-      assert.ok(children[1] instanceof FileTreeItem);
+      assert.strictEqual(children.length, 3);
+      assert.ok(children[0] instanceof TagRootTreeItem);
+      assert.ok(children[1] instanceof FolderTreeItem);
+      assert.ok(children[2] instanceof FileTreeItem);
     });
   });
 
@@ -150,11 +162,12 @@ suite("PromptTreeProvider", () => {
       promptTreeProvider.setSearchCriteria(criteria);
       const children = await promptTreeProvider.getChildren();
 
-      // Should only return the matching prompt
-      assert.strictEqual(children.length, 1);
-      assert.ok(children[0] instanceof FileTreeItem);
+      // Should return TagRootTreeItem + matching prompt
+      assert.strictEqual(children.length, 2);
+      assert.ok(children[0] instanceof TagRootTreeItem);
+      assert.ok(children[1] instanceof FileTreeItem);
       assert.strictEqual(
-        (children[0] as FileTreeItem).label,
+        (children[1] as FileTreeItem).label,
         "Matching Prompt"
       );
     });
@@ -191,9 +204,10 @@ suite("PromptTreeProvider", () => {
       promptTreeProvider.setSearchCriteria(criteria);
       const children = await promptTreeProvider.getChildren();
 
-      assert.strictEqual(children.length, 1);
-      assert.ok(children[0] instanceof EmptyStateTreeItem);
-      assert.strictEqual(children[0].label, "No matching prompts");
+      assert.strictEqual(children.length, 2);
+      assert.ok(children[0] instanceof TagRootTreeItem);
+      assert.ok(children[1] instanceof EmptyStateTreeItem);
+      assert.strictEqual(children[1].label, "No matching prompts");
     });
   });
 

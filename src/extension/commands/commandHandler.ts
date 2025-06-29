@@ -5,16 +5,22 @@ import { PromptTreeItem } from "@features/prompt-manager/ui/tree/PromptTreeProvi
 import {
   FileTreeItem,
   FolderTreeItem,
+  TagTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
+import { TagService } from "@features/prompt-manager/application/services/TagService";
+import { Tag } from "@features/prompt-manager/domain/Tag";
 
 @injectable()
 export class CommandHandler {
   constructor(
     @inject(DI_TOKENS.PromptController)
     private promptController: PromptController,
-    @inject(DI_TOKENS.ExtensionContext) private context: vscode.ExtensionContext
+    @inject(DI_TOKENS.ExtensionContext)
+    private context: vscode.ExtensionContext,
+    @inject(DI_TOKENS.TagService)
+    private tagService: TagService
   ) {}
 
   public registerCommands(): void {
@@ -59,6 +65,22 @@ export class CommandHandler {
       vscode.commands.registerCommand(
         "promptManager.askAiWithPrompt",
         (item: PromptTreeItem) => this.askAiWithPrompt(item)
+      ),
+      // Tag commands
+      vscode.commands.registerCommand(
+        "promptManager.selectTag",
+        (tagValue: string) => this.selectTag(tagValue)
+      ),
+      vscode.commands.registerCommand("promptManager.clearTagFilter", () =>
+        this.clearTagFilter()
+      ),
+      vscode.commands.registerCommand(
+        "promptManager.renameTag",
+        (item: PromptTreeItem) => this.renameTag(item)
+      ),
+      vscode.commands.registerCommand(
+        "promptManager.deleteTag",
+        (item: PromptTreeItem) => this.deleteTag(item)
       ),
     ];
 
@@ -246,5 +268,71 @@ export class CommandHandler {
       filePath,
       fileName: filePath.split(/[\\/]/).pop() || filePath,
     });
+  }
+
+  // Tag command handlers
+
+  private async selectTag(tagValue: string): Promise<void> {
+    try {
+      const tag = Tag.from(tagValue);
+      await this.tagService.selectTag(tag);
+      vscode.window.showInformationMessage(`Filtering by tag: ${tagValue}`);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to select tag: ${error}`);
+    }
+  }
+
+  private async clearTagFilter(): Promise<void> {
+    try {
+      await this.tagService.clearTagSelection();
+      vscode.window.showInformationMessage("Tag filter cleared");
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to clear tag filter: ${error}`);
+    }
+  }
+
+  private async renameTag(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item || !(item instanceof TagTreeItem)) {
+        vscode.window.showErrorMessage("No tag selected for renaming");
+        return;
+      }
+
+      const oldTagValue = item.tag.value;
+      const newTagValue = await vscode.window.showInputBox({
+        prompt: "Enter new tag name",
+        value: oldTagValue,
+        validateInput: (value) => {
+          if (!value || !value.trim()) {
+            return "Tag name cannot be empty";
+          }
+          if (value.length > 50) {
+            return "Tag name is too long (max 50 characters)";
+          }
+          return null;
+        },
+      });
+
+      if (!newTagValue || newTagValue === oldTagValue) {
+        return;
+      }
+
+      await this.tagService.renameTag(item.tag, newTagValue);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to rename tag: ${error}`);
+    }
+  }
+
+  private async deleteTag(item?: PromptTreeItem): Promise<void> {
+    try {
+      if (!item || !(item instanceof TagTreeItem)) {
+        vscode.window.showErrorMessage("No tag selected for deletion");
+        return;
+      }
+
+      await this.tagService.deleteTag(item.tag);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to delete tag: ${error}`);
+    }
   }
 }
