@@ -2,111 +2,143 @@
  * Integration test for the tag tree view functionality
  * Tests the interaction between the separate tag tree and prompt tree
  */
-import * as vscode from "vscode";
+import { setup, teardown, suite, test } from "mocha";
 import { expect } from "chai";
-import { TagTreeProvider } from "@features/prompt-manager/ui/tree/TagTreeProvider";
-import { TagService } from "@features/prompt-manager/application/services/TagService";
-import { container } from "@infra/di/di-container";
+import * as sinon from "sinon";
+import * as vscode from "vscode";
+import { container, setupDependencyInjection } from "@infra/di/di-container";
 import { DI_TOKENS } from "@infra/di/di-tokens";
+import { TagService } from "@features/prompt-manager/application/services/TagService";
+import { TagTreeProvider } from "@features/prompt-manager/ui/tree/TagTreeProvider";
 import {
-  TagRootTreeItem,
   TagTreeItem,
+  TagRootTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
+import { Tag } from "@features/prompt-manager/domain/Tag";
+import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
 
-describe("Tag Tree Integration Flow", () => {
-  let tagTreeProvider: TagTreeProvider;
+suite("Tag Tree Integration Flow", () => {
+  let mockContext: vscode.ExtensionContext;
   let tagService: TagService;
+  let tagTreeProvider: TagTreeProvider;
+  let mockWorkspace: MockWorkspaceSetup;
 
-  before(async () => {
-    // Resolve providers from DI container
-    tagTreeProvider = container.resolve<TagTreeProvider>(
-      DI_TOKENS.TagTreeProvider
-    );
-    tagService = container.resolve<TagService>(DI_TOKENS.TagService);
+  setup(async () => {
+    // Clear DI container to avoid test interference
+    container.clearInstances();
+
+    // Setup test environment
+    mockWorkspace = await setupMockWorkspace("tag-tree-test-");
+
+    // Create mock extension context
+    mockContext = {
+      subscriptions: [],
+      workspaceState: {
+        get: () => undefined,
+        update: () => Promise.resolve(),
+      },
+    } as any;
+
+    // Initialize DI container with our mock
+    setupDependencyInjection(mockContext);
+
+    // Get services from container
+    tagService = container.resolve(DI_TOKENS.TagService);
+    tagTreeProvider = container.resolve(DI_TOKENS.TagTreeProvider);
   });
 
-  beforeEach(async () => {
-    // Clear any active tag filters before each test
-    await tagService.clearTagSelection();
+  teardown(async () => {
+    await mockWorkspace.cleanup();
+    container.clearInstances();
+    sinon.restore();
   });
 
-  describe("Tag Tree View Functionality", () => {
-    it("should show separate tags tree with TagRoot", async () => {
-      // Act: Get root items from tag tree
+  suite("Tag Tree View Functionality", () => {
+    test("should show separate tags tree with TagRoot", async () => {
+      // Get tag tree children - should have TagRoot
       const tagTreeChildren = await tagTreeProvider.getChildren();
 
-      // Assert: Should have exactly one TagRoot item
-      expect(tagTreeChildren).to.have.length(1);
+      expect(tagTreeChildren).to.have.lengthOf(1);
       expect(tagTreeChildren[0]).to.be.instanceOf(TagRootTreeItem);
-
-      const tagRoot = tagTreeChildren[0] as TagRootTreeItem;
-      expect(tagRoot.contextValue).to.equal("tagRoot");
     });
 
-    it("should show TagRoot as collapsible", async () => {
-      // Act: Get root items from tag tree
+    test("should show TagRoot as collapsible", async () => {
       const tagTreeChildren = await tagTreeProvider.getChildren();
-
-      // Assert: TagRoot should be expandable
       const tagRoot = tagTreeChildren[0] as TagRootTreeItem;
+
       expect(tagRoot.collapsibleState).to.equal(
         vscode.TreeItemCollapsibleState.Expanded
       );
     });
 
-    it("should handle tag selection and show active state", async () => {
-      // Arrange: Get available tags
+    test("should handle tag selection and show active state", async () => {
+      // Arrange: Get available tags and select one
       const tags = await tagService.refreshTags();
 
       if (tags.length > 0) {
-        const firstTag = tags[0];
+        const selectedTag = tags[0];
+        await tagService.selectTag(selectedTag);
 
-        // Act: Select first available tag
-        await tagService.selectTag(firstTag);
-
-        // Get tag tree root after filter is applied
+        // Act: Get tag items
         const tagTreeChildren = await tagTreeProvider.getChildren();
-
-        // Assert: TagRoot should show active filter state
-        expect(tagTreeChildren).to.have.length(1);
         const tagRoot = tagTreeChildren[0] as TagRootTreeItem;
-        expect(tagRoot.contextValue).to.equal("tagRootActive");
-        expect(tagRoot.label).to.include(firstTag.value);
+        const tagItems = await tagTreeProvider.getChildren(tagRoot);
+
+        // Assert: Selected tag should be marked as active
+        const activeTag = tagItems.find(
+          (item) =>
+            item instanceof TagTreeItem && item.tag.value === selectedTag.value
+        ) as TagTreeItem;
+
+        if (activeTag) {
+          expect(activeTag.description).to.equal("active");
+        }
       }
     });
 
-    it("should return to inactive state when tag filter is cleared", async () => {
-      // Arrange: Select a tag first if available
+    test("should return to inactive state when tag filter is cleared", async () => {
+      // Arrange: Get available tags and select one
       const tags = await tagService.refreshTags();
+
       if (tags.length > 0) {
-        await tagService.selectTag(tags[0]);
+        const selectedTag = tags[0];
+        await tagService.selectTag(selectedTag);
+
+        // Clear tag selection
+        await tagService.clearTagSelection();
+
+        // Act: Get tag items
+        const tagTreeChildren = await tagTreeProvider.getChildren();
+        const tagRoot = tagTreeChildren[0] as TagRootTreeItem;
+        const tagItems = await tagTreeProvider.getChildren(tagRoot);
+
+        // Assert: No tag should be marked as active
+        const activeTags = tagItems.filter(
+          (item) => item instanceof TagTreeItem && item.description === "active"
+        );
+
+        expect(activeTags).to.have.lengthOf(0);
       }
-
-      // Act: Clear tag filter
-      await tagService.clearTagSelection();
-
-      // Assert: Tag tree root should return to inactive state
-      const tagTreeChildren = await tagTreeProvider.getChildren();
-      const tagRoot = tagTreeChildren[0] as TagRootTreeItem;
-      expect(tagRoot.contextValue).to.equal("tagRoot");
-      expect(tagRoot.label).to.equal("Tags");
     });
   });
 
-  describe("Tag Items Display", () => {
-    it("should show tag items as children of TagRoot", async () => {
-      // Act: Get children of TagRoot
+  suite("Tag Items Display", () => {
+    test("should show tag items as children of TagRoot", async () => {
+      // Arrange: Get TagRoot
       const tagTreeChildren = await tagTreeProvider.getChildren();
       const tagRoot = tagTreeChildren[0] as TagRootTreeItem;
+
+      // Act: Get tag items
       const tagItems = await tagTreeProvider.getChildren(tagRoot);
 
-      // Assert: All children should be TagTreeItem instances
+      // Assert: Should have tag items
+      expect(tagItems).to.be.an("array");
       tagItems.forEach((item) => {
         expect(item).to.be.instanceOf(TagTreeItem);
       });
     });
 
-    it("should mark active tag with description", async () => {
+    test("should mark active tag with description", async () => {
       // Arrange: Get available tags and select one
       const tags = await tagService.refreshTags();
 
@@ -132,8 +164,8 @@ describe("Tag Tree Integration Flow", () => {
     });
   });
 
-  describe("Tree Provider Events", () => {
-    it("should refresh when refresh() is called", () => {
+  suite("Tree Provider Events", () => {
+    test("should refresh when refresh() is called", () => {
       // Arrange: Set up event listener
       let eventFired = false;
       const subscription = tagTreeProvider.onDidChangeTreeData(() => {

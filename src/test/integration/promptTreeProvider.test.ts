@@ -51,6 +51,7 @@ suite("PromptTreeProvider", () => {
       moveFile: () => Promise.resolve(),
       moveFolder: () => Promise.resolve(),
       fileExists: () => false,
+      checkMoveConflict: () => Promise.resolve({ hasConflict: false }), // Add missing method
     };
 
     const mockTagService = {
@@ -78,10 +79,10 @@ suite("PromptTreeProvider", () => {
     test("should return empty state when no prompts exist", async () => {
       const children = await promptTreeProvider.getChildren();
 
-      assert.strictEqual(children.length, 2);
-      assert.ok(children[0] instanceof TagRootTreeItem);
-      assert.ok(children[1] instanceof EmptyStateTreeItem);
-      assert.strictEqual(children[1].label, "No prompts yet");
+      // Updated: No TagRootTreeItem in prompt tree (tags have separate tree)
+      assert.strictEqual(children.length, 1);
+      assert.ok(children[0] instanceof EmptyStateTreeItem);
+      assert.strictEqual(children[0].label, "No prompts yet");
     });
 
     test("should return folder and file items when prompts exist", async () => {
@@ -111,10 +112,10 @@ suite("PromptTreeProvider", () => {
 
       const children = await promptTreeProvider.getChildren();
 
-      assert.strictEqual(children.length, 3);
-      assert.ok(children[0] instanceof TagRootTreeItem);
-      assert.ok(children[1] instanceof FolderTreeItem);
-      assert.ok(children[2] instanceof FileTreeItem);
+      // Updated: No TagRootTreeItem in prompt tree
+      assert.strictEqual(children.length, 2);
+      assert.ok(children[0] instanceof FolderTreeItem);
+      assert.ok(children[1] instanceof FileTreeItem);
     });
   });
 
@@ -162,12 +163,11 @@ suite("PromptTreeProvider", () => {
       promptTreeProvider.setSearchCriteria(criteria);
       const children = await promptTreeProvider.getChildren();
 
-      // Should return TagRootTreeItem + matching prompt
-      assert.strictEqual(children.length, 2);
-      assert.ok(children[0] instanceof TagRootTreeItem);
-      assert.ok(children[1] instanceof FileTreeItem);
+      // Updated: No TagRootTreeItem, just matching prompt
+      assert.strictEqual(children.length, 1);
+      assert.ok(children[0] instanceof FileTreeItem);
       assert.strictEqual(
-        (children[1] as FileTreeItem).label,
+        (children[0] as FileTreeItem).label,
         "Matching Prompt"
       );
     });
@@ -204,10 +204,10 @@ suite("PromptTreeProvider", () => {
       promptTreeProvider.setSearchCriteria(criteria);
       const children = await promptTreeProvider.getChildren();
 
-      assert.strictEqual(children.length, 2);
-      assert.ok(children[0] instanceof TagRootTreeItem);
-      assert.ok(children[1] instanceof EmptyStateTreeItem);
-      assert.strictEqual(children[1].label, "No matching prompts");
+      // Updated: No TagRootTreeItem, just empty state
+      assert.strictEqual(children.length, 1);
+      assert.ok(children[0] instanceof EmptyStateTreeItem);
+      assert.strictEqual(children[0].label, "No matching prompts");
     });
   });
 
@@ -232,11 +232,14 @@ suite("PromptTreeProvider", () => {
         "application/vnd.code.tree.promptmanager"
       );
       assert.ok(dragData);
-      // Updated to expect JSON format with path and type
-      assert.strictEqual(
-        dragData.value,
-        '{"path":"/test/test-prompt.md","type":"file"}'
-      );
+      // Updated to expect object format instead of JSON string
+      const expectedData = {
+        type: "file",
+        path: "/test/test-prompt.md",
+        title: "Test Prompt",
+        name: "test-prompt.md",
+      };
+      assert.deepStrictEqual(dragData.value, expectedData);
     });
 
     test("should handle drag operation for folder items", async () => {
@@ -252,20 +255,20 @@ suite("PromptTreeProvider", () => {
       const dragData = dataTransfer.get(
         "application/vnd.code.tree.promptmanager"
       );
-      // Updated to expect drag data for folders (now supported)
+      // Updated to expect object format for folders
       assert.ok(dragData);
-      assert.strictEqual(
-        dragData.value,
-        '{"path":"/test/folder","type":"folder"}'
-      );
+      const expectedData = {
+        type: "folder",
+        path: "/test/folder",
+        name: "Test Folder",
+      };
+      assert.deepStrictEqual(dragData.value, expectedData);
     });
   });
 
   suite("drag and drop edge cases", () => {
     let showErrorMessageStub: sinon.SinonStub;
     let showInformationMessageStub: sinon.SinonStub;
-    let pathExistsStub: sinon.SinonStub;
-    let fsExtraStub: sinon.SinonStub;
 
     setup(() => {
       // Clean up any existing stubs
@@ -278,13 +281,12 @@ suite("PromptTreeProvider", () => {
         .stub(vscode.window, "showInformationMessage")
         .resolves();
 
-      // Mock fs-extra pathExists
-      const fsExtra = require("fs-extra");
-      fsExtraStub = sinon.stub(fsExtra, "pathExists").resolves(false); // Default: no conflicts
-
       // Reset file system manager mocks
-      mockFileSystemManager.moveFile = sinon.stub().returns("not called");
-      mockFileSystemManager.moveFolder = sinon.stub().returns("not called");
+      mockFileSystemManager.moveFile = sinon.stub().resolves();
+      mockFileSystemManager.moveFolder = sinon.stub().resolves();
+      mockFileSystemManager.checkMoveConflict = sinon
+        .stub()
+        .resolves({ hasConflict: false });
     });
 
     teardown(() => {
@@ -304,13 +306,22 @@ suite("PromptTreeProvider", () => {
         prompts: [],
       });
 
-      // Simulate dragging parent folder onto its subfolder
+      // Mock checkMoveConflict to detect circular dependency
+      // In a real scenario, this would be detected by the checkMoveConflict logic
+      // but since we're testing the error handling, we'll simulate a custom check
+      mockFileSystemManager.checkMoveConflict = sinon.stub().resolves({
+        hasConflict: true,
+        conflictType: "circular_dependency",
+      });
+
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem(
-          '{"path":"/test/parent-folder","type":"folder"}'
-        )
+        new vscode.DataTransferItem({
+          type: "folder",
+          path: "/test/parent-folder",
+          name: "Parent Folder",
+        })
       );
 
       // Set current drag state (simulating drag start)
@@ -323,9 +334,9 @@ suite("PromptTreeProvider", () => {
       assert.ok(showErrorMessageStub.calledOnce, "Should show error message");
       assert.ok(
         showErrorMessageStub.firstCall.args[0].includes(
-          "Cannot move folder into itself"
+          "Cannot move item due to a conflict"
         ),
-        "Error message should mention folder self-containment"
+        "Error message should mention conflict"
       );
     });
 
@@ -346,17 +357,21 @@ suite("PromptTreeProvider", () => {
         isDirectory: false,
       });
 
-      // Mock pathExists to return true for the conflicting target path
-      fsExtraStub
-        .withArgs("/test/target-folder/existing-prompt.md")
-        .resolves(true);
+      // Mock checkMoveConflict to return target exists conflict
+      mockFileSystemManager.checkMoveConflict = sinon.stub().resolves({
+        hasConflict: true,
+        conflictType: "target_exists",
+      });
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem(
-          '{"path":"/test/existing-prompt.md","type":"file"}'
-        )
+        new vscode.DataTransferItem({
+          type: "file",
+          path: "/test/existing-prompt.md",
+          title: "Existing Prompt",
+          name: "existing-prompt.md",
+        })
       );
 
       // Set current drag state
@@ -369,7 +384,7 @@ suite("PromptTreeProvider", () => {
       assert.ok(showErrorMessageStub.calledOnce, "Should show error message");
       assert.ok(
         showErrorMessageStub.firstCall.args[0].includes(
-          "target already exists"
+          "already exists in the target location"
         ),
         "Error message should mention target conflict"
       );
@@ -386,28 +401,35 @@ suite("PromptTreeProvider", () => {
         isDirectory: false,
       });
 
+      // Add warning message stub since dropping on file item shows warning
+      const showWarningStub = sinon
+        .stub(vscode.window, "showWarningMessage")
+        .resolves();
+
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem(
-          '{"path":"/test/test-prompt.md","type":"file"}'
-        )
+        new vscode.DataTransferItem({
+          type: "file",
+          path: "/test/test-prompt.md",
+          title: "Test Prompt",
+          name: "test-prompt.md",
+        })
       );
 
       // Set current drag state
       await promptTreeProvider.handleDrag([fileItem], dataTransfer);
 
-      // Try to drop file on itself (same path)
+      // Try to drop file on itself (which is a file item, not folder)
       await promptTreeProvider.handleDrop(fileItem, dataTransfer);
 
-      // Should return early without any messages or operations
+      // Should show warning about dropping on file item
+      assert.ok(showWarningStub.calledOnce, "Should show warning message");
       assert.ok(
-        showErrorMessageStub.notCalled,
-        "Should not show error message"
-      );
-      assert.ok(
-        showInformationMessageStub.notCalled,
-        "Should not show success message"
+        showWarningStub.firstCall.args[0].includes(
+          "Can only drop items onto folders or the root area"
+        ),
+        "Warning message should mention folder/root restriction"
       );
       assert.strictEqual(
         mockFileSystemManager.moveFile.callCount,
@@ -433,16 +455,24 @@ suite("PromptTreeProvider", () => {
         prompts: [],
       });
 
-      // Mock successful move operation and refresh
+      // Mock successful operations - no conflict
+      mockFileSystemManager.checkMoveConflict = sinon
+        .stub()
+        .resolves({ hasConflict: false });
       mockFileSystemManager.moveFile = sinon.stub().resolves();
-      mockPromptController.refresh = sinon.stub().resolves();
+
+      // Mock the refresh method on promptTreeProvider
+      const refreshStub = sinon.stub(promptTreeProvider, "refresh");
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem(
-          '{"path":"/test/source-prompt.md","type":"file"}'
-        )
+        new vscode.DataTransferItem({
+          type: "file",
+          path: "/test/source-prompt.md",
+          title: "Source Prompt",
+          name: "source-prompt.md",
+        })
       );
 
       // Set current drag state
@@ -450,6 +480,12 @@ suite("PromptTreeProvider", () => {
 
       // Drop file into folder
       await promptTreeProvider.handleDrop(targetFolderItem, dataTransfer);
+
+      // Verify conflict check was called
+      assert.ok(
+        mockFileSystemManager.checkMoveConflict.calledOnce,
+        "Should call checkMoveConflict"
+      );
 
       // Verify move operation was called
       assert.ok(
@@ -479,7 +515,7 @@ suite("PromptTreeProvider", () => {
         showInformationMessageStub.calledOnce,
         "Should show success message"
       );
-      assert.ok(mockPromptController.refresh.calledOnce, "Should refresh tree");
+      assert.ok(refreshStub.calledOnce, "Should refresh tree");
     });
   });
 
@@ -492,9 +528,11 @@ suite("PromptTreeProvider", () => {
         .stub(vscode.window, "showInformationMessage")
         .resolves();
 
-      // Mock fs-extra pathExists to return false (no conflicts)
-      const fsExtra = require("fs-extra");
-      sinon.stub(fsExtra, "pathExists").resolves(false);
+      // Reset file system manager mocks
+      mockFileSystemManager.moveFolder = sinon.stub().resolves();
+      mockFileSystemManager.checkMoveConflict = sinon
+        .stub()
+        .resolves({ hasConflict: false });
     });
 
     teardown(() => {
@@ -526,13 +564,21 @@ suite("PromptTreeProvider", () => {
 
       // Mock successful folder move
       mockFileSystemManager.moveFolder = sinon.stub().resolves();
+      mockFileSystemManager.checkMoveConflict = sinon
+        .stub()
+        .resolves({ hasConflict: false });
+
+      // Mock the refresh method
+      const refreshStub = sinon.stub(promptTreeProvider, "refresh");
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem(
-          '{"path":"/test/source-folder","type":"folder"}'
-        )
+        new vscode.DataTransferItem({
+          type: "folder",
+          path: "/test/source-folder",
+          name: "Source Folder",
+        })
       );
 
       // Set current drag state and drop
@@ -541,12 +587,12 @@ suite("PromptTreeProvider", () => {
 
       // Verify immediate operations
       assert.ok(
-        mockFileSystemManager.moveFolder.calledOnce,
-        "Should call moveFolder"
+        mockFileSystemManager.checkMoveConflict.calledOnce,
+        "Should call checkMoveConflict"
       );
       assert.ok(
-        mockFileManager.clearContentCache.calledOnce,
-        "Should clear content cache"
+        mockFileSystemManager.moveFolder.calledOnce,
+        "Should call moveFolder"
       );
       assert.ok(
         showInformationMessageStub.calledOnce,
@@ -564,7 +610,10 @@ suite("PromptTreeProvider", () => {
         prompts: [],
       });
 
-      // Mock failed folder move
+      // Mock successful conflict check but failed folder move
+      mockFileSystemManager.checkMoveConflict = sinon
+        .stub()
+        .resolves({ hasConflict: false });
       mockFileSystemManager.moveFolder = sinon
         .stub()
         .rejects(new Error("Move failed"));
@@ -576,9 +625,11 @@ suite("PromptTreeProvider", () => {
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
         "application/vnd.code.tree.promptmanager",
-        new vscode.DataTransferItem(
-          '{"path":"/test/source-folder","type":"folder"}'
-        )
+        new vscode.DataTransferItem({
+          type: "folder",
+          path: "/test/source-folder",
+          name: "Source Folder",
+        })
       );
 
       // Set current drag state and drop on root
@@ -586,6 +637,10 @@ suite("PromptTreeProvider", () => {
       await promptTreeProvider.handleDrop(undefined, dataTransfer);
 
       // Verify error handling
+      assert.ok(
+        mockFileSystemManager.checkMoveConflict.calledOnce,
+        "Should call checkMoveConflict"
+      );
       assert.ok(
         mockFileSystemManager.moveFolder.calledOnce,
         "Should attempt folder move"

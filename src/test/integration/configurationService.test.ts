@@ -1,18 +1,18 @@
-import { afterEach, beforeEach, describe, it } from "mocha";
+import { setup, teardown, suite, test } from "mocha";
 import { expect } from "chai";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
 import { ConfigurationService, CONFIG_KEYS } from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 
-describe("ConfigurationService", () => {
+suite("ConfigurationService", () => {
   let configService: ConfigurationService;
   let mockConfiguration: any;
   let workspaceGetConfigStub: sinon.SinonStub;
   let workspaceOnDidChangeConfigStub: sinon.SinonStub;
   let eventBusSpy: sinon.SinonSpy;
 
-  beforeEach(() => {
+  setup(() => {
     // Create fake configuration object with all required methods
     mockConfiguration = {
       get: sinon.stub(),
@@ -50,13 +50,13 @@ describe("ConfigurationService", () => {
     configService = new ConfigurationService();
   });
 
-  afterEach(() => {
+  teardown(() => {
     sinon.restore();
     configService.dispose();
   });
 
-  describe("initialization", () => {
-    it("should set up configuration watcher on initialize", () => {
+  suite("initialization", () => {
+    test("should set up configuration watcher on initialize", () => {
       configService.initialize();
 
       expect(workspaceOnDidChangeConfigStub.calledOnce).to.be.true;
@@ -65,7 +65,7 @@ describe("ConfigurationService", () => {
       );
     });
 
-    it("should dispose configuration watcher on dispose", () => {
+    test("should dispose configuration watcher on dispose", () => {
       const mockDispose = sinon.stub();
       workspaceOnDidChangeConfigStub.returns({ dispose: mockDispose });
 
@@ -75,7 +75,7 @@ describe("ConfigurationService", () => {
       expect(mockDispose.calledOnce).to.be.true;
     });
 
-    it("should handle multiple initialize calls without leaking watchers", () => {
+    test("should handle multiple initialize calls without leaking watchers", () => {
       const mockDispose1 = sinon.stub();
       const mockDispose2 = sinon.stub();
 
@@ -100,12 +100,12 @@ describe("ConfigurationService", () => {
       expect(mockDispose2.calledOnce).to.be.true;
     });
 
-    it("should handle dispose without initialize", () => {
+    test("should handle dispose without initialize", () => {
       // Should not throw when disposing without initializing
       expect(() => configService.dispose()).to.not.throw();
     });
 
-    it("should properly dispose previous watcher when initialize is called again", () => {
+    test("should properly dispose previous watcher when initialize is called again", () => {
       const mockDispose1 = sinon.stub();
       const mockDispose2 = sinon.stub();
 
@@ -130,43 +130,43 @@ describe("ConfigurationService", () => {
     });
   });
 
-  describe("configuration getters", () => {
-    it("should get default prompt directory", () => {
+  suite("configuration getters", () => {
+    test("should get default prompt directory", () => {
       const result = configService.getDefaultPromptDirectory();
 
       expect(result).to.equal(".prompt_manager");
     });
 
-    it("should get file naming pattern", () => {
+    test("should get file naming pattern", () => {
       const result = configService.getFileNamingPattern();
 
       expect(result).to.equal("kebab-case");
     });
 
-    it("should get show description in tree setting", () => {
+    test("should get show description in tree setting", () => {
       const result = configService.getShowDescriptionInTree();
 
       expect(result).to.be.true;
     });
 
-    it("should get debug logging setting", () => {
+    test("should get debug logging setting", () => {
       const result = configService.getDebugLogging();
 
       expect(result).to.be.false;
     });
   });
 
-  describe("configuration change events", () => {
+  suite("configuration change events", () => {
     let configChangeHandler: (e: vscode.ConfigurationChangeEvent) => void;
 
-    beforeEach(() => {
+    setup(() => {
       configService.initialize();
 
       // Get the configuration change handler
       configChangeHandler = workspaceOnDidChangeConfigStub.firstCall.args[0];
     });
 
-    it("should emit config.changed event when promptManager configuration changes", () => {
+    test("should emit config.changed event when promptManager configuration changes", () => {
       // Mock configuration change event
       const mockConfigChangeEvent = {
         affectsConfiguration: sinon.stub().returns(false),
@@ -203,7 +203,7 @@ describe("ConfigurationService", () => {
       ).to.be.true;
     });
 
-    it("should emit events for multiple configuration changes", () => {
+    test("should emit events for multiple configuration changes", () => {
       const mockConfigChangeEvent = {
         affectsConfiguration: sinon.stub().returns(false),
       };
@@ -258,7 +258,7 @@ describe("ConfigurationService", () => {
       ).to.be.true;
     });
 
-    it("should not emit events for non-promptManager configuration changes", () => {
+    test("should not emit events for non-promptManager configuration changes", () => {
       const mockConfigChangeEvent = {
         affectsConfiguration: sinon.stub().returns(false),
       };
@@ -276,7 +276,7 @@ describe("ConfigurationService", () => {
       expect(eventBusSpy.called).to.be.false;
     });
 
-    it("should refresh configuration cache on change", async () => {
+    test("should refresh configuration cache on change", async () => {
       // Get initial configuration through our service
       const initialDebugLogging = configService.getDebugLogging();
       expect(initialDebugLogging).to.be.false;
@@ -315,7 +315,7 @@ describe("ConfigurationService", () => {
       expect(configService.getDebugLogging()).to.be.true;
     });
 
-    it("should have only one active listener after multiple initializations", () => {
+    test("should have only one active listener after multiple initializations", () => {
       // Initialize twice - first listener should be disposed
       configService.initialize();
       const secondHandler = workspaceOnDidChangeConfigStub.secondCall.args[0];
@@ -353,8 +353,8 @@ describe("ConfigurationService", () => {
     });
   });
 
-  describe("debug logging integration", () => {
-    it("should allow log module to read DEBUG_LOGGING config via getter", () => {
+  suite("debug logging integration", () => {
+    test("should allow log module to read DEBUG_LOGGING config via getter", () => {
       // Setup configuration with debug logging enabled
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon
@@ -372,7 +372,7 @@ describe("ConfigurationService", () => {
       expect(debugEnabled).to.be.true;
     });
 
-    it("should handle debug logging config disabled", () => {
+    test("should handle debug logging config disabled", () => {
       // Setup configuration with debug logging disabled
       const newMockConfig = { ...mockConfiguration };
       newMockConfig.get = sinon
@@ -390,7 +390,7 @@ describe("ConfigurationService", () => {
       expect(debugEnabled).to.be.false;
     });
 
-    it("should emit config change events for debug logging changes", () => {
+    test("should emit config change events for debug logging changes", () => {
       configService.initialize();
 
       const configChangeHandler =
@@ -432,8 +432,8 @@ describe("ConfigurationService", () => {
     });
   });
 
-  describe("configuration validation and error handling", () => {
-    it("should handle invalid configuration values gracefully", () => {
+  suite("configuration validation and error handling", () => {
+    test("should handle invalid configuration values gracefully", () => {
       // Mock invalid configuration by creating a new stub
       const originalGet = mockConfiguration.get;
       mockConfiguration.get = sinon
@@ -453,7 +453,7 @@ describe("ConfigurationService", () => {
       mockConfiguration.get = originalGet;
     });
 
-    it("should handle configuration access errors gracefully", () => {
+    test("should handle configuration access errors gracefully", () => {
       // Mock workspace.getConfiguration to throw an error
       const originalGetConfigStub = workspaceGetConfigStub;
       workspaceGetConfigStub.throws(new Error("Config error"));
@@ -466,8 +466,8 @@ describe("ConfigurationService", () => {
     });
   });
 
-  describe("watcher lifecycle and leak prevention", () => {
-    it("should dispose all watchers created by multiple initializations", () => {
+  suite("watcher lifecycle and leak prevention", () => {
+    test("should dispose all watchers created by multiple initializations", () => {
       const mockDispose1 = sinon.stub();
       const mockDispose2 = sinon.stub();
       const mockDispose3 = sinon.stub();
@@ -497,7 +497,7 @@ describe("ConfigurationService", () => {
       expect(mockDispose3.calledOnce).to.be.true;
     });
 
-    it("should handle dispose called multiple times", () => {
+    test("should handle dispose called multiple times", () => {
       const mockDispose = sinon.stub();
       workspaceOnDidChangeConfigStub.returns({ dispose: mockDispose });
 
@@ -512,8 +512,8 @@ describe("ConfigurationService", () => {
     });
   });
 
-  describe("edge cases", () => {
-    it("should handle configuration change event with no specific key changes", () => {
+  suite("edge cases", () => {
+    test("should handle configuration change event with no specific key changes", () => {
       configService.initialize();
       const configChangeHandler =
         workspaceOnDidChangeConfigStub.firstCall.args[0];
@@ -533,7 +533,7 @@ describe("ConfigurationService", () => {
       expect(eventBusSpy.called).to.be.false;
     });
 
-    it("should handle malformed configuration change events", () => {
+    test("should handle malformed configuration change events", () => {
       configService.initialize();
       const configChangeHandler =
         workspaceOnDidChangeConfigStub.firstCall.args[0];

@@ -6,8 +6,6 @@ import { PromptController } from "@features/prompt-manager/domain/promptControll
 import {
   PromptFile,
   PromptFolder,
-  ContentSearchResult,
-  SearchMatch,
 } from "@features/prompt-manager/data/fileManager";
 import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
 import { SearchService } from "@features/search/services/searchService";
@@ -30,9 +28,6 @@ import { TagService } from "@features/prompt-manager/application/services/TagSer
 // separation of concerns and unit-testability.
 
 export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
-
-// Simple state for drag operations
-let currentDrag: { uri: vscode.Uri; type: "file" | "folder" } | undefined;
 
 @injectable()
 export class PromptTreeProvider
@@ -419,19 +414,11 @@ export class PromptTreeProvider
         title: dragged.promptFile.title,
         name: dragged.promptFile.name,
       };
-      currentDrag = {
-        uri: vscode.Uri.file(dragged.promptFile.path),
-        type: "file",
-      };
     } else if (dragged instanceof FolderTreeItem) {
       dragData = {
         type: "folder",
         path: dragged.promptFolder.path,
         name: dragged.promptFolder.name,
-      };
-      currentDrag = {
-        uri: vscode.Uri.file(dragged.promptFolder.path),
-        type: "folder",
       };
     }
 
@@ -491,21 +478,39 @@ export class PromptTreeProvider
       const sourcePathInfo = path.parse(sourcePath);
       const newPath = path.join(targetPath, sourcePathInfo.base);
 
-      // Check if moving to the same location
-      if (sourcePath === newPath) {
+      // Check for move conflicts
+      const conflictCheck = await this.fileSystemManager.checkMoveConflict(
+        sourcePath,
+        newPath
+      );
+
+      if (conflictCheck.hasConflict) {
+        let errorMessage = "";
+        switch (conflictCheck.conflictType) {
+          case "source_not_found":
+            errorMessage = "Source file or folder not found";
+            break;
+          case "target_exists":
+            errorMessage = `A ${dragData.type} with that name already exists in the target location`;
+            break;
+          case "same_location":
+            errorMessage = "Cannot move item to the same location";
+            break;
+          default:
+            errorMessage = "Cannot move item due to a conflict";
+        }
+        vscode.window.showErrorMessage(errorMessage);
         return;
       }
 
-      // Check if target path already exists
-      if (await fsExtra.pathExists(newPath)) {
-        vscode.window.showErrorMessage(
-          `A ${dragData.type} with that name already exists in the target location`
-        );
-        return;
+      // Perform the move based on type
+      if (dragData.type === "file") {
+        await this.fileSystemManager.moveFile(sourcePath, newPath);
+      } else if (dragData.type === "folder") {
+        await this.fileSystemManager.moveFolder(sourcePath, newPath);
+      } else {
+        throw new Error(`Unknown drag data type: ${dragData.type}`);
       }
-
-      // Perform the move
-      await fsExtra.move(sourcePath, newPath);
 
       // Refresh the tree
       this.refresh();
@@ -531,7 +536,6 @@ export class PromptTreeProvider
         error: error as Error,
       });
     } finally {
-      currentDrag = undefined;
       eventBus.emit("dragdrop.state.cleared", { timestamp: Date.now() });
     }
   }

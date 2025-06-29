@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it } from "mocha";
+import { setup, teardown, suite, test } from "mocha";
 import { expect } from "chai";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
@@ -7,7 +7,7 @@ import { Environment } from "@infra/config/EnvironmentDetector";
 import { container } from "@infra/di/di-container";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 
-describe("Environment Context Keys", () => {
+suite("Environment Context Keys", () => {
   let vscodeStubs: {
     executeCommand: sinon.SinonStub;
     showErrorMessage: sinon.SinonStub;
@@ -20,7 +20,7 @@ describe("Environment Context Keys", () => {
   let mockWorkspace: any;
   let originalEnv: any;
 
-  beforeEach(() => {
+  setup(() => {
     // Mock vscode API
     vscodeStubs = {
       executeCommand: sinon.stub(vscode.commands, "executeCommand"),
@@ -97,13 +97,13 @@ describe("Environment Context Keys", () => {
     sinon.stub(require("fs").promises, "writeFile").resolves();
   });
 
-  afterEach(() => {
+  teardown(() => {
     sinon.restore();
     container.clearInstances();
   });
 
-  describe("VSCode environment detection", () => {
-    it("should set correct context keys for VSCode environment", async () => {
+  suite("VSCode environment detection", () => {
+    test("should set correct context keys for VSCode environment", async () => {
       // Create fake EnvironmentDetector that returns VSCode
       const fakeDetector = {
         getEnvironment: () => Environment.VSCode,
@@ -154,7 +154,7 @@ describe("Environment Context Keys", () => {
       ).to.be.true;
     });
 
-    it("should not show warning message for VSCode environment", async () => {
+    test("should not show warning message for VSCode environment", async () => {
       const fakeDetector = {
         getEnvironment: () => Environment.VSCode,
         isVSCode: () => true,
@@ -173,8 +173,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("Cursor environment detection", () => {
-    it("should set correct context keys for Cursor environment", async () => {
+  suite("Cursor environment detection", () => {
+    test("should set correct context keys for Cursor environment", async () => {
       // Clear container first to ensure clean state
       container.clearInstances();
 
@@ -209,7 +209,7 @@ describe("Environment Context Keys", () => {
       });
     });
 
-    it("should not show warning message for Cursor environment", async () => {
+    test("should not show warning message for Cursor environment", async () => {
       const fakeDetector = {
         getEnvironment: () => Environment.Cursor,
         isVSCode: () => false,
@@ -228,8 +228,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("Windserf environment detection", () => {
-    it("should set correct context keys for Windserf environment", async () => {
+  test("Windserf environment detection", async () => {
+    test("should set correct context keys for Windserf environment", async () => {
       // Clear container first to ensure clean state
       container.clearInstances();
 
@@ -264,7 +264,7 @@ describe("Environment Context Keys", () => {
       });
     });
 
-    it("should not show warning message for Windserf environment", async () => {
+    test("should not show warning message for Windserf environment", async () => {
       const fakeDetector = {
         getEnvironment: () => Environment.Windserf,
         isVSCode: () => false,
@@ -283,8 +283,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("Unknown environment detection", () => {
-    it("should set correct context keys for unknown environment", async () => {
+  test("Unknown environment detection", async () => {
+    test("should set correct context keys for unknown environment", async () => {
       // Clear container first to ensure clean state
       container.clearInstances();
 
@@ -319,7 +319,7 @@ describe("Environment Context Keys", () => {
       });
     });
 
-    it("should show warning message for unknown environment", async () => {
+    test("should show warning message for unknown environment", async () => {
       // Clear container first to ensure clean state
       container.clearInstances();
 
@@ -338,8 +338,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("Context keys order and timing", () => {
-    it("should set context keys before other initialization", async () => {
+  test("Context keys order and timing", async () => {
+    test("should set context keys before other initialization", async () => {
       const fakeDetector = {
         getEnvironment: () => Environment.VSCode,
         isVSCode: () => true,
@@ -368,7 +368,7 @@ describe("Environment Context Keys", () => {
       }
     });
 
-    it("should set all four context keys", async () => {
+    test("should set all four context keys", async () => {
       const fakeDetector = {
         getEnvironment: () => Environment.Cursor,
         isVSCode: () => false,
@@ -404,8 +404,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("Environment detection integration", () => {
-    it("should use actual EnvironmentDetector when no fake is provided", async () => {
+  test("Environment detection integration", async () => {
+    test("should use actual EnvironmentDetector when no fake is provided", async () => {
       // Don't register a fake detector, let DI use the real one
       await activate(mockContext);
 
@@ -417,7 +417,7 @@ describe("Environment Context Keys", () => {
       expect(setContextCalls).to.have.lengthOf(4);
     });
 
-    it("should handle EnvironmentDetector errors gracefully", async () => {
+    test("should handle EnvironmentDetector errors gracefully", async () => {
       const fakeDetector = {
         getEnvironment: () => {
           throw new Error("Detector error");
@@ -453,8 +453,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("Context key values", () => {
-    it("should set boolean values for context keys", async () => {
+  test("Context key values", async () => {
+    test("should set boolean values for context keys", async () => {
       const fakeDetector = {
         getEnvironment: () => Environment.Cursor,
         isVSCode: () => false,
@@ -479,7 +479,7 @@ describe("Environment Context Keys", () => {
       });
     });
 
-    it("should ensure only one environment context key is true", async () => {
+    test("should ensure only one environment context key is true", async () => {
       // Clear container first to ensure clean state
       container.clearInstances();
 
@@ -520,8 +520,8 @@ describe("Environment Context Keys", () => {
     });
   });
 
-  describe("No workspace scenario", () => {
-    it("should not set context keys when no workspace is present", async () => {
+  test("No workspace scenario", async () => {
+    test("should not set context keys when no workspace is present", async () => {
       // Mock no workspace folders
       Object.defineProperty(vscode.workspace, "workspaceFolders", {
         value: null,
@@ -538,7 +538,7 @@ describe("Environment Context Keys", () => {
       expect(setContextCalls).to.have.lengthOf(0);
     });
 
-    it("should set context keys when workspace is added later", async () => {
+    test("should set context keys when workspace is added later", async () => {
       // Start with no workspace
       Object.defineProperty(vscode.workspace, "workspaceFolders", {
         value: null,

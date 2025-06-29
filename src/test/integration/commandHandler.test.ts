@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it } from "mocha";
+import { setup, teardown, suite, test } from "mocha";
 import { expect } from "chai";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
@@ -11,7 +11,7 @@ import {
 import { eventBus } from "../../infrastructure/vscode/ExtensionBus";
 import { PromptFile, PromptFolder } from "../../scanner/types";
 
-describe("CommandHandler", () => {
+suite("CommandHandler", () => {
   let commandHandler: CommandHandler;
   let mockPromptController: sinon.SinonStubbedInstance<PromptController>;
   let mockContext: vscode.ExtensionContext;
@@ -23,7 +23,7 @@ describe("CommandHandler", () => {
     };
   };
 
-  beforeEach(() => {
+  setup(() => {
     // Mock PromptController
     mockPromptController = sinon.createStubInstance(PromptController);
 
@@ -58,12 +58,12 @@ describe("CommandHandler", () => {
     );
   });
 
-  afterEach(() => {
+  teardown(() => {
     sinon.restore();
   });
 
-  describe("registerCommands()", () => {
-    it("should register all expected commands", () => {
+  suite("registerCommands()", () => {
+    test("should register all expected commands", () => {
       commandHandler.registerCommands();
 
       // Verify all commands are registered
@@ -94,7 +94,7 @@ describe("CommandHandler", () => {
       expect(vscodeStubs.commands.callCount).to.equal(15);
     });
 
-    it("should add all commands to extension subscriptions", () => {
+    test("should add all commands to extension subscriptions", () => {
       // Mock the return value of registerCommand
       const mockDisposable = { dispose: sinon.stub() };
       vscodeStubs.commands.returns(mockDisposable);
@@ -108,17 +108,17 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("refreshTree command", () => {
+  suite("refreshTree command", () => {
     let eventBusSpy: sinon.SinonSpy;
 
-    beforeEach(() => {
+    setup(() => {
       eventBusSpy = sinon.spy(eventBus, "emit");
 
       // Setup command handler
       commandHandler.registerCommands();
     });
 
-    it("should emit tree refresh event and show success message", async () => {
+    test("should emit tree refresh event and show success message", async () => {
       // Get the refresh command handler
       const refreshHandler = vscodeStubs.commands
         .getCalls()
@@ -144,7 +144,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when refresh fails", async () => {
+    test("should show error message when refresh fails", async () => {
       // Make eventBus.emit throw an error
       eventBusSpy.restore();
       sinon.stub(eventBus, "emit").throws(new Error("Event bus error"));
@@ -164,8 +164,8 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("addPrompt command", () => {
-    it("should call controller createNewPrompt method", async () => {
+  suite("addPrompt command", () => {
+    test("should call controller createNewPrompt method", async () => {
       commandHandler.registerCommands();
 
       const addPromptHandler = vscodeStubs.commands
@@ -181,7 +181,7 @@ describe("CommandHandler", () => {
       expect(mockPromptController.createNewPrompt.calledOnce).to.be.true;
     });
 
-    it("should show error message when createNewPrompt fails", async () => {
+    test("should show error message when createNewPrompt fails", async () => {
       commandHandler.registerCommands();
 
       const addPromptHandler = vscodeStubs.commands
@@ -201,8 +201,8 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("openPrompt command", () => {
-    it("should call controller openPromptFile with provided path", async () => {
+  suite("openPrompt command", () => {
+    test("should call controller openPromptFile with provided path", async () => {
       commandHandler.registerCommands();
 
       const openPromptHandler = vscodeStubs.commands
@@ -218,7 +218,7 @@ describe("CommandHandler", () => {
         .true;
     });
 
-    it("should show error when no file path provided", async () => {
+    test("should show error when no file path provided", async () => {
       commandHandler.registerCommands();
 
       const openPromptHandler = vscodeStubs.commands
@@ -234,7 +234,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should emit prompt opened event on success", async () => {
+    test("should emit prompt opened event on success", async () => {
       const eventBusSpy = sinon.spy(eventBus, "emit");
       commandHandler.registerCommands();
 
@@ -251,7 +251,7 @@ describe("CommandHandler", () => {
       expect(eventBusSpy.called).to.be.true;
     });
 
-    it("should show error message when openPromptFile fails", async () => {
+    test("should show error message when openPromptFile fails", async () => {
       commandHandler.registerCommands();
 
       const openPromptHandler = vscodeStubs.commands
@@ -272,10 +272,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("deletePrompt command", () => {
+  suite("deletePrompt command", () => {
     let mockFileTreeItem: FileTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       // Create mock FileTreeItem
       const mockPromptFile: PromptFile = {
         name: "prompt.md",
@@ -290,7 +290,7 @@ describe("CommandHandler", () => {
       mockFileTreeItem = new FileTreeItem(mockPromptFile);
     });
 
-    it("should delete file via controller", async () => {
+    test("should delete file via controller", async () => {
       commandHandler.registerCommands();
 
       const deleteHandler = vscodeStubs.commands
@@ -306,7 +306,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error when no item provided", async () => {
+    test("should show error when no item provided", async () => {
       commandHandler.registerCommands();
 
       const deleteHandler = vscodeStubs.commands
@@ -322,7 +322,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when delete fails", async () => {
+    test("should show error message when delete fails", async () => {
       commandHandler.registerCommands();
 
       const deleteHandler = vscodeStubs.commands
@@ -342,10 +342,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("createFolder command", () => {
+  suite("createFolder command", () => {
     let mockFolderTreeItem: FolderTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       // Create mock FolderTreeItem
       const mockPromptFolder: PromptFolder = {
         name: "Test Folder",
@@ -356,7 +356,7 @@ describe("CommandHandler", () => {
       mockFolderTreeItem = new FolderTreeItem(mockPromptFolder);
     });
 
-    it("should create folder in specified location", async () => {
+    test("should create folder in specified location", async () => {
       commandHandler.registerCommands();
 
       const createFolderHandler = vscodeStubs.commands
@@ -372,7 +372,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should create folder at root when no item provided", async () => {
+    test("should create folder at root when no item provided", async () => {
       commandHandler.registerCommands();
 
       const createFolderHandler = vscodeStubs.commands
@@ -387,7 +387,7 @@ describe("CommandHandler", () => {
         .to.be.true;
     });
 
-    it("should show error message when create folder fails", async () => {
+    test("should show error message when create folder fails", async () => {
       commandHandler.registerCommands();
 
       const createFolderHandler = vscodeStubs.commands
@@ -407,10 +407,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("copyPromptContent command", () => {
+  suite("copyPromptContent command", () => {
     let mockFileTreeItem: FileTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       const mockPromptFile: PromptFile = {
         name: "prompt.md",
         path: "/test/prompt.md",
@@ -424,7 +424,7 @@ describe("CommandHandler", () => {
       mockFileTreeItem = new FileTreeItem(mockPromptFile);
     });
 
-    it("should copy content and show success message", async () => {
+    test("should copy content and show success message", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -448,7 +448,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should not show message when copy returns false", async () => {
+    test("should not show message when copy returns false", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -468,7 +468,7 @@ describe("CommandHandler", () => {
       expect(vscodeStubs.window.showInformationMessage.called).to.be.false;
     });
 
-    it("should show error when no item provided", async () => {
+    test("should show error when no item provided", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -485,7 +485,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when copy fails", async () => {
+    test("should show error message when copy fails", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -506,10 +506,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("copyPromptWithMeta command", () => {
+  suite("copyPromptWithMeta command", () => {
     let mockFileTreeItem: FileTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       const mockPromptFile: PromptFile = {
         name: "prompt.md",
         path: "/test/prompt.md",
@@ -523,7 +523,7 @@ describe("CommandHandler", () => {
       mockFileTreeItem = new FileTreeItem(mockPromptFile);
     });
 
-    it("should copy content with meta and show success message", async () => {
+    test("should copy content with meta and show success message", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -547,7 +547,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should not show message when copy returns false", async () => {
+    test("should not show message when copy returns false", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -567,7 +567,7 @@ describe("CommandHandler", () => {
       expect(vscodeStubs.window.showInformationMessage.called).to.be.false;
     });
 
-    it("should show error when no item provided", async () => {
+    test("should show error when no item provided", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -584,7 +584,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when copy fails", async () => {
+    test("should show error message when copy fails", async () => {
       commandHandler.registerCommands();
 
       const copyHandler = vscodeStubs.commands
@@ -605,10 +605,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("deleteFolder command", () => {
+  suite("deleteFolder command", () => {
     let mockFolderTreeItem: FolderTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       const mockPromptFolder: PromptFolder = {
         name: "test-folder",
         path: "/test/test-folder",
@@ -618,7 +618,7 @@ describe("CommandHandler", () => {
       mockFolderTreeItem = new FolderTreeItem(mockPromptFolder);
     });
 
-    it("should delete folder via controller", async () => {
+    test("should delete folder via controller", async () => {
       commandHandler.registerCommands();
 
       const deleteFolderHandler = vscodeStubs.commands
@@ -636,7 +636,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error when no folder selected", async () => {
+    test("should show error when no folder selected", async () => {
       commandHandler.registerCommands();
 
       const deleteFolderHandler = vscodeStubs.commands
@@ -652,7 +652,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when delete fails", async () => {
+    test("should show error message when delete fails", async () => {
       commandHandler.registerCommands();
 
       const deleteFolderHandler = vscodeStubs.commands
@@ -672,10 +672,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("askAiWithPrompt command", () => {
+  suite("askAiWithPrompt command", () => {
     let mockFileTreeItem: FileTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       const mockPromptFile: PromptFile = {
         name: "prompt.md",
         path: "/test/prompt.md",
@@ -689,7 +689,7 @@ describe("CommandHandler", () => {
       mockFileTreeItem = new FileTreeItem(mockPromptFile);
     });
 
-    it("should get prompt and execute chat command", async () => {
+    test("should get prompt and execute chat command", async () => {
       commandHandler.registerCommands();
 
       const askAiHandler = vscodeStubs.commands
@@ -710,7 +710,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error when no item provided", async () => {
+    test("should show error when no item provided", async () => {
       commandHandler.registerCommands();
 
       const askAiHandler = vscodeStubs.commands
@@ -727,7 +727,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should return early when prompt is null", async () => {
+    test("should return early when prompt is null", async () => {
       commandHandler.registerCommands();
 
       const askAiHandler = vscodeStubs.commands
@@ -745,7 +745,7 @@ describe("CommandHandler", () => {
         .false;
     });
 
-    it("should show error message when ask AI fails", async () => {
+    test("should show error message when ask AI fails", async () => {
       commandHandler.registerCommands();
 
       const askAiHandler = vscodeStubs.commands
@@ -766,8 +766,8 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("openDirectory command", () => {
-    it("should open directory when path exists", async () => {
+  suite("openDirectory command", () => {
+    test("should open directory when path exists", async () => {
       commandHandler.registerCommands();
 
       const openDirHandler = vscodeStubs.commands
@@ -790,7 +790,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error when no directory found", async () => {
+    test("should show error when no directory found", async () => {
       commandHandler.registerCommands();
 
       const openDirHandler = vscodeStubs.commands
@@ -815,7 +815,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when open directory fails", async () => {
+    test("should show error message when open directory fails", async () => {
       commandHandler.registerCommands();
 
       const openDirHandler = vscodeStubs.commands
@@ -839,10 +839,10 @@ describe("CommandHandler", () => {
     });
   });
 
-  describe("addPromptToFolder command", () => {
+  suite("addPromptToFolder command", () => {
     let mockFolderTreeItem: FolderTreeItem;
 
-    beforeEach(() => {
+    setup(() => {
       const mockPromptFolder: PromptFolder = {
         name: "Test Folder",
         path: "/test/folder",
@@ -852,7 +852,7 @@ describe("CommandHandler", () => {
       mockFolderTreeItem = new FolderTreeItem(mockPromptFolder);
     });
 
-    it("should create prompt in specified folder", async () => {
+    test("should create prompt in specified folder", async () => {
       commandHandler.registerCommands();
 
       const addToFolderHandler = vscodeStubs.commands
@@ -869,7 +869,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error when no folder selected", async () => {
+    test("should show error when no folder selected", async () => {
       commandHandler.registerCommands();
 
       const addToFolderHandler = vscodeStubs.commands
@@ -884,7 +884,7 @@ describe("CommandHandler", () => {
       ).to.be.true;
     });
 
-    it("should show error message when add to folder fails", async () => {
+    test("should show error message when add to folder fails", async () => {
       commandHandler.registerCommands();
 
       const addToFolderHandler = vscodeStubs.commands

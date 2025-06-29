@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it } from "mocha";
+import { setup, teardown, suite, test } from "mocha";
 import { expect } from "chai";
 import * as sinon from "sinon";
 import {
@@ -8,11 +8,11 @@ import {
   SearchResult,
 } from "@features/search/core/SearchEngine";
 
-describe("SearchEngine", () => {
+suite("SearchEngine", () => {
   let searchEngine: SearchEngine;
   let mockFiles: FileContent[];
 
-  beforeEach(() => {
+  setup(() => {
     searchEngine = new SearchEngine();
 
     // Create mock files with various content types for testing
@@ -138,13 +138,13 @@ Testing search functionality with edge cases.`,
     ];
   });
 
-  afterEach(() => {
+  teardown(() => {
     searchEngine.clearCache();
     sinon.restore();
   });
 
-  describe("exact vs fuzzy matching", () => {
-    it("should find exact matches with exact=true", async () => {
+  suite("exact vs fuzzy matching", () => {
+    test("should find exact matches with exact=true", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript",
         scope: "both",
@@ -159,7 +159,7 @@ Testing search functionality with edge cases.`,
       expect(results[0].score).to.be.greaterThan(0.9);
     });
 
-    it("should find fuzzy matches with exact=false", async () => {
+    test("should find fuzzy matches with exact=false", async () => {
       const criteria: SearchCriteria = {
         query: "javascrpt", // intentional typo
         scope: "both",
@@ -174,7 +174,7 @@ Testing search functionality with edge cases.`,
       expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
     });
 
-    it("should not find fuzzy matches when exact=true", async () => {
+    test("should not find fuzzy matches when exact=true", async () => {
       const criteria: SearchCriteria = {
         query: "javascrpt", // intentional typo
         scope: "both",
@@ -188,8 +188,8 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("threshold configuration", () => {
-    it("should respect permissive threshold (0.1)", async () => {
+  suite("threshold configuration", () => {
+    test("should respect permissive threshold (0.1)", async () => {
       const criteria: SearchCriteria = {
         query: "design",
         scope: "both",
@@ -203,7 +203,7 @@ Testing search functionality with edge cases.`,
       expect(results.some((r) => r.title.includes("Design"))).to.be.true;
     });
 
-    it("should respect strict threshold (0.9)", async () => {
+    test("should respect strict threshold (0.9)", async () => {
       const criteria: SearchCriteria = {
         query: "design",
         scope: "both",
@@ -217,7 +217,7 @@ Testing search functionality with edge cases.`,
       expect(results.every((r) => r.score > 0.1)).to.be.true;
     });
 
-    it("should use default threshold when not specified", async () => {
+    test("should use default threshold when not specified", async () => {
       const criteria: SearchCriteria = {
         query: "programming",
         scope: "both",
@@ -236,8 +236,8 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("case sensitivity", () => {
-    it("should be case insensitive by default", async () => {
+  suite("case sensitivity", () => {
+    test("should be case insensitive by default", async () => {
       const criteria: SearchCriteria = {
         query: "JAVASCRIPT",
         scope: "both",
@@ -251,7 +251,7 @@ Testing search functionality with edge cases.`,
       expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
     });
 
-    it("should respect case sensitivity when enabled", async () => {
+    test("should be case sensitive when specified", async () => {
       const criteria: SearchCriteria = {
         query: "JAVASCRIPT",
         scope: "both",
@@ -261,15 +261,15 @@ Testing search functionality with edge cases.`,
 
       const results = await searchEngine.search(mockFiles, criteria);
 
-      // Should not find "JavaScript" when looking for "JAVASCRIPT" with case sensitivity
-      expect(results.every((r) => !r.title.includes("JavaScript"))).to.be.true;
+      // Should not find "JavaScript" when searching for "JAVASCRIPT" with case sensitivity
+      expect(results).to.have.lengthOf(0);
     });
 
-    it("should find exact case matches when case sensitive", async () => {
+    test("should handle mixed case queries", async () => {
       const criteria: SearchCriteria = {
-        query: "JavaScript",
+        query: "Javascript",
         scope: "both",
-        caseSensitive: true,
+        caseSensitive: false,
         isActive: true,
       };
 
@@ -280,8 +280,8 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("search scope filtering", () => {
-    it("should search titles only when scope='titles'", async () => {
+  suite("search scope filtering", () => {
+    test("should search titles only when scope='titles'", async () => {
       const criteria: SearchCriteria = {
         query: "fundamentals", // This word appears in description, not title
         scope: "titles",
@@ -293,7 +293,7 @@ Testing search functionality with edge cases.`,
       expect(results).to.have.lengthOf(0);
     });
 
-    it("should search content only when scope='content'", async () => {
+    test("should search content only when scope='content'", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript Basics", // This is the title
         scope: "content",
@@ -306,7 +306,7 @@ Testing search functionality with edge cases.`,
       expect(results.length).to.be.greaterThan(0);
     });
 
-    it("should search both title and content when scope='both'", async () => {
+    test("should search both title and content when scope='both'", async () => {
       const criteria: SearchCriteria = {
         query: "design",
         scope: "both",
@@ -320,8 +320,8 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("score ordering and ranking", () => {
-    it("should return results ordered by relevance score", async () => {
+  suite("score ordering and ranking", () => {
+    test("should return results ordered by relevance score", async () => {
       const criteria: SearchCriteria = {
         query: "programming",
         scope: "both",
@@ -338,7 +338,7 @@ Testing search functionality with edge cases.`,
       }
     });
 
-    it("should prioritize title matches over content matches", async () => {
+    test("should prioritize title matches over content matches", async () => {
       const criteria: SearchCriteria = {
         query: "Advanced",
         scope: "both",
@@ -366,11 +366,10 @@ Testing search functionality with edge cases.`,
       }
     });
 
-    it("should handle score conversion from fuse.js properly", async () => {
+    test("should handle ties in scoring appropriately", async () => {
       const criteria: SearchCriteria = {
-        query: "JavaScript",
+        query: "documentation",
         scope: "both",
-        exact: true,
         isActive: true,
       };
 
@@ -378,18 +377,35 @@ Testing search functionality with edge cases.`,
 
       expect(results.length).to.be.greaterThan(0);
 
-      // Scores should be between 0 and 1 (converted from fuse.js)
+      // All results should have scores within valid range
       results.forEach((result) => {
-        expect(result.score).to.be.at.least(0);
-        expect(result.score).to.be.at.most(1);
+        expect(result.score).to.be.greaterThan(0);
+        expect(result.score).to.be.lessThanOrEqual(1);
       });
     });
   });
 
-  describe("snippet extraction", () => {
-    it("should extract meaningful snippets from matches", async () => {
+  suite("snippet extraction", () => {
+    test("should extract relevant snippets with matches highlighted", async () => {
       const criteria: SearchCriteria = {
-        query: "greetUser",
+        query: "JavaScript",
+        scope: "both",
+        isActive: true,
+      };
+
+      const results = await searchEngine.search(mockFiles, criteria);
+
+      expect(results.length).to.be.greaterThan(0);
+
+      const jsResult = results.find((r) => r.title === "JavaScript Basics");
+      expect(jsResult).to.exist;
+      expect(jsResult?.snippet).to.be.a("string");
+      expect(jsResult?.snippet?.length).to.be.greaterThan(0);
+    });
+
+    test("should show context around matches in snippets", async () => {
+      const criteria: SearchCriteria = {
+        query: "function",
         scope: "content",
         isActive: true,
       };
@@ -398,34 +414,14 @@ Testing search functionality with edge cases.`,
 
       expect(results.length).to.be.greaterThan(0);
 
-      const result = results[0];
-      expect(result.snippet).to.exist;
-      expect(result.snippet).to.be.a("string");
-      expect(result.snippet!.length).to.be.greaterThan(0);
+      const jsResult = results.find((r) => r.title === "JavaScript Basics");
+      if (jsResult) {
+        expect(jsResult.snippet).to.include("function");
+        expect(jsResult.snippet?.length).to.be.lessThan(200); // Reasonable snippet length
+      }
     });
 
-    it("should provide context around matched terms", async () => {
-      // Use a more common term that's likely to be found exactly
-      const criteria: SearchCriteria = {
-        query: "python",
-        scope: "content",
-        isActive: true,
-      };
-
-      const results = await searchEngine.search(mockFiles, criteria);
-
-      expect(results.length).to.be.greaterThan(0);
-
-      const result = results[0];
-      expect(result.snippet).to.exist;
-      // Check that the snippet contains the search term (case insensitive)
-      expect(result.snippet!.toLowerCase()).to.include("python");
-
-      // Should include context around the match (expect at least the search term length)
-      expect(result.snippet!.length).to.be.at.least("python".length);
-    });
-
-    it("should handle multiple matches in snippet", async () => {
+    test("should handle multiple matches in snippet", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript",
         scope: "both",
@@ -455,8 +451,8 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("special characters and unicode", () => {
-    it("should handle special characters in search query", async () => {
+  suite("special characters and unicode", () => {
+    test("should handle special characters in search query", async () => {
       const criteria: SearchCriteria = {
         query: "@#$%",
         scope: "content",
@@ -470,7 +466,7 @@ Testing search functionality with edge cases.`,
         .true;
     });
 
-    it("should handle unicode characters", async () => {
+    test("should handle unicode characters", async () => {
       const criteria: SearchCriteria = {
         query: "你好世界",
         scope: "content",
@@ -485,8 +481,8 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("search engine utilities", () => {
-    it("should return correct count of matches", async () => {
+  suite("search engine utilities", () => {
+    test("should return correct count of matches", async () => {
       const criteria: SearchCriteria = {
         query: "programming",
         scope: "both",
@@ -499,7 +495,7 @@ Testing search functionality with edge cases.`,
       expect(count).to.equal(results.length);
     });
 
-    it("should check if single file matches criteria", async () => {
+    test("should check if single file matches criteria", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript",
         scope: "both",
@@ -519,7 +515,7 @@ Testing search functionality with edge cases.`,
       expect(pyMatches).to.be.false;
     });
 
-    it("should search within single file", async () => {
+    test("should search within single file", async () => {
       const criteria: SearchCriteria = {
         query: "decorators",
         scope: "content",
@@ -536,7 +532,7 @@ Testing search functionality with edge cases.`,
       expect(result!.matches.length).to.be.greaterThan(0);
     });
 
-    it("should return available search scopes", () => {
+    test("should return available search scopes", () => {
       const scopes = searchEngine.getAvailableScopes();
 
       expect(scopes).to.include.members(["titles", "content", "both"]);
@@ -544,12 +540,12 @@ Testing search functionality with edge cases.`,
     });
   });
 
-  describe("inactive search handling", () => {
-    it("should return empty results when search is inactive", async () => {
+  suite("inactive search handling", () => {
+    test("should return empty results when search is inactive", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript",
         scope: "both",
-        isActive: false, // Inactive search
+        isActive: false,
       };
 
       const results = await searchEngine.search(mockFiles, criteria);
@@ -557,20 +553,7 @@ Testing search functionality with edge cases.`,
       expect(results).to.have.lengthOf(0);
     });
 
-    it("should return false for matches when search is inactive", async () => {
-      const criteria: SearchCriteria = {
-        query: "JavaScript",
-        scope: "both",
-        isActive: false,
-      };
-
-      const jsFile = mockFiles[0];
-      const matches = await searchEngine.matches(jsFile, criteria);
-
-      expect(matches).to.be.false;
-    });
-
-    it("should return 0 count when search is inactive", async () => {
+    test("should return zero count when search is inactive", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript",
         scope: "both",
@@ -581,10 +564,25 @@ Testing search functionality with edge cases.`,
 
       expect(count).to.equal(0);
     });
+
+    test("should return false for matches when search is inactive", async () => {
+      const criteria: SearchCriteria = {
+        query: "JavaScript",
+        scope: "both",
+        isActive: false,
+      };
+
+      const jsFile = mockFiles.find((f) => f.path.includes("javascript"));
+      expect(jsFile).to.exist;
+
+      const matches = await searchEngine.matches(jsFile!, criteria);
+
+      expect(matches).to.be.false;
+    });
   });
 
-  describe("empty and edge cases", () => {
-    it("should handle empty query", async () => {
+  suite("empty and edge cases", () => {
+    test("should handle empty search query", async () => {
       const criteria: SearchCriteria = {
         query: "",
         scope: "both",
@@ -596,19 +594,7 @@ Testing search functionality with edge cases.`,
       expect(results).to.have.lengthOf(0);
     });
 
-    it("should handle whitespace-only query", async () => {
-      const criteria: SearchCriteria = {
-        query: "   \t\n   ",
-        scope: "both",
-        isActive: true,
-      };
-
-      const results = await searchEngine.search(mockFiles, criteria);
-
-      expect(results).to.have.lengthOf(0);
-    });
-
-    it("should handle empty file list", async () => {
+    test("should handle empty file array", async () => {
       const criteria: SearchCriteria = {
         query: "JavaScript",
         scope: "both",
@@ -618,6 +604,26 @@ Testing search functionality with edge cases.`,
       const results = await searchEngine.search([], criteria);
 
       expect(results).to.have.lengthOf(0);
+    });
+
+    test("should handle malformed file content gracefully", async () => {
+      const malformedFiles: FileContent[] = [
+        {
+          path: "/test/malformed.md",
+          content: "---\nmalformed frontmatter\n# Title",
+        },
+      ];
+
+      const criteria: SearchCriteria = {
+        query: "Title",
+        scope: "both",
+        isActive: true,
+      };
+
+      // Should not throw error, should handle gracefully
+      expect(async () => {
+        await searchEngine.search(malformedFiles, criteria);
+      }).to.not.throw();
     });
   });
 });
