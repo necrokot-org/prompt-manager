@@ -21,18 +21,15 @@ export class TagTreeItem extends BaseTreeItem {
 
     this.tag = tag;
 
-    // Use different icons and theme colors for active vs inactive tags
     if (isActive) {
       this.iconPath = new vscode.ThemeIcon(
-        "tag-filled",
+        "tag",
         new vscode.ThemeColor("charts.blue")
       );
-      this.resourceUri = vscode.Uri.parse(`tag:${tag.value}?active=true`);
+      // optional extra visual
+      this.description = "active";
     } else {
-      this.iconPath = new vscode.ThemeIcon(
-        "tag",
-        new vscode.ThemeColor("foreground")
-      );
+      this.iconPath = new vscode.ThemeIcon("tag");
     }
 
     this.tooltip = isActive

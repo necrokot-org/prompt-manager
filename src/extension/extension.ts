@@ -4,6 +4,7 @@ import "reflect-metadata";
 import * as vscode from "vscode";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { TagTreeProvider } from "@features/prompt-manager/ui/tree/TagTreeProvider";
 import { CommandHandler } from "@ext/commands/commandHandler";
 import {
   SearchPanelProvider,
@@ -27,6 +28,7 @@ import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
 let configService: ConfigurationService | undefined;
 let promptController: PromptController | undefined;
 let treeProvider: PromptTreeProvider | undefined;
+let tagTreeProvider: TagTreeProvider | undefined;
 let commandHandler: CommandHandler | undefined;
 let searchProvider: SearchPanelProvider | undefined;
 let searchService: SearchService | undefined;
@@ -87,6 +89,9 @@ async function initializeExtension(
   treeProvider = container.resolve<PromptTreeProvider>(
     DI_TOKENS.PromptTreeProvider
   );
+  tagTreeProvider = container.resolve<TagTreeProvider>(
+    DI_TOKENS.TagTreeProvider
+  );
   searchProvider = container.resolve<SearchPanelProvider>(
     DI_TOKENS.SearchPanelProvider
   );
@@ -141,6 +146,7 @@ async function initializeExtension(
   if (
     initialized &&
     treeProvider &&
+    tagTreeProvider &&
     searchProvider &&
     commandHandler &&
     searchService
@@ -151,6 +157,14 @@ async function initializeExtension(
       showCollapseAll: true,
       dragAndDropController: treeProvider,
     });
+
+    // Register tag tree view
+    context.subscriptions.push(
+      vscode.window.createTreeView("promptManagerTags", {
+        treeDataProvider: tagTreeProvider,
+        showCollapseAll: false,
+      })
+    );
 
     // Register search panel
     vscode.window.registerWebviewViewProvider(
@@ -263,6 +277,10 @@ function cleanup(): void {
     treeProvider.dispose();
   }
 
+  if (tagTreeProvider) {
+    tagTreeProvider.dispose();
+  }
+
   if (promptController) {
     promptController.dispose();
   }
@@ -275,6 +293,7 @@ function cleanup(): void {
   configService = undefined;
   promptController = undefined;
   treeProvider = undefined;
+  tagTreeProvider = undefined;
   commandHandler = undefined;
   searchProvider = undefined;
   searchService = undefined;

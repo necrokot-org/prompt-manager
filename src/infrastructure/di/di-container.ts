@@ -5,6 +5,7 @@ import { DI_TOKENS } from "./di-tokens";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
+import { TagTreeProvider } from "@features/prompt-manager/ui/tree/TagTreeProvider";
 import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { SearchService } from "@features/search/services/searchService";
@@ -46,6 +47,7 @@ export function setupDependencyInjection(context: vscode.ExtensionContext) {
 
   // UI layer
   container.registerSingleton(DI_TOKENS.PromptTreeProvider, PromptTreeProvider);
+  container.registerSingleton(DI_TOKENS.TagTreeProvider, TagTreeProvider);
   container.registerSingleton(
     DI_TOKENS.SearchPanelProvider,
     SearchPanelProvider

@@ -5,24 +5,29 @@ import { BaseTreeItem } from "./BaseTreeItem";
  * Tree item representing the root "Tags" node
  */
 export class TagRootTreeItem extends BaseTreeItem {
-  public readonly contextValue = "tagRoot";
-
   constructor(hasActiveFilter: boolean = false, activeTagValue?: string) {
-    const label =
+    super(
       hasActiveFilter && activeTagValue
-        ? `Tags (filtering by: ${activeTagValue})`
-        : "Tags";
+        ? `Tags (filter: ${activeTagValue})`
+        : "Tags",
+      vscode.TreeItemCollapsibleState.Expanded
+    );
 
-    super(label, vscode.TreeItemCollapsibleState.Expanded);
+    this.contextValue = hasActiveFilter ? "tagRootActive" : "tagRoot";
+
+    this.iconPath = new vscode.ThemeIcon(
+      hasActiveFilter ? "filter-filled" : "tag",
+      hasActiveFilter ? new vscode.ThemeColor("charts.blue") : undefined
+    );
 
     if (hasActiveFilter) {
-      this.iconPath = new vscode.ThemeIcon(
-        "filter-filled",
-        new vscode.ThemeColor("charts.blue")
-      );
-      this.tooltip = `Filter prompts by tags - Currently filtering by: ${activeTagValue}`;
+      // clicking entire root also clears filter
+      this.command = {
+        command: "promptManager.clearTagFilter",
+        title: "Clear Tag Filter",
+      };
+      this.tooltip = `Currently filtering by: ${activeTagValue}. Click to clear filter.`;
     } else {
-      this.iconPath = new vscode.ThemeIcon("tag");
       this.tooltip = "Filter prompts by tags";
     }
   }

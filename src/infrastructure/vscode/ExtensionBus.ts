@@ -33,6 +33,14 @@ export interface EventMap {
       | "tag-renamed"
       | "tag-deleted";
   };
+  "ui.tree.tags.refresh": {
+    reason?:
+      | "tag-filter-changed"
+      | "tag-filter-cleared"
+      | "tag-renamed"
+      | "tag-deleted"
+      | "tag-data-changed";
+  };
   "ui.tree.item.selected": {
     itemType: "file" | "folder";
     itemPath: string;

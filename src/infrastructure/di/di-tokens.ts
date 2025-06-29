@@ -12,6 +12,7 @@ export const DI_TOKENS = {
   ConfigurationService: Symbol("ConfigurationService"),
   ExtensionContext: Symbol("ExtensionContext"),
   PromptTreeProvider: Symbol("PromptTreeProvider"),
+  TagTreeProvider: Symbol("TagTreeProvider"),
   SearchPanelProvider: Symbol("SearchPanelProvider"),
   CommandHandler: Symbol("CommandHandler"),
   EnvironmentDetector: Symbol("EnvironmentDetector"),

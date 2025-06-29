@@ -19,26 +19,17 @@ import {
   FileTreeItem,
   FolderTreeItem,
   EmptyStateTreeItem,
-  TagRootTreeItem,
-  TagTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
 import { ItemFactory } from "@features/prompt-manager/ui/tree/factory/ItemFactory";
-import { TagItemFactory } from "@features/prompt-manager/ui/tree/factory/TagItemFactory";
 import { SearchFilter } from "@features/prompt-manager/ui/tree/filter/SearchFilter";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { TagService } from "@features/prompt-manager/application/services/TagService";
-import { Tag } from "@features/prompt-manager/domain/Tag";
 
 // NOTE: The tree item classes (FileTreeItem, FolderTreeItem, EmptyStateTreeItem) have
 // been extracted to dedicated modules under `src/tree/items/` to improve
 // separation of concerns and unit-testability.
 
-export type PromptTreeItem =
-  | FileTreeItem
-  | FolderTreeItem
-  | EmptyStateTreeItem
-  | TagRootTreeItem
-  | TagTreeItem;
+export type PromptTreeItem = FileTreeItem | FolderTreeItem | EmptyStateTreeItem;
 
 // Simple state for drag operations
 let currentDrag: { uri: vscode.Uri; type: "file" | "folder" } | undefined;
@@ -62,7 +53,6 @@ export class PromptTreeProvider
 
   private _currentSearchCriteria: SearchCriteria | null = null;
   private itemFactory: ItemFactory;
-  private tagItemFactory: TagItemFactory;
   private searchFilter: SearchFilter;
   private subscriptions: any[] = [];
 
@@ -79,7 +69,6 @@ export class PromptTreeProvider
   ) {
     // Initialize modular helpers
     this.itemFactory = new ItemFactory(this.configurationService);
-    this.tagItemFactory = new TagItemFactory();
     this.searchFilter = new SearchFilter(searchService);
 
     // Listen to tree refresh events
@@ -125,13 +114,8 @@ export class PromptTreeProvider
 
   async getChildren(element?: PromptTreeItem): Promise<PromptTreeItem[]> {
     if (!element) {
-      // Root level - return tags root and files root
+      // Root level - return files and folders (no tags root)
       return this.getRootItems();
-    }
-
-    if (element instanceof TagRootTreeItem) {
-      // Return all available tags
-      return this.getTagItems();
     }
 
     if (element instanceof FolderTreeItem) {
@@ -154,15 +138,6 @@ export class PromptTreeProvider
 
       const items: PromptTreeItem[] = [];
 
-      // Check if tag filter is active for TagRoot display
-      const activeTag = this.tagService.getActiveTag();
-      const hasActiveFilter = activeTag !== undefined;
-
-      // Always show the Tags root first with active filter info
-      items.push(
-        this.tagItemFactory.createTagRootItem(hasActiveFilter, activeTag?.value)
-      );
-
       // If search is active, apply filtering to remaining items
       if (this._currentSearchCriteria?.isActive) {
         log.debug("getRootItems: Search is active, getting filtered items");
@@ -172,6 +147,7 @@ export class PromptTreeProvider
       }
 
       // Check if tag filter is active
+      const activeTag = this.tagService.getActiveTag();
       if (activeTag) {
         log.debug("getRootItems: Tag filter is active, filtering by tag");
         const tagFilteredItems = await this.getTagFilteredItems(
@@ -226,8 +202,7 @@ export class PromptTreeProvider
       }
 
       // If no items, show empty state message
-      if (items.length === 1) {
-        // Only TagRoot exists
+      if (items.length === 0) {
         log.debug("getRootItems: No items found, showing empty state");
         items.push(
           this.itemFactory.createEmptyStateItem(
@@ -244,7 +219,6 @@ export class PromptTreeProvider
       log.error("Error in getRootItems:", error);
       vscode.window.showErrorMessage(`Error getting root items: ${error}`);
       return [
-        this.tagItemFactory.createTagRootItem(),
         new EmptyStateTreeItem(
           "Error loading prompts",
           "Check console for details",
@@ -252,79 +226,6 @@ export class PromptTreeProvider
         ),
       ];
     }
-  }
-
-  /**
-   * Get all tag items for the tag root
-   */
-  private async getTagItems(): Promise<PromptTreeItem[]> {
-    try {
-      const tags = await this.tagService.refreshTags();
-      const activeTag = this.tagService.getActiveTag();
-
-      if (tags.length === 0) {
-        return [
-          this.itemFactory.createEmptyStateItem(
-            "No tags found",
-            "Add tags to your prompts to see them here",
-            "emptyTags"
-          ),
-        ];
-      }
-
-      // Calculate prompt counts for each tag
-      const promptCounts = await this.calculatePromptCounts(tags);
-
-      return this.tagItemFactory.createTagItems(tags, activeTag, promptCounts);
-    } catch (error) {
-      log.error("getTagItems: Error getting tags:", error);
-      return [
-        this.itemFactory.createEmptyStateItem(
-          "Error loading tags",
-          "Check the logs for details",
-          "error"
-        ),
-      ];
-    }
-  }
-
-  /**
-   * Calculate how many prompts have each tag
-   */
-  private async calculatePromptCounts(
-    tags: Tag[]
-  ): Promise<Map<string, number>> {
-    const counts = new Map<string, number>();
-
-    try {
-      const structure = await this.promptController.getPromptStructure();
-      const allPrompts = [
-        ...structure.rootPrompts,
-        ...structure.folders.flatMap((f: any) => f.prompts),
-      ];
-
-      // Initialize counts
-      tags.forEach((tag) => counts.set(tag.value, 0));
-
-      // Count prompts for each tag
-      for (const prompt of allPrompts) {
-        if (prompt.tags && Array.isArray(prompt.tags)) {
-          prompt.tags.forEach((tagValue: string) => {
-            if (counts.has(tagValue)) {
-              counts.set(tagValue, counts.get(tagValue)! + 1);
-            }
-          });
-        }
-      }
-    } catch (error) {
-      log.error(
-        "calculatePromptCounts: Error calculating prompt counts:",
-        error
-      );
-      // Return empty counts in case of error
-    }
-
-    return counts;
   }
 
   /**
@@ -405,125 +306,93 @@ export class PromptTreeProvider
       }
     }
 
+    // If no items, show empty state
+    if (items.length === 0) {
+      items.push(
+        this.itemFactory.createEmptyStateItem(
+          "Empty folder",
+          "Add prompts or subfolders",
+          "emptyFolder"
+        )
+      );
+    }
+
     return items;
   }
 
   public async findTreeItemByPath(
     filePath: string
   ): Promise<FileTreeItem | undefined> {
-    const structure = await this.promptController.getPromptStructure();
+    try {
+      const structure = await this.promptController.getPromptStructure();
+      const allPrompts = [
+        ...structure.rootPrompts,
+        ...structure.folders.flatMap((f: any) => f.prompts),
+      ];
 
-    // Search in root prompts
-    if (structure?.rootPrompts) {
-      for (const prompt of structure.rootPrompts) {
-        if (prompt.path === filePath) {
-          return this.createFileTreeItem(prompt);
-        }
+      const prompt = allPrompts.find((p) => p.path === filePath);
+      if (prompt) {
+        return this.createFileTreeItem(prompt, {
+          command: "promptManager.openPrompt",
+          title: "Open Prompt",
+          arguments: [prompt.path],
+        });
       }
-    }
-
-    // Search in folder prompts
-    if (structure?.folders) {
-      for (const folder of structure.folders) {
-        if (folder.prompts) {
-          for (const prompt of folder.prompts) {
-            if (prompt.path === filePath) {
-              return this.createFileTreeItem(prompt);
-            }
-          }
-        }
-      }
+    } catch (error) {
+      log.error("findTreeItemByPath: Error finding tree item:", error);
     }
 
     return undefined;
   }
 
   private async getFilteredItems(structure: any): Promise<PromptTreeItem[]> {
-    const items: PromptTreeItem[] = [];
-    const criteria = this._currentSearchCriteria!;
-    let totalMatches = 0;
-
-    // Check if structure is valid
-    if (!structure) {
-      log.warn("getFilteredItems: Invalid structure provided");
-      return items;
+    if (!this._currentSearchCriteria) {
+      return [];
     }
 
-    // Search through root prompts
-    if (structure.rootPrompts) {
-      for (const prompt of structure.rootPrompts) {
-        if (
-          prompt &&
-          prompt.title &&
-          (await this.matchesSearchCriteria(prompt, criteria))
-        ) {
-          const promptItem = this.createFileTreeItem(prompt, {
-            command: "promptManager.openPrompt",
-            title: "Open Prompt",
-            arguments: [prompt.path],
-          });
-          items.push(promptItem);
-          totalMatches++;
-        }
-      }
-    }
+    const allPrompts = [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((f: any) => f.prompts),
+    ];
 
-    // Search through folders and their prompts
-    if (structure.folders) {
-      for (const folder of structure.folders) {
-        if (!folder || !folder.name) {
-          log.warn("getFilteredItems: Skipping invalid folder:", folder);
-          continue;
-        }
+    const filteredItems: PromptTreeItem[] = [];
 
-        const matchingPrompts: PromptFile[] = [];
-
-        if (folder.prompts) {
-          for (const prompt of folder.prompts) {
-            if (
-              prompt &&
-              prompt.title &&
-              (await this.matchesSearchCriteria(prompt, criteria))
-            ) {
-              matchingPrompts.push(prompt);
-              totalMatches++;
-            }
-          }
-        }
-
-        // If folder has matching prompts, include the folder with just those prompts
-        if (matchingPrompts.length > 0) {
-          const filteredFolder: PromptFolder = {
-            ...folder,
-            name: `${folder.name} (${matchingPrompts.length})`,
-            prompts: matchingPrompts,
-          };
-          const folderItem =
-            this.itemFactory.createFolderTreeItem(filteredFolder);
-          items.push(folderItem);
-        }
-      }
-    }
-
-    // If no matches, show no results message
-    if (items.length === 0) {
-      const noResultsItem = this.itemFactory.createEmptyStateItem(
-        "No matching prompts",
-        `No prompts match "${criteria.query}"`,
-        "noResults",
-        new vscode.ThemeIcon("search")
+    // Apply search filtering
+    for (const prompt of allPrompts) {
+      const matches = await this.matchesSearchCriteria(
+        prompt,
+        this._currentSearchCriteria
       );
-      items.push(noResultsItem);
+      if (matches) {
+        const command: vscode.Command = {
+          command: "promptManager.openPrompt",
+          title: "Open Prompt",
+          arguments: [prompt.path],
+        };
+
+        const promptItem = this.createFileTreeItem(prompt, command);
+        filteredItems.push(promptItem);
+      }
     }
 
-    return items;
+    if (filteredItems.length === 0) {
+      filteredItems.push(
+        this.itemFactory.createEmptyStateItem(
+          "No matching prompts",
+          "Try adjusting your search criteria",
+          "emptySearch"
+        )
+      );
+    }
+
+    return filteredItems;
   }
 
   private async matchesSearchCriteria(
     prompt: PromptFile,
     criteria: SearchCriteria
   ): Promise<boolean> {
-    return await this.searchFilter.matches(prompt, criteria);
+    return this.searchFilter.matches(prompt, criteria);
   }
 
   private createFileTreeItem(
@@ -533,52 +402,49 @@ export class PromptTreeProvider
     return this.itemFactory.createFileTreeItem(promptFile, command);
   }
 
-  // Simplified TreeDragAndDropController implementation
   async handleDrag(
     source: readonly PromptTreeItem[],
     dataTransfer: vscode.DataTransfer
   ): Promise<void> {
-    // Only support dragging single items (files or folders)
-    if (source.length !== 1) {
+    const dragged = source[0];
+    if (!dragged) {
       return;
     }
 
-    const item = source[0];
-
-    if (item instanceof FileTreeItem) {
+    let dragData: any;
+    if (dragged instanceof FileTreeItem) {
+      dragData = {
+        type: "file",
+        path: dragged.promptFile.path,
+        title: dragged.promptFile.title,
+        name: dragged.promptFile.name,
+      };
       currentDrag = {
-        uri: vscode.Uri.file(item.promptFile.path),
+        uri: vscode.Uri.file(dragged.promptFile.path),
         type: "file",
       };
-
-      // Set drag data
-      dataTransfer.set(
-        this.dragMimeTypes[0],
-        new vscode.DataTransferItem(
-          JSON.stringify({
-            path: item.promptFile.path,
-            type: "file",
-          })
-        )
-      );
-    } else if (item instanceof FolderTreeItem) {
+    } else if (dragged instanceof FolderTreeItem) {
+      dragData = {
+        type: "folder",
+        path: dragged.promptFolder.path,
+        name: dragged.promptFolder.name,
+      };
       currentDrag = {
-        uri: vscode.Uri.file(item.promptFolder.path),
+        uri: vscode.Uri.file(dragged.promptFolder.path),
         type: "folder",
       };
+    }
 
-      // Set drag data
+    if (dragData) {
       dataTransfer.set(
-        this.dragMimeTypes[0],
-        new vscode.DataTransferItem(
-          JSON.stringify({
-            path: item.promptFolder.path,
-            type: "folder",
-          })
-        )
+        "application/vnd.code.tree.promptmanager",
+        new vscode.DataTransferItem(dragData)
       );
-    } else {
-      return;
+
+      eventBus.emit("dragdrop.drag.started", {
+        file: dragData,
+        timestamp: Date.now(),
+      });
     }
   }
 
@@ -586,115 +452,95 @@ export class PromptTreeProvider
     target: PromptTreeItem | undefined,
     dataTransfer: vscode.DataTransfer
   ): Promise<void> {
-    // Get source path from drag data
-    const dragDataItem = dataTransfer.get(this.dragMimeTypes[0]);
-    if (!dragDataItem || !currentDrag) {
+    const transferItem = dataTransfer.get(
+      "application/vnd.code.tree.promptmanager"
+    );
+    if (!transferItem) {
       return;
     }
 
-    let dragData;
+    const dragData = transferItem.value;
+    if (!dragData) {
+      return;
+    }
+
     try {
-      dragData = JSON.parse(dragDataItem.value as string);
-    } catch (error) {
-      log.error("handleDrop: Failed to parse drag data", error);
-      return;
-    }
+      let targetPath: string;
 
-    const source = currentDrag.uri;
-    const sourceType = currentDrag.type;
-
-    // Calculate target URI
-    let targetUri: vscode.Uri;
-    const itemName = path.basename(source.fsPath);
-
-    if (target instanceof FolderTreeItem) {
-      // Dropping on folder
-      targetUri = vscode.Uri.file(
-        path.join(target.promptFolder.path, itemName)
-      );
-    } else if (target instanceof FileTreeItem) {
-      // Dropping on file - use parent folder
-      targetUri = vscode.Uri.file(
-        path.join(path.dirname(target.promptFile.path), itemName)
-      );
-    } else {
-      // Dropping on root
-      const rootPath = this.fileSystemManager.getPromptManagerPath();
-      if (!rootPath) {
-        log.error("handleDrop: No root path found");
+      if (target instanceof FolderTreeItem) {
+        targetPath = target.promptFolder.path;
+      } else if (target === undefined) {
+        // Dropped on root
+        const rootPath = this.promptController
+          .getRepository()
+          .getFileManager()
+          .getPromptManagerPath();
+        if (!rootPath) {
+          vscode.window.showErrorMessage("No prompt manager root path found");
+          return;
+        }
+        targetPath = rootPath;
+      } else {
+        vscode.window.showWarningMessage(
+          "Can only drop items onto folders or the root area"
+        );
         return;
       }
-      targetUri = vscode.Uri.file(path.join(rootPath, itemName));
-    }
 
-    // Don't allow dropping on itself
-    if (source.fsPath === targetUri.fsPath) {
-      return;
-    }
+      const sourcePath = dragData.path;
+      const sourcePathInfo = path.parse(sourcePath);
+      const newPath = path.join(targetPath, sourcePathInfo.base);
 
-    // Don't allow dropping into a child of itself (for folders)
-    if (
-      sourceType === "folder" &&
-      targetUri.fsPath.startsWith(source.fsPath + path.sep)
-    ) {
-      vscode.window.showErrorMessage(
-        "Cannot move folder into itself or its subdirectory"
-      );
-      return;
-    }
-
-    // Check if target already exists
-    if (await fsExtra.pathExists(targetUri.fsPath)) {
-      vscode.window.showErrorMessage(
-        "Move not allowed - target already exists"
-      );
-      return;
-    }
-
-    try {
-      // Execute move based on source type
-      if (sourceType === "file") {
-        await this.fileSystemManager.moveFile(source.fsPath, targetUri.fsPath);
-        vscode.window.showInformationMessage(`Moved file "${itemName}"`);
-        // For files, immediate refresh is sufficient
-        await this.promptController.refresh();
-      } else if (sourceType === "folder") {
-        await this.fileSystemManager.moveFolder(
-          source.fsPath,
-          targetUri.fsPath
-        );
-        vscode.window.showInformationMessage(`Moved folder "${itemName}"`);
-
-        // For folder moves, we need to explicitly invalidate cache and force a rebuild
-        const fileManager = this.promptController
-          .getRepository()
-          .getFileManager();
-        fileManager.clearContentCache();
-
-        // Small delay to ensure file system operations are complete, then force rebuild
-        setTimeout(async () => {
-          try {
-            await fileManager.rebuildIndexForce();
-            this.refresh();
-          } catch (error) {
-            log.error("Failed to rebuild index after folder move:", error);
-            // Fallback to regular refresh
-            this.refresh();
-          }
-        }, 150);
+      // Check if moving to the same location
+      if (sourcePath === newPath) {
+        return;
       }
+
+      // Check if target path already exists
+      if (await fsExtra.pathExists(newPath)) {
+        vscode.window.showErrorMessage(
+          `A ${dragData.type} with that name already exists in the target location`
+        );
+        return;
+      }
+
+      // Perform the move
+      await fsExtra.move(sourcePath, newPath);
+
+      // Refresh the tree
+      this.refresh();
+
+      eventBus.emit("dragdrop.operation.completed", {
+        command: "move",
+        result: { from: sourcePath, to: newPath },
+        operation: dragData,
+      });
+
+      vscode.window.showInformationMessage(
+        `Moved ${dragData.type} "${
+          dragData.name || dragData.title
+        }" successfully`
+      );
     } catch (error) {
-      log.error("handleDrop: Move operation failed", error);
-      vscode.window.showErrorMessage(`Failed to move ${sourceType}: ${error}`);
+      log.error("handleDrop: Error during drop operation:", error);
+      vscode.window.showErrorMessage(`Failed to move item: ${error}`);
+
+      eventBus.emit("dragdrop.operation.failed", {
+        command: "move",
+        result: null,
+        error: error as Error,
+      });
     } finally {
-      // Clear drag state
       currentDrag = undefined;
+      eventBus.emit("dragdrop.state.cleared", { timestamp: Date.now() });
     }
   }
 
   public dispose(): void {
-    this.subscriptions.forEach((sub) => sub.unsubscribe());
-    this.subscriptions = [];
-    this._onDidChangeTreeData.dispose();
+    this.subscriptions.forEach((sub) => {
+      if (typeof sub.dispose === "function") {
+        sub.dispose();
+      }
+    });
   }
 }

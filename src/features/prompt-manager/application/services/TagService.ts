@@ -43,8 +43,18 @@ export class TagService {
   public async selectTag(tag: Tag): Promise<void> {
     await this.tagFilterState.setActiveTag(tag);
 
-    // Emit event to update UI
+    // Set context key for menu visibility
+    await vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.tagFilterActive",
+      true
+    );
+
+    // Emit events to update both trees
     eventBus.emit("ui.tree.refresh.requested", {
+      reason: "tag-filter-changed",
+    });
+    eventBus.emit("ui.tree.tags.refresh", {
       reason: "tag-filter-changed",
     });
   }
@@ -55,8 +65,18 @@ export class TagService {
   public async clearTagSelection(): Promise<void> {
     await this.tagFilterState.setActiveTag(undefined);
 
-    // Emit event to update UI
+    // Set context key for menu visibility
+    await vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.tagFilterActive",
+      false
+    );
+
+    // Emit events to update both trees
     eventBus.emit("ui.tree.refresh.requested", {
+      reason: "tag-filter-cleared",
+    });
+    eventBus.emit("ui.tree.tags.refresh", {
       reason: "tag-filter-cleared",
     });
   }
@@ -148,8 +168,11 @@ export class TagService {
     // Notify repository that tags have changed
     await this.tagRepository.notifyChanged();
 
-    // Emit event to refresh everything
+    // Emit events to refresh both trees
     eventBus.emit("ui.tree.refresh.requested", {
+      reason: "tag-renamed",
+    });
+    eventBus.emit("ui.tree.tags.refresh", {
       reason: "tag-renamed",
     });
   }
@@ -223,13 +246,17 @@ export class TagService {
     const activeTag = this.getActiveTag();
     if (activeTag && activeTag.equals(tag)) {
       await this.clearTagSelection();
+      return; // clearTagSelection already emits refresh events
     }
 
     // Notify repository that tags have changed
     await this.tagRepository.notifyChanged();
 
-    // Emit event to refresh everything
+    // Emit events to refresh both trees
     eventBus.emit("ui.tree.refresh.requested", {
+      reason: "tag-deleted",
+    });
+    eventBus.emit("ui.tree.tags.refresh", {
       reason: "tag-deleted",
     });
   }
