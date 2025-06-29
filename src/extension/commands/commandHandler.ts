@@ -151,9 +151,7 @@ export class CommandHandler {
         .getPromptManagerPath();
       if (promptPath) {
         const uri = vscode.Uri.file(promptPath);
-        await vscode.commands.executeCommand("vscode.openFolder", uri, {
-          forceNewWindow: false,
-        });
+        await vscode.env.openExternal(uri);
       } else {
         vscode.window.showErrorMessage("No prompt directory found");
       }

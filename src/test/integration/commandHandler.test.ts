@@ -47,6 +47,7 @@ describe("CommandHandler", () => {
     // Mock additional vscode commands that might be called
     sinon.stub(vscode.commands, "executeCommand");
     sinon.stub(vscode.Uri, "file").returns({ fsPath: "/mock/path" } as any);
+    sinon.stub(vscode.env, "openExternal").resolves(true);
 
     // Create CommandHandler instance
     commandHandler = new CommandHandler(mockPromptController, mockContext);
@@ -775,11 +776,7 @@ describe("CommandHandler", () => {
       await openDirHandler();
 
       expect(
-        (vscode.commands.executeCommand as sinon.SinonStub).calledWith(
-          "vscode.openFolder",
-          sinon.match.any,
-          { forceNewWindow: false }
-        )
+        (vscode.env.openExternal as sinon.SinonStub).calledWith(sinon.match.any)
       ).to.be.true;
     });
 
