@@ -125,7 +125,7 @@ export class SearchEngine {
       }
 
       const matches = this.extractMatches(fuseResult, criteria.query);
-      const snippet = this.createSnippet(matches);
+      const snippet = this.createSnippet(matches, criteria.query);
 
       searchResults.push({
         filePath: item.filePath,
@@ -195,7 +195,7 @@ export class SearchEngine {
     const fuseResult = results[0];
     const score = this.convertFuseScore(fuseResult.score || 0);
     const matches = this.extractMatches(fuseResult, criteria.query);
-    const snippet = this.createSnippet(matches);
+    const snippet = this.createSnippet(matches, criteria.query);
 
     return {
       filePath: file.path,
@@ -420,12 +420,35 @@ export class SearchEngine {
     return context.trim();
   }
 
-  private createSnippet(matches: SearchMatch[]): string {
+  private createSnippet(matches: SearchMatch[], query?: string): string {
     if (matches.length === 0) {
       return "";
     }
 
-    // Get the highest priority match for snippet
+    // 1️⃣ Prefer a match whose context contains the literal query text prominently
+    if (query && query.length > 0) {
+      const q = query.toLowerCase();
+
+      // First, try to find a match where the query appears early in the context
+      const prominentMatch = matches.find((m) => {
+        const context = m.context.toLowerCase();
+        const queryIndex = context.indexOf(q);
+        // Query should appear in first 50 characters of the context for prominence
+        return queryIndex >= 0 && queryIndex <= 50;
+      });
+
+      if (prominentMatch) {
+        return prominentMatch.context;
+      }
+
+      // Fallback to any match that contains the query
+      const anyMatch = matches.find((m) => m.context.toLowerCase().includes(q));
+      if (anyMatch) {
+        return anyMatch.context;
+      }
+    }
+
+    // 2️⃣ Fallback - highest-priority field-type
     const bestMatch = matches.reduce((best, current) =>
       this.getMatchTypeScore(current.type) > this.getMatchTypeScore(best.type)
         ? current

@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Added
+
+- Add dedicated Tags tree with inline clear-filter button and improved active-tag highlight
+
 ### Changed
 
 - Environment-aware "Ask AI" button visibility - now only shown in VS Code environment where Chat panel API is available
