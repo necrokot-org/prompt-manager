@@ -103,10 +103,6 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public getCurrentSearchCriteria(): SearchCriteria {
-    return { ...this._criteria };
-  }
-
   public updateResultCount(count: number): void {
     if (this._view) {
       this._view.webview.postMessage({

@@ -181,10 +181,4 @@ suite("FileManager Core Tests", () => {
     assert.ok(fsManager !== null);
     assert.ok(typeof fsManager.getPromptManagerPath === "function");
   });
-
-  test("Component Access - DirectoryScanner", async () => {
-    const scanner = fileManager.getDirectoryScanner();
-    assert.ok(scanner !== null);
-    assert.ok(typeof scanner.scanPrompts === "function");
-  });
 });

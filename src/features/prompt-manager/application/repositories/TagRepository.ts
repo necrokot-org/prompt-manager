@@ -11,11 +11,6 @@ export interface TagRepository {
   getAll(): Promise<Tag[]>;
 
   /**
-   * Event fired when tag data changes
-   */
-  onDidChange: vscode.Event<void>;
-
-  /**
    * Notify listeners that tag data has changed
    */
   notifyChanged(): void;

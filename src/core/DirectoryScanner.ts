@@ -84,42 +84,4 @@ export class DirectoryScanner {
   public async rebuildIndexForce(): Promise<void> {
     return this.indexManager.rebuildIndexForce();
   }
-
-  /**
-   * Compute basic statistics for any directory (defaulting to the prompt root).
-   */
-  public async getDirectoryStats(dirPath?: string): Promise<{
-    totalFiles: number;
-    totalFolders: number;
-    totalSize: number;
-    fileTypes: Record<string, number>;
-  }> {
-    const targetPath = dirPath || this.fileSystemManager.getPromptManagerPath();
-    if (!targetPath || !this.fileSystemManager.fileExists(targetPath)) {
-      return { totalFiles: 0, totalFolders: 0, totalSize: 0, fileTypes: {} };
-    }
-
-    const structure = dirPath
-      ? await this.scanDirectory(targetPath)
-      : await this.scanPrompts();
-
-    const allFiles = [
-      ...structure.rootPrompts,
-      ...structure.folders.flatMap((f) => f.prompts),
-    ];
-
-    const stats = {
-      totalFiles: allFiles.length,
-      totalFolders: structure.folders.length,
-      totalSize: allFiles.reduce((sum, f) => sum + f.fileSize, 0),
-      fileTypes: {} as Record<string, number>,
-    };
-
-    for (const file of allFiles) {
-      const ext = path.extname(file.path).toLowerCase();
-      stats.fileTypes[ext] = (stats.fileTypes[ext] || 0) + 1;
-    }
-
-    return stats;
-  }
 }

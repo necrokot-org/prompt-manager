@@ -98,10 +98,6 @@ export class PromptTreeProvider
     this.refresh();
   }
 
-  public getCurrentSearchCriteria(): SearchCriteria | null {
-    return this._currentSearchCriteria;
-  }
-
   getTreeItem(element: PromptTreeItem): vscode.TreeItem {
     return element;
   }
@@ -312,31 +308,6 @@ export class PromptTreeProvider
     }
 
     return items;
-  }
-
-  public async findTreeItemByPath(
-    filePath: string
-  ): Promise<FileTreeItem | undefined> {
-    try {
-      const structure = await this.promptController.getPromptStructure();
-      const allPrompts = [
-        ...structure.rootPrompts,
-        ...structure.folders.flatMap((f: any) => f.prompts),
-      ];
-
-      const prompt = allPrompts.find((p) => p.path === filePath);
-      if (prompt) {
-        return this.createFileTreeItem(prompt, {
-          command: "promptManager.openPrompt",
-          title: "Open Prompt",
-          arguments: [prompt.path],
-        });
-      }
-    } catch (error) {
-      log.error("findTreeItemByPath: Error finding tree item:", error);
-    }
-
-    return undefined;
   }
 
   private async getFilteredItems(structure: any): Promise<PromptTreeItem[]> {

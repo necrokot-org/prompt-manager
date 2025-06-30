@@ -11,10 +11,6 @@ import { DI_TOKENS } from "@infra/di/di-tokens";
  */
 @injectable()
 export class FileTagRepository implements TagRepository {
-  private _onDidChange: vscode.EventEmitter<void> =
-    new vscode.EventEmitter<void>();
-  readonly onDidChange: vscode.Event<void> = this._onDidChange.event;
-
   constructor(
     @inject(DI_TOKENS.PromptRepository)
     private promptRepository: PromptRepository,
@@ -50,13 +46,6 @@ export class FileTagRepository implements TagRepository {
    * Notify listeners that tags have changed
    */
   public notifyChanged(): void {
-    this._onDidChange.fire();
-  }
-
-  /**
-   * Dispose resources
-   */
-  public dispose(): void {
-    this._onDidChange.dispose();
+    // Event system removed - no listeners
   }
 }

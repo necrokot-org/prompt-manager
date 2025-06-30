@@ -208,10 +208,6 @@ export class FileManager {
     return this.fileSystemManager;
   }
 
-  public getDirectoryScanner(): DirectoryScanner {
-    return this.directoryScanner;
-  }
-
   private publishFileEvent(
     eventType: "created" | "deleted" | "changed",
     filePath: string

@@ -514,48 +514,6 @@ suite("DirectoryScanner", () => {
     });
   });
 
-  suite("getDirectoryStats()", () => {
-    setup(async () => {
-      // Create test files of different types
-      await fs.promises.writeFile(
-        path.join(mockWorkspace.testPromptPath, "prompt1.md"),
-        "# Prompt 1\nShort content"
-      );
-      await fs.promises.writeFile(
-        path.join(mockWorkspace.testPromptPath, "prompt2.md"),
-        "# Prompt 2\nThis is a longer content for testing file size calculations"
-      );
-
-      const subfolderPath = path.join(
-        mockWorkspace.testPromptPath,
-        "subfolder"
-      );
-      await fs.promises.mkdir(subfolderPath, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(subfolderPath, "nested.md"),
-        "# Nested\nNested content"
-      );
-    });
-
-    test("should return correct directory statistics", async () => {
-      const stats = await scanner.getDirectoryStats();
-
-      expect(stats.totalFiles).to.equal(3);
-      expect(stats.totalFolders).to.equal(1);
-      expect(stats.totalSize).to.be.greaterThan(0);
-      expect(stats.fileTypes[".md"]).to.equal(3);
-    });
-
-    test("should return zero stats for non-existent directory", async () => {
-      const stats = await scanner.getDirectoryStats("/nonexistent/path");
-
-      expect(stats.totalFiles).to.equal(0);
-      expect(stats.totalFolders).to.equal(0);
-      expect(stats.totalSize).to.equal(0);
-      expect(Object.keys(stats.fileTypes)).to.have.lengthOf(0);
-    });
-  });
-
   suite("error handling", () => {
     test("should handle filesystem errors gracefully", async () => {
       // Stub fileExists to return true but walker to throw
