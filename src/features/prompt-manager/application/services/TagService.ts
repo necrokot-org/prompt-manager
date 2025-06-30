@@ -261,18 +261,18 @@ export class TagService {
       );
     }
 
+    // Ensure cache is up-to-date before UI refresh (always needed since files were modified)
+    await this.rebuildIndexSafe("tag delete");
+
+    // Notify repository that tags have changed (always needed since files were modified)
+    await this.tagRepository.notifyChanged();
+
     // Clear active tag if it was the deleted tag
     const activeTag = this.getActiveTag();
     if (activeTag && activeTag.equals(tag)) {
       await this.clearTagSelection();
       return; // clearTagSelection already emits refresh events
     }
-
-    // Ensure cache is up-to-date before UI refresh
-    await this.rebuildIndexSafe("tag delete");
-
-    // Notify repository that tags have changed
-    await this.tagRepository.notifyChanged();
 
     // Emit events to refresh both trees
     eventBus.emit("ui.tree.refresh.requested", {
