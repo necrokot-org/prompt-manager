@@ -6,8 +6,6 @@ import {
   PromptFile,
   PromptFolder,
 } from "@features/prompt-manager/data/fileManager";
-import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
-import { SearchService } from "@features/search/services/searchService";
 import { ConfigurationService } from "@infra/config/config";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
@@ -18,9 +16,8 @@ import {
   EmptyStateTreeItem,
 } from "@features/prompt-manager/ui/tree/items";
 import { ItemFactory } from "@features/prompt-manager/ui/tree/factory/ItemFactory";
-import { SearchFilter } from "@features/prompt-manager/ui/tree/filter/SearchFilter";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
-import { TagService } from "@features/prompt-manager/application/services/TagService";
+import { FilterCoordinator } from "@features/prompt-manager/application/filters/FilterCoordinator";
 
 // NOTE: The tree item classes (FileTreeItem, FolderTreeItem, EmptyStateTreeItem) have
 // been extracted to dedicated modules under `src/tree/items/` to improve
@@ -45,25 +42,21 @@ export class PromptTreeProvider
   dropMimeTypes = ["application/vnd.code.tree.promptmanager"];
   dragMimeTypes = ["application/vnd.code.tree.promptmanager"];
 
-  private _currentSearchCriteria: SearchCriteria | null = null;
   private itemFactory: ItemFactory;
-  private searchFilter: SearchFilter;
   private subscriptions: any[] = [];
 
   constructor(
     @inject(DI_TOKENS.PromptController)
     private promptController: PromptController,
-    @inject(DI_TOKENS.SearchService) searchService: SearchService,
     @inject(DI_TOKENS.ConfigurationService)
     private configurationService: ConfigurationService,
     @inject(DI_TOKENS.FileSystemManager)
     private fileSystemManager: FileSystemManager,
-    @inject(DI_TOKENS.TagService)
-    private tagService: TagService
+    @inject(DI_TOKENS.FilterCoordinator)
+    private filterCoordinator: FilterCoordinator
   ) {
     // Initialize modular helpers
     this.itemFactory = new ItemFactory(this.configurationService);
-    this.searchFilter = new SearchFilter(searchService);
 
     // Listen to tree refresh events
     this.subscriptions.push(
@@ -72,30 +65,22 @@ export class PromptTreeProvider
       })
     );
 
-    // Listen to search criteria changes
+    // Listen to filter changes (search criteria changes and tag changes will trigger refresh)
     this.subscriptions.push(
-      eventBus.on("search.criteria.changed", (payload) => {
-        const { query, scope, caseSensitive, isActive } = payload;
-        this.setSearchCriteria(
-          isActive ? { query, scope, caseSensitive, isActive } : null
-        );
+      eventBus.on("search.criteria.changed", () => {
+        this.refresh();
       })
     );
 
     this.subscriptions.push(
       eventBus.on("search.cleared", () => {
-        this.setSearchCriteria(null);
+        this.refresh();
       })
     );
   }
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
-  }
-
-  public setSearchCriteria(criteria: SearchCriteria | null): void {
-    this._currentSearchCriteria = criteria;
-    this.refresh();
   }
 
   getTreeItem(element: PromptTreeItem): vscode.TreeItem {
@@ -126,28 +111,52 @@ export class PromptTreeProvider
         structure,
       });
 
+      // Extract all prompts from structure to compare with filtered results
+      const allPrompts = [
+        ...structure.rootPrompts,
+        ...structure.folders.flatMap((f) => f.prompts),
+      ];
+
+      // Use FilterCoordinator to get filtered prompts
+      const filteredPrompts = await this.filterCoordinator.filterAll(structure);
+
       const items: PromptTreeItem[] = [];
 
-      // If search is active, apply filtering to remaining items
-      if (this._currentSearchCriteria?.isActive) {
-        log.debug("getRootItems: Search is active, getting filtered items");
-        const filteredItems = await this.getFilteredItems(structure);
-        items.push(...filteredItems);
+      // If filters are active (filtered result is different from all prompts), show flat list
+      const filtersActive = filteredPrompts.length !== allPrompts.length;
+
+      if (filtersActive) {
+        log.debug("getRootItems: Filters are active, showing filtered prompts");
+        for (const prompt of filteredPrompts) {
+          if (prompt && prompt.title) {
+            const promptItem = this.createFileTreeItem(prompt, {
+              command: "promptManager.openPrompt",
+              title: "Open Prompt",
+              arguments: [prompt.path],
+            });
+            items.push(promptItem);
+            log.debug(
+              "getRootItems: Added filtered prompt item:",
+              prompt.title
+            );
+          }
+        }
+
+        // Show empty state if no matches
+        if (items.length === 0) {
+          items.push(
+            this.itemFactory.createEmptyStateItem(
+              "No matching prompts",
+              "Try adjusting your search criteria or tag filters",
+              "emptyFiltered"
+            )
+          );
+        }
+
         return items;
       }
 
-      // Check if tag filter is active
-      const activeTag = this.tagService.getActiveTag();
-      if (activeTag) {
-        log.debug("getRootItems: Tag filter is active, filtering by tag");
-        const tagFilteredItems = await this.getTagFilteredItems(
-          structure,
-          activeTag
-        );
-        items.push(...tagFilteredItems);
-        return items;
-      }
-
+      // If no filters are active, show normal folder structure
       // Add folders that are in the root (no parent folders)
       if (structure?.folders) {
         log.debug("getRootItems: Processing folders");
@@ -218,55 +227,6 @@ export class PromptTreeProvider
     }
   }
 
-  /**
-   * Get items filtered by a specific tag
-   */
-  private async getTagFilteredItems(
-    structure: any,
-    activeTag: any
-  ): Promise<PromptTreeItem[]> {
-    try {
-      const items: PromptTreeItem[] = [];
-      const allPrompts = [
-        ...structure.rootPrompts,
-        ...structure.folders.flatMap((f: any) => f.prompts),
-      ];
-
-      // Filter prompts that have the active tag
-      for (const prompt of allPrompts) {
-        if (prompt.tags && prompt.tags.includes(activeTag.value)) {
-          const promptItem = this.createFileTreeItem(prompt, {
-            command: "promptManager.openPrompt",
-            title: "Open Prompt",
-            arguments: [prompt.path],
-          });
-          items.push(promptItem);
-        }
-      }
-
-      if (items.length === 0) {
-        items.push(
-          this.itemFactory.createEmptyStateItem(
-            `No prompts with tag "${activeTag.value}"`,
-            "Click on Tags to browse all tags",
-            "emptyTagFilter"
-          )
-        );
-      }
-
-      return items;
-    } catch (error) {
-      log.error("getTagFilteredItems: Error filtering by tag:", error);
-      return [
-        this.itemFactory.createEmptyStateItem(
-          "Error filtering by tag",
-          "Check the logs for details",
-          "error"
-        ),
-      ];
-    }
-  }
-
   private async getFolderItems(
     folder: PromptFolder
   ): Promise<PromptTreeItem[]> {
@@ -308,56 +268,6 @@ export class PromptTreeProvider
     }
 
     return items;
-  }
-
-  private async getFilteredItems(structure: any): Promise<PromptTreeItem[]> {
-    if (!this._currentSearchCriteria) {
-      return [];
-    }
-
-    const allPrompts = [
-      ...structure.rootPrompts,
-      ...structure.folders.flatMap((f: any) => f.prompts),
-    ];
-
-    const filteredItems: PromptTreeItem[] = [];
-
-    // Apply search filtering
-    for (const prompt of allPrompts) {
-      const matches = await this.matchesSearchCriteria(
-        prompt,
-        this._currentSearchCriteria
-      );
-      if (matches) {
-        const command: vscode.Command = {
-          command: "promptManager.openPrompt",
-          title: "Open Prompt",
-          arguments: [prompt.path],
-        };
-
-        const promptItem = this.createFileTreeItem(prompt, command);
-        filteredItems.push(promptItem);
-      }
-    }
-
-    if (filteredItems.length === 0) {
-      filteredItems.push(
-        this.itemFactory.createEmptyStateItem(
-          "No matching prompts",
-          "Try adjusting your search criteria",
-          "emptySearch"
-        )
-      );
-    }
-
-    return filteredItems;
-  }
-
-  private async matchesSearchCriteria(
-    prompt: PromptFile,
-    criteria: SearchCriteria
-  ): Promise<boolean> {
-    return this.searchFilter.matches(prompt, criteria);
   }
 
   private createFileTreeItem(

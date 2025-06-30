@@ -89,6 +89,17 @@ export class TagService {
   }
 
   /**
+   * Extract all prompts from the structure into a flat array
+   */
+  private async getAllPrompts() {
+    const structure = await this.promptRepository.getPromptStructure();
+    return [
+      ...structure.rootPrompts,
+      ...structure.folders.flatMap((f) => f.prompts),
+    ];
+  }
+
+  /**
    * Force-rebuild the prompt index so UI queries get fresh data.
    * Shows a VS Code warning if the rebuild fails instead of using console.warn.
    */
@@ -111,11 +122,7 @@ export class TagService {
     const newTag = Tag.from(newTagValue);
 
     // Find all prompts that have this tag
-    const structure = await this.promptRepository.getPromptStructure();
-    const allPrompts = [
-      ...structure.rootPrompts,
-      ...structure.folders.flatMap((f) => f.prompts),
-    ];
+    const allPrompts = await this.getAllPrompts();
 
     const affectedPrompts = [];
     for (const prompt of allPrompts) {
@@ -201,11 +208,7 @@ export class TagService {
    */
   public async deleteTag(tag: Tag): Promise<void> {
     // Find all prompts that have this tag
-    const structure = await this.promptRepository.getPromptStructure();
-    const allPrompts = [
-      ...structure.rootPrompts,
-      ...structure.folders.flatMap((f) => f.prompts),
-    ];
+    const allPrompts = await this.getAllPrompts();
 
     const affectedPrompts = [];
     for (const prompt of allPrompts) {
