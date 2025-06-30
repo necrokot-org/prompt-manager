@@ -89,6 +89,22 @@ export class TagService {
   }
 
   /**
+   * Force-rebuild the prompt index so UI queries get fresh data.
+   * Shows a VS Code warning if the rebuild fails instead of using console.warn.
+   */
+  private async rebuildIndexSafe(context: string): Promise<void> {
+    try {
+      await this.promptRepository.getFileManager().rebuildIndex();
+    } catch (error: any) {
+      vscode.window.showWarningMessage(
+        `Prompt index refresh failed after ${context}: ${
+          error?.message || error
+        }`
+      );
+    }
+  }
+
+  /**
    * UC-3: Rename tag
    */
   public async renameTag(oldTag: Tag, newTagValue: string): Promise<void> {
@@ -165,17 +181,8 @@ export class TagService {
       await this.tagFilterState.setActiveTag(newTag);
     }
 
-    // Force cache invalidation to ensure fresh data is loaded
-    // This fixes the timing issue where file watcher hasn't fired yet
-    try {
-      const fileManager = (this.promptRepository as any).getFileManager();
-      if (fileManager && fileManager.rebuildIndex) {
-        await fileManager.rebuildIndex();
-      }
-    } catch (error) {
-      // Fallback: log error but don't fail the operation
-      console.warn("Failed to invalidate cache after tag rename:", error);
-    }
+    // Ensure cache is up-to-date before UI refresh
+    await this.rebuildIndexSafe("tag rename");
 
     // Notify repository that tags have changed
     await this.tagRepository.notifyChanged();
@@ -261,17 +268,8 @@ export class TagService {
       return; // clearTagSelection already emits refresh events
     }
 
-    // Force cache invalidation to ensure fresh data is loaded
-    // This fixes the timing issue where file watcher hasn't fired yet
-    try {
-      const fileManager = (this.promptRepository as any).getFileManager();
-      if (fileManager && fileManager.rebuildIndex) {
-        await fileManager.rebuildIndex();
-      }
-    } catch (error) {
-      // Fallback: log error but don't fail the operation
-      console.warn("Failed to invalidate cache after tag delete:", error);
-    }
+    // Ensure cache is up-to-date before UI refresh
+    await this.rebuildIndexSafe("tag delete");
 
     // Notify repository that tags have changed
     await this.tagRepository.notifyChanged();
