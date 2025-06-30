@@ -89,6 +89,22 @@ export class TagService {
   }
 
   /**
+   * Force-rebuild the prompt index so UI queries get fresh data.
+   * Shows a VS Code warning if the rebuild fails instead of using console.warn.
+   */
+  private async rebuildIndexSafe(context: string): Promise<void> {
+    try {
+      await this.promptRepository.getFileManager().rebuildIndex();
+    } catch (error: any) {
+      vscode.window.showWarningMessage(
+        `Prompt index refresh failed after ${context}: ${
+          error?.message || error
+        }`
+      );
+    }
+  }
+
+  /**
    * UC-3: Rename tag
    */
   public async renameTag(oldTag: Tag, newTagValue: string): Promise<void> {
@@ -164,6 +180,9 @@ export class TagService {
     if (activeTag && activeTag.equals(oldTag)) {
       await this.tagFilterState.setActiveTag(newTag);
     }
+
+    // Ensure cache is up-to-date before UI refresh
+    await this.rebuildIndexSafe("tag rename");
 
     // Notify repository that tags have changed
     await this.tagRepository.notifyChanged();
@@ -242,15 +261,18 @@ export class TagService {
       );
     }
 
+    // Ensure cache is up-to-date before UI refresh (always needed since files were modified)
+    await this.rebuildIndexSafe("tag delete");
+
+    // Notify repository that tags have changed (always needed since files were modified)
+    await this.tagRepository.notifyChanged();
+
     // Clear active tag if it was the deleted tag
     const activeTag = this.getActiveTag();
     if (activeTag && activeTag.equals(tag)) {
       await this.clearTagSelection();
       return; // clearTagSelection already emits refresh events
     }
-
-    // Notify repository that tags have changed
-    await this.tagRepository.notifyChanged();
 
     // Emit events to refresh both trees
     eventBus.emit("ui.tree.refresh.requested", {
