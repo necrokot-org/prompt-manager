@@ -165,6 +165,18 @@ export class TagService {
       await this.tagFilterState.setActiveTag(newTag);
     }
 
+    // Force cache invalidation to ensure fresh data is loaded
+    // This fixes the timing issue where file watcher hasn't fired yet
+    try {
+      const fileManager = (this.promptRepository as any).getFileManager();
+      if (fileManager && fileManager.rebuildIndex) {
+        await fileManager.rebuildIndex();
+      }
+    } catch (error) {
+      // Fallback: log error but don't fail the operation
+      console.warn("Failed to invalidate cache after tag rename:", error);
+    }
+
     // Notify repository that tags have changed
     await this.tagRepository.notifyChanged();
 
@@ -247,6 +259,18 @@ export class TagService {
     if (activeTag && activeTag.equals(tag)) {
       await this.clearTagSelection();
       return; // clearTagSelection already emits refresh events
+    }
+
+    // Force cache invalidation to ensure fresh data is loaded
+    // This fixes the timing issue where file watcher hasn't fired yet
+    try {
+      const fileManager = (this.promptRepository as any).getFileManager();
+      if (fileManager && fileManager.rebuildIndex) {
+        await fileManager.rebuildIndex();
+      }
+    } catch (error) {
+      // Fallback: log error but don't fail the operation
+      console.warn("Failed to invalidate cache after tag delete:", error);
     }
 
     // Notify repository that tags have changed
