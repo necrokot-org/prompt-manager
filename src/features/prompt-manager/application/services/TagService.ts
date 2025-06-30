@@ -28,7 +28,22 @@ export class TagService {
     private promptRepository: PromptRepository,
     @inject(DI_TOKENS.FileSystemManager)
     private fileSystemManager: FileSystemManager
-  ) {}
+  ) {
+    // Initialize context key based on restored tag filter state
+    this.initializeContextKey();
+  }
+
+  /**
+   * Initialize the context key for clear button visibility based on restored state
+   */
+  private async initializeContextKey(): Promise<void> {
+    const activeTag = this.tagFilterState.getActiveTag();
+    await vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.tagFilterActive",
+      Boolean(activeTag)
+    );
+  }
 
   /**
    * UC-1: Refresh tags
