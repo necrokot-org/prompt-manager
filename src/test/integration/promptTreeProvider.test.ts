@@ -9,14 +9,13 @@ import {
   TagRootTreeItem,
 } from "../../features/prompt-manager/ui/tree/items";
 import { PromptFile } from "../../features/prompt-manager/data/fileManager";
-import { SearchCriteria } from "../../features/search/ui/SearchPanelProvider";
 
 suite("PromptTreeProvider", () => {
   let promptTreeProvider: PromptTreeProvider;
   let mockPromptController: any;
-  let mockSearchService: any;
   let mockConfigurationService: any;
   let mockFileSystemManager: any;
+  let mockFilterCoordinator: any;
 
   setup(() => {
     // Mock PromptController
@@ -29,12 +28,6 @@ suite("PromptTreeProvider", () => {
           getPromptManagerPath: () => "/test/path",
         }),
       }),
-    };
-
-    // Mock SearchService
-    mockSearchService = {
-      search: () => Promise.resolve([]),
-      matchesPrompt: () => Promise.resolve(false), // Add missing method
     };
 
     // Mock ConfigurationService
@@ -54,25 +47,39 @@ suite("PromptTreeProvider", () => {
       checkMoveConflict: () => Promise.resolve({ hasConflict: false }), // Add missing method
     };
 
-    const mockTagService = {
-      getActiveTag: () => undefined,
-      refreshTags: () => Promise.resolve([]),
-      selectTag: () => Promise.resolve(),
-      clearTagSelection: () => Promise.resolve(),
-      renameTag: () => Promise.resolve(),
-      deleteTag: () => Promise.resolve(),
-    } as any;
+    // Mock FilterCoordinator
+    mockFilterCoordinator = {
+      filterAll: async (structure: any) => {
+        // Default behavior: return all prompts (no filtering)
+        return [
+          ...structure.rootPrompts,
+          ...structure.folders.flatMap((f: any) => f.prompts),
+        ];
+      },
+      getFilterCount: () => 0,
+      hasFilters: () => false,
+      hasActiveFilters: () => false,
+    };
+
     promptTreeProvider = new PromptTreeProvider(
       mockPromptController,
-      mockSearchService,
       mockConfigurationService,
       mockFileSystemManager,
-      mockTagService
+      mockFilterCoordinator
     );
   });
 
   teardown(() => {
     promptTreeProvider.dispose();
+    // Reset mock to default state
+    mockFilterCoordinator.filterAll = async (structure: any) => {
+      // Default behavior: return all prompts (no filtering)
+      return [
+        ...structure.rootPrompts,
+        ...structure.folders.flatMap((f: any) => f.prompts),
+      ];
+    };
+    mockFilterCoordinator.hasActiveFilters = () => false;
   });
 
   suite("getChildren", () => {
@@ -119,8 +126,8 @@ suite("PromptTreeProvider", () => {
     });
   });
 
-  suite("search functionality", () => {
-    test("should filter prompts based on search criteria", async () => {
+  suite("filter functionality", () => {
+    test("should filter prompts based on active filters", async () => {
       const mockStructure = {
         folders: [],
         rootPrompts: [
@@ -148,22 +155,18 @@ suite("PromptTreeProvider", () => {
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
 
-      // Mock matchesPrompt to return true only for the first prompt
-      mockSearchService.matchesPrompt = (prompt: any, criteria: any) => {
-        return Promise.resolve(prompt.path === "/test/matching-prompt.md");
+      // Mock FilterCoordinator to return only the matching prompt
+      mockFilterCoordinator.filterAll = async (structure: any) => {
+        return structure.rootPrompts.filter(
+          (p: any) => p.path === "/test/matching-prompt.md"
+        );
       };
+      // Mock that filters are active
+      mockFilterCoordinator.hasActiveFilters = () => true;
 
-      const criteria: SearchCriteria = {
-        query: "matching",
-        scope: "both",
-        caseSensitive: false,
-        isActive: true,
-      };
-
-      promptTreeProvider.setSearchCriteria(criteria);
       const children = await promptTreeProvider.getChildren();
 
-      // Updated: No TagRootTreeItem, just matching prompt
+      // Should show only the filtered prompt as a flat list
       assert.strictEqual(children.length, 1);
       assert.ok(children[0] instanceof FileTreeItem);
       assert.strictEqual(
@@ -172,7 +175,7 @@ suite("PromptTreeProvider", () => {
       );
     });
 
-    test("should show no results message when no prompts match", async () => {
+    test("should show no results message when no prompts match filters", async () => {
       const mockStructure = {
         folders: [],
         rootPrompts: [
@@ -191,20 +194,16 @@ suite("PromptTreeProvider", () => {
       mockPromptController.getPromptStructure = () =>
         Promise.resolve(mockStructure);
 
-      // Mock matchesPrompt to return false for all prompts
-      mockSearchService.matchesPrompt = () => Promise.resolve(false);
-
-      const criteria: SearchCriteria = {
-        query: "nonexistent",
-        scope: "both",
-        caseSensitive: false,
-        isActive: true,
+      // Mock FilterCoordinator to return no matches
+      mockFilterCoordinator.filterAll = async () => {
+        return [];
       };
+      // Mock that filters are active (but return no results)
+      mockFilterCoordinator.hasActiveFilters = () => true;
 
-      promptTreeProvider.setSearchCriteria(criteria);
       const children = await promptTreeProvider.getChildren();
 
-      // Updated: No TagRootTreeItem, just empty state
+      // Should show empty filtered state
       assert.strictEqual(children.length, 1);
       assert.ok(children[0] instanceof EmptyStateTreeItem);
       assert.strictEqual(children[0].label, "No matching prompts");

@@ -21,6 +21,13 @@ import { TagService } from "@features/prompt-manager/application/services/TagSer
 import { FileTagRepository } from "@features/prompt-manager/infrastructure/repositories/FileTagRepository";
 import { PersistentTagFilter } from "@features/prompt-manager/infrastructure/persistence/PersistentTagFilter";
 
+// Filter-related imports
+import {
+  TagPromptFilter,
+  SearchPromptFilter,
+  FilterCoordinator,
+} from "@features/prompt-manager/application/filters";
+
 /**
  * Configure and register all services with the DI container
  */
@@ -68,6 +75,19 @@ export function setupDependencyInjection(context: vscode.ExtensionContext) {
   container.registerSingleton(DI_TOKENS.TagRepository, FileTagRepository);
   container.registerSingleton(DI_TOKENS.TagFilterState, PersistentTagFilter);
   container.registerSingleton(DI_TOKENS.TagService, TagService);
+
+  // Filter services
+  container.registerSingleton(DI_TOKENS.TagPromptFilter, TagPromptFilter);
+  container.registerSingleton(DI_TOKENS.SearchPromptFilter, SearchPromptFilter);
+  container.registerSingleton(DI_TOKENS.FilterCoordinator, FilterCoordinator);
+
+  // Register filters for multi-injection
+  container.register(DI_TOKENS.PromptFilter, {
+    useToken: DI_TOKENS.TagPromptFilter,
+  });
+  container.register(DI_TOKENS.PromptFilter, {
+    useToken: DI_TOKENS.SearchPromptFilter,
+  });
 }
 
 /**

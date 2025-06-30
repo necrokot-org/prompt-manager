@@ -22,6 +22,11 @@ export const DI_TOKENS = {
   TagRepository: Symbol("TagRepository"),
   TagFilterState: Symbol("TagFilterState"),
   TagService: Symbol("TagService"),
+  // Filter-related tokens
+  PromptFilter: Symbol("PromptFilter"),
+  FilterCoordinator: Symbol("FilterCoordinator"),
+  TagPromptFilter: Symbol("TagPromptFilter"),
+  SearchPromptFilter: Symbol("SearchPromptFilter"),
 } as const;
 
 export type DiToken<T = any> = InjectionToken<T>;
