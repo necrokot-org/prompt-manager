@@ -46,4 +46,11 @@ export class FilterCoordinator {
   hasFilters(): boolean {
     return this.filters.length > 0;
   }
+
+  /**
+   * Check if any filters are currently active
+   */
+  hasActiveFilters(): boolean {
+    return this.filters.some((filter) => filter.isActive());
+  }
 }

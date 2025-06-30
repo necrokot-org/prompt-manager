@@ -11,4 +11,10 @@ export interface PromptFilter {
    * @returns Filtered list of prompt files
    */
   apply(files: PromptFile[]): Promise<PromptFile[]>;
+
+  /**
+   * Check if this filter is currently active
+   * @returns true if the filter is active and will modify the result set
+   */
+  isActive(): boolean;
 }

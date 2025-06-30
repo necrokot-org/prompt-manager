@@ -111,19 +111,13 @@ export class PromptTreeProvider
         structure,
       });
 
-      // Extract all prompts from structure to compare with filtered results
-      const allPrompts = [
-        ...structure.rootPrompts,
-        ...structure.folders.flatMap((f) => f.prompts),
-      ];
-
       // Use FilterCoordinator to get filtered prompts
       const filteredPrompts = await this.filterCoordinator.filterAll(structure);
 
       const items: PromptTreeItem[] = [];
 
-      // If filters are active (filtered result is different from all prompts), show flat list
-      const filtersActive = filteredPrompts.length !== allPrompts.length;
+      // Check if any filters are actually active (regardless of result count)
+      const filtersActive = this.filterCoordinator.hasActiveFilters();
 
       if (filtersActive) {
         log.debug("getRootItems: Filters are active, showing filtered prompts");

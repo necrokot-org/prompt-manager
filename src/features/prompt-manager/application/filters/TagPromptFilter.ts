@@ -27,4 +27,11 @@ export class TagPromptFilter implements PromptFilter {
       (prompt) => prompt.tags && prompt.tags.includes(activeTag.value)
     );
   }
+
+  /**
+   * Check if tag filter is currently active
+   */
+  isActive(): boolean {
+    return Boolean(this.tagService.getActiveTag());
+  }
 }

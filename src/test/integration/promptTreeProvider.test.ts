@@ -58,6 +58,7 @@ suite("PromptTreeProvider", () => {
       },
       getFilterCount: () => 0,
       hasFilters: () => false,
+      hasActiveFilters: () => false,
     };
 
     promptTreeProvider = new PromptTreeProvider(
@@ -70,6 +71,15 @@ suite("PromptTreeProvider", () => {
 
   teardown(() => {
     promptTreeProvider.dispose();
+    // Reset mock to default state
+    mockFilterCoordinator.filterAll = async (structure: any) => {
+      // Default behavior: return all prompts (no filtering)
+      return [
+        ...structure.rootPrompts,
+        ...structure.folders.flatMap((f: any) => f.prompts),
+      ];
+    };
+    mockFilterCoordinator.hasActiveFilters = () => false;
   });
 
   suite("getChildren", () => {
@@ -151,6 +161,8 @@ suite("PromptTreeProvider", () => {
           (p: any) => p.path === "/test/matching-prompt.md"
         );
       };
+      // Mock that filters are active
+      mockFilterCoordinator.hasActiveFilters = () => true;
 
       const children = await promptTreeProvider.getChildren();
 
@@ -186,6 +198,8 @@ suite("PromptTreeProvider", () => {
       mockFilterCoordinator.filterAll = async () => {
         return [];
       };
+      // Mock that filters are active (but return no results)
+      mockFilterCoordinator.hasActiveFilters = () => true;
 
       const children = await promptTreeProvider.getChildren();
 

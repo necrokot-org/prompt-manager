@@ -57,6 +57,13 @@ export class SearchPromptFilter implements PromptFilter {
   }
 
   /**
+   * Check if search filter is currently active
+   */
+  isActive(): boolean {
+    return Boolean(this.criteria?.isActive);
+  }
+
+  /**
    * Cleanup subscriptions
    */
   dispose(): void {
