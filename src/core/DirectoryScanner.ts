@@ -1,7 +1,5 @@
 import * as path from "path";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
-import { eventBus } from "@infra/vscode/ExtensionBus";
-import { log } from "@infra/vscode/log";
 import { FilesystemWalker } from "../scanner/FilesystemWalker";
 import { PromptOrganizer } from "../scanner/PromptOrganizer";
 import { IndexManager } from "../scanner/IndexManager";
@@ -67,35 +65,6 @@ export class DirectoryScanner {
   ): Promise<PromptStructure> {
     const promptFiles = await this.walker.scanDirectory(dirPath, options);
     return await this.organizer.organize(promptFiles, dirPath);
-  }
-
-  /**
-   * Return all PromptFile objects as a flat array.
-   */
-  public async getAllPromptFiles(): Promise<PromptFile[]> {
-    const structure = await this.scanPrompts();
-    return [
-      ...structure.rootPrompts,
-      ...structure.folders.flatMap((f) => f.prompts),
-    ];
-  }
-
-  /**
-   * Filter PromptFile objects using an arbitrary predicate.
-   */
-  public async findPromptFiles(
-    predicate: (file: PromptFile) => boolean
-  ): Promise<PromptFile[]> {
-    const all = await this.getAllPromptFiles();
-    return all.filter(predicate);
-  }
-
-  /**
-   * Get folder-only representation of the prompt hierarchy.
-   */
-  public async getFolderStructure(): Promise<PromptFolder[]> {
-    const structure = await this.scanPrompts();
-    return structure.folders;
   }
 
   /**

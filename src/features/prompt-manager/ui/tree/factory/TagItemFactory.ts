@@ -26,19 +26,4 @@ export class TagItemFactory {
   ): TagTreeItem {
     return new TagTreeItem(tag, isActive, promptCount);
   }
-
-  /**
-   * Create multiple tag items
-   */
-  public createTagItems(
-    tags: Tag[],
-    activeTag?: Tag,
-    promptCounts?: Map<string, number>
-  ): TagTreeItem[] {
-    return tags.map((tag) => {
-      const isActive = activeTag ? activeTag.equals(tag) : false;
-      const promptCount = promptCounts?.get(tag.value);
-      return this.createTagItem(tag, isActive, promptCount);
-    });
-  }
 }

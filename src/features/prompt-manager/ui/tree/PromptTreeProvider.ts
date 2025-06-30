@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as fsExtra from "fs-extra";
 import { injectable, inject } from "tsyringe";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import {

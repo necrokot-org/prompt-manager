@@ -180,10 +180,6 @@ export class SearchService {
     eventBus.emit("search.results.updated", { resultCount, query });
   }
 
-  async publishCleared(): Promise<void> {
-    eventBus.emit("search.cleared", {});
-  }
-
   // Private helper methods
 
   private async getFileContentsForSearch(): Promise<FileContent[]> {

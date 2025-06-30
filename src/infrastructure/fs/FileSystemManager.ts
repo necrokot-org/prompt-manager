@@ -190,36 +190,6 @@ Happy prompting!
   }
 
   /**
-   * Batch read multiple files
-   */
-  public async batchReadFiles(
-    filePaths: string[]
-  ): Promise<Map<string, string>> {
-    const results = new Map<string, string>();
-
-    try {
-      const promises = filePaths.map(async (filePath) => {
-        try {
-          const content = await this.readFile(filePath);
-          return { filePath, content };
-        } catch (error) {
-          log.warn(`Failed to read ${filePath}:`, error);
-          return { filePath, content: "" };
-        }
-      });
-
-      const results_array = await Promise.all(promises);
-      results_array.forEach(({ filePath, content }) => {
-        results.set(filePath, content);
-      });
-    } catch (error) {
-      log.error("Batch read failed:", error);
-    }
-
-    return results;
-  }
-
-  /**
    * Move file to a new location
    */
   public async moveFile(sourcePath: string, targetPath: string): Promise<void> {
@@ -300,34 +270,5 @@ Happy prompting!
       log.error(`Failed to check move conflict:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Get relative path from the prompt manager root
-   */
-  public getRelativePathFromRoot(absolutePath: string): string | undefined {
-    const promptPath = this.getPromptManagerPath();
-    if (!promptPath) {
-      return undefined;
-    }
-
-    try {
-      return path.relative(promptPath, absolutePath);
-    } catch (error) {
-      log.error(`Failed to get relative path:`, error);
-      return undefined;
-    }
-  }
-
-  /**
-   * Get absolute path from relative path within prompt manager
-   */
-  public getAbsolutePathFromRelative(relativePath: string): string | undefined {
-    const promptPath = this.getPromptManagerPath();
-    if (!promptPath) {
-      return undefined;
-    }
-
-    return path.join(promptPath, relativePath);
   }
 }

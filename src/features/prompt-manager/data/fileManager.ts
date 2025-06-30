@@ -11,7 +11,7 @@ import {
   serializePromptContent,
   PromptContent,
 } from "@root/validation/schemas/prompt";
-import { LRUCache } from "lru-cache";
+
 import {
   DirectoryScanner,
   PromptFile,
@@ -53,7 +53,6 @@ export { PromptFile, PromptFolder, PromptStructure };
 export class FileManager {
   // Core components
   private fileSystemManager: FileSystemManager;
-  private contentCache: LRUCache<string, string>;
   private directoryScanner: DirectoryScanner;
 
   constructor(
@@ -62,10 +61,6 @@ export class FileManager {
   ) {
     // Initialize all components
     this.fileSystemManager = fileSystemManager;
-    this.contentCache = new LRUCache<string, string>({
-      max: 1000,
-      ttl: 5 * 60 * 1000, // 5 minutes
-    });
     this.directoryScanner = new DirectoryScanner(this.fileSystemManager);
   }
 
@@ -205,12 +200,6 @@ export class FileManager {
       log.error(`Failed to delete folder: ${error}`);
       return false;
     }
-  }
-
-  // Cache management
-
-  public clearContentCache(): void {
-    this.contentCache.clear();
   }
 
   // Component access methods (for advanced usage)

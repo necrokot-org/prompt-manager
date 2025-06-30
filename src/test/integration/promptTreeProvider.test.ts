@@ -554,7 +554,6 @@ suite("PromptTreeProvider", () => {
 
       // Mock the fileManager methods
       const mockFileManager = {
-        clearContentCache: sinon.stub(),
         rebuildIndexForce: sinon.stub().resolves(),
       };
 

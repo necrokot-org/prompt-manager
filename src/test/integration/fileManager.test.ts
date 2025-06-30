@@ -176,15 +176,6 @@ suite("FileManager Core Tests", () => {
     assert.ok(structure.rootPrompts.length >= 0);
   });
 
-  test("File System Operations - Content Cache", async () => {
-    // Test content cache clearing
-    fileManager.clearContentCache();
-
-    // Should still work after cache clearing
-    const structure = await fileManager.scanPrompts();
-    assert.ok(structure.rootPrompts.length >= 0);
-  });
-
   test("Component Access - FileSystemManager", async () => {
     const fsManager = fileManager.getFileSystemManager();
     assert.ok(fsManager !== null);
