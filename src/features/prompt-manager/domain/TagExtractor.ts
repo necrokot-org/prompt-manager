@@ -59,14 +59,17 @@ export class TagExtractor {
    * Extract all unique tags from multiple prompts
    */
   public async extractFromPrompts(prompts: PromptFile[]): Promise<Set<Tag>> {
-    const allTags = new Set<Tag>();
+    const tagSets = await Promise.all(
+      prompts.map((p) => this.extractFromPrompt(p))
+    );
 
-    for (const prompt of prompts) {
-      const promptTags = await this.extractFromPrompt(prompt);
-      promptTags.forEach((tag) => allTags.add(tag));
+    // keep only one Tag instance per value
+    const unique = new Map<string, Tag>();
+    for (const set of tagSets) {
+      set.forEach((tag) => unique.set(tag.value, tag));
     }
 
-    return allTags;
+    return new Set(unique.values());
   }
 
   /**
