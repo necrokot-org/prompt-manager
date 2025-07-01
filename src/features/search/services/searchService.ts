@@ -4,27 +4,30 @@ import {
   ContentSearchResult,
   PromptFile,
 } from "@features/prompt-manager/data/fileManager";
-import { SearchCriteria as PanelSearchCriteria } from "@features/search/ui/SearchPanelProvider";
-import { SearchCriteria } from "@features/search/core/SearchEngine";
-import { FileContent, SearchEngine } from "@features/search/core/SearchEngine";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
+import {
+  FileContent,
+  MiniSearchEngine,
+} from "@features/search/core/MiniSearchEngine";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import trim from "lodash-es/trim.js";
 import { searchResultToPromptFile } from "@features/search/utils/promptFile";
+import { Suggestion } from "minisearch";
 
 @injectable()
 export class SearchService {
   private fileManager: FileManager;
-  private engine: SearchEngine;
+  private engine: MiniSearchEngine;
 
   constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
     this.fileManager = fileManager;
-    this.engine = new SearchEngine();
+    this.engine = new MiniSearchEngine();
   }
 
   /**
-   * Centralized search method using fuse.js
+   * Centralized search method using MiniSearch
    */
   async search(criteria: SearchCriteria): Promise<ContentSearchResult[]> {
     if (!criteria.isActive || !trim(criteria.query)) {
@@ -34,7 +37,7 @@ export class SearchService {
     // Get file contents for search
     const files = await this.getFileContentsForSearch();
 
-    // Use the streamlined SearchEngine
+    // Use the streamlined MiniSearchEngine
     const results = await this.engine.search(files, criteria);
 
     // Convert SearchResult[] to ContentSearchResult[]
@@ -55,22 +58,35 @@ export class SearchService {
   }
 
   /**
+   * Get autocomplete suggestions
+   */
+  async getSuggestions(criteria: SearchCriteria): Promise<Suggestion[]> {
+    if (!trim(criteria.query)) {
+      return [];
+    }
+
+    // Get file contents for search
+    const files = await this.getFileContentsForSearch();
+
+    // Get suggestions from MiniSearchEngine
+    return await this.engine.autocomplete(files, criteria);
+  }
+
+  /**
    * Search in prompt content only
    */
   async searchInContent(
     query: string,
     options: {
       caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
+      fuzzy?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
       query,
       scope: "content",
       caseSensitive: options.caseSensitive || false,
-      exact: options.exact,
-      threshold: options.threshold,
+      fuzzy: options.fuzzy || false,
       isActive: true,
     };
 
@@ -78,22 +94,20 @@ export class SearchService {
   }
 
   /**
-   * Search in prompt titles only
+   * Search in titles only
    */
-  async searchInTitle(
+  async searchInTitles(
     query: string,
     options: {
       caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
+      fuzzy?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
       query,
       scope: "titles",
       caseSensitive: options.caseSensitive || false,
-      exact: options.exact,
-      threshold: options.threshold,
+      fuzzy: options.fuzzy || false,
       isActive: true,
     };
 
@@ -107,16 +121,14 @@ export class SearchService {
     query: string,
     options: {
       caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
+      fuzzy?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
       query,
       scope: "both",
       caseSensitive: options.caseSensitive || false,
-      exact: options.exact,
-      threshold: options.threshold,
+      fuzzy: options.fuzzy || false,
       isActive: true,
     };
 
@@ -147,18 +159,6 @@ export class SearchService {
   }
 
   /**
-   * Count total matches for search criteria
-   */
-  async countMatches(criteria: SearchCriteria): Promise<number> {
-    if (!criteria.isActive || !trim(criteria.query)) {
-      return 0;
-    }
-
-    const files = await this.getFileContentsForSearch();
-    return await this.engine.count(files, criteria);
-  }
-
-  /**
    * Clear search caches
    */
   clearCache(): void {
@@ -167,10 +167,9 @@ export class SearchService {
 
   /**
    * Get available search scopes
-   * #TODO:UI must rely on this to show the correct scopes
    */
   getAvailableScopes(): Array<SearchCriteria["scope"]> {
-    return this.engine.getAvailableScopes();
+    return ["titles", "content", "both"];
   }
 
   async publishResultsUpdated(

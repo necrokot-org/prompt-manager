@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import { PromptFile } from "@root/scanner/types";
 import { PromptFilter } from "./PromptFilter";
 import { SearchService } from "@features/search/services/searchService";
-import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 

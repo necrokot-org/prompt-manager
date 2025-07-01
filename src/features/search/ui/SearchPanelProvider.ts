@@ -2,13 +2,7 @@ import * as vscode from "vscode";
 import { injectable, inject } from "tsyringe";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
-
-export interface SearchCriteria {
-  query: string;
-  scope: "titles" | "content" | "both";
-  caseSensitive: boolean;
-  isActive: boolean;
-}
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 
 @injectable()
 export class SearchPanelProvider implements vscode.WebviewViewProvider {
@@ -19,6 +13,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     query: "",
     scope: "both",
     caseSensitive: false,
+    fuzzy: false,
     isActive: false,
   };
 
@@ -31,6 +26,40 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private readonly _extensionUri: vscode.Uri;
+
+  /**
+   * Normalizes search criteria with proper defaults
+   */
+  private normalizeSearchCriteria<
+    T extends { includeSuggestions?: boolean; computeIsActive?: boolean }
+  >(criteria: Partial<SearchCriteria> = {}, options: T = {} as T) {
+    const query = criteria.query || "";
+    const scope = criteria.scope || ("both" as const);
+    const caseSensitive = criteria.caseSensitive ?? false;
+    const fuzzy = criteria.fuzzy ?? false;
+
+    let isActive = criteria.isActive ?? false;
+    if (options.computeIsActive) {
+      isActive = query.trim().length > 0;
+    }
+
+    const normalized = {
+      query,
+      scope,
+      caseSensitive,
+      fuzzy,
+      isActive,
+    };
+
+    if (options.includeSuggestions) {
+      return {
+        ...normalized,
+        maxSuggestions: criteria.maxSuggestions ?? 5,
+      };
+    }
+
+    return normalized;
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -53,6 +82,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
           case "search":
             this.handleSearch(data.criteria);
             break;
+          case "suggest":
+            this.handleSuggestionRequest(data.criteria);
+            break;
           case "clear":
             this.handleClear();
             break;
@@ -64,14 +96,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private handleSearch(criteria: Omit<SearchCriteria, "isActive">): void {
-    // Determine active state based on presence of non-whitespace characters in the query
-    const isActive = (criteria.query || "").trim().length > 0;
-
-    // Merge incoming criteria with the computed isActive flag
-    const normalizedCriteria: SearchCriteria = {
-      ...criteria,
-      isActive,
-    } as SearchCriteria;
+    const normalizedCriteria = this.normalizeSearchCriteria(criteria, {
+      computeIsActive: true,
+    });
 
     this._criteria = normalizedCriteria;
 
@@ -79,18 +106,25 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     eventBus.emit("search.criteria.changed", {
       query: normalizedCriteria.query,
       scope: normalizedCriteria.scope,
-      caseSensitive: normalizedCriteria.caseSensitive,
+      caseSensitive: normalizedCriteria.caseSensitive ?? false,
+      fuzzy: normalizedCriteria.fuzzy ?? false,
       isActive: normalizedCriteria.isActive,
     });
   }
 
+  private handleSuggestionRequest(
+    criteria: Omit<SearchCriteria, "isActive">
+  ): void {
+    const normalizedCriteria = this.normalizeSearchCriteria(criteria, {
+      includeSuggestions: true,
+    });
+
+    // Publish suggestion request event
+    eventBus.emit("search.suggest.requested", normalizedCriteria);
+  }
+
   private handleClear(): void {
-    this._criteria = {
-      query: "",
-      scope: "both",
-      caseSensitive: false,
-      isActive: false,
-    };
+    this._criteria = this.normalizeSearchCriteria();
 
     // Emit search cleared event
     eventBus.emit("search.cleared", {});
@@ -108,6 +142,15 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       this._view.webview.postMessage({
         type: "updateResultCount",
         count: count,
+      });
+    }
+  }
+
+  public updateSuggestions(suggestions: any[]): void {
+    if (this._view) {
+      this._view.webview.postMessage({
+        type: "suggestions",
+        items: suggestions,
       });
     }
   }
@@ -136,12 +179,14 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             border-bottom: 1px solid var(--vscode-sideBar-border);
             padding-bottom: 8px;
             margin-bottom: 8px;
+            position: relative;
         }
 
         .search-input-row {
             display: flex;
             gap: 4px;
             align-items: center;
+            position: relative;
         }
 
         .search-input {
@@ -179,6 +224,41 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
         .clear-button:hover {
             background-color: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .suggestions-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 24px;
+            background-color: var(--vscode-dropdown-background);
+            border: 1px solid var(--vscode-dropdown-border);
+            border-radius: 2px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--vscode-sideBar-border);
+            font-size: 11px;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .suggestion-item.selected {
+            background-color: var(--vscode-list-activeSelectionBackground);
+            color: var(--vscode-list-activeSelectionForeground);
         }
 
         .search-options {
@@ -237,7 +317,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                 class="search-input" 
                 placeholder="Search prompts..."
                 spellcheck="false"
+                autocomplete="off"
             >
+            <ul id="suggestBox" class="suggestions-dropdown"></ul>
             <button id="clearButton" class="clear-button" title="Clear search">×</button>
         </div>
         
@@ -251,6 +333,11 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             <div class="checkbox-container">
                 <input type="checkbox" id="caseSensitive" class="checkbox">
                 <label for="caseSensitive">Aa</label>
+            </div>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="fuzzySearch" class="checkbox">
+                <label for="fuzzySearch">Fuzzy</label>
             </div>
         </div>
     </div>
@@ -266,54 +353,169 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         const clearButton = document.getElementById('clearButton');
         const scopeSelect = document.getElementById('scopeSelect');
         const caseSensitive = document.getElementById('caseSensitive');
+        const fuzzySearch = document.getElementById('fuzzySearch');
         const resultInfo = document.getElementById('resultInfo');
         const resultCount = document.getElementById('resultCount');
+        const suggestBox = document.getElementById('suggestBox');
 
-        let debounceTimer;
+        const DEBOUNCE_MS = 50; // ≤ 50 ms as required
+        let searchDebounceTimer;
+        let suggestDebounceTimer;
+        let currentSuggestions = [];
+        let selectedSuggestionIndex = -1;
 
         function debounce(func, wait) {
             return function executedFunction(...args) {
                 const later = () => {
-                    clearTimeout(debounceTimer);
+                    clearTimeout(searchDebounceTimer);
                     func(...args);
                 };
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(later, wait);
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(later, wait);
             };
         }
 
-        const debouncedSearch = debounce(() => {
-            const query = searchInput.value.trim();
-            const scope = scopeSelect.value;
-            const isCaseSensitive = caseSensitive.checked;
+        function buildCriteria() {
+            return {
+                query: searchInput.value.trim(),
+                scope: scopeSelect.value,
+                caseSensitive: caseSensitive.checked,
+                fuzzy: fuzzySearch.checked,
+                maxSuggestions: 5
+            };
+        }
 
+        function postSearch() {
+            const criteria = buildCriteria();
             vscode.postMessage({
                 type: 'search',
-                criteria: {
-                    query: query,
-                    scope: scope,
-                    caseSensitive: isCaseSensitive
-                }
+                criteria: criteria
             });
 
             // Show/hide result info
-            if (query.length > 0) {
+            if (criteria.query.length > 0) {
                 resultInfo.classList.remove('hidden');
             } else {
                 resultInfo.classList.add('hidden');
             }
-        }, 300);
+        }
+
+        function postSuggestionRequest() {
+            const criteria = buildCriteria();
+            if (criteria.query.length > 0) {
+                vscode.postMessage({
+                    type: 'suggest',
+                    criteria: criteria
+                });
+            } else {
+                hideSuggestions();
+            }
+        }
+
+        const debouncedSearch = debounce(postSearch, 300);
+
+        function onInput() {
+            postSearch();
+            
+            // Clear previous suggestion timer
+            clearTimeout(suggestDebounceTimer);
+            
+            // Request suggestions with minimal debounce
+            suggestDebounceTimer = setTimeout(postSuggestionRequest, DEBOUNCE_MS);
+        }
+
+        function renderSuggestions(suggestions) {
+            currentSuggestions = suggestions;
+            selectedSuggestionIndex = -1;
+            
+            if (suggestions.length === 0) {
+                hideSuggestions();
+                return;
+            }
+
+            suggestBox.innerHTML = '';
+            suggestions.forEach((suggestion, index) => {
+                const li = document.createElement('li');
+                li.className = 'suggestion-item';
+                li.textContent = suggestion.suggestion || suggestion.term || suggestion;
+                li.onclick = () => selectSuggestion(suggestion);
+                suggestBox.appendChild(li);
+            });
+
+            suggestBox.style.display = 'block';
+        }
+
+        function hideSuggestions() {
+            suggestBox.style.display = 'none';
+            currentSuggestions = [];
+            selectedSuggestionIndex = -1;
+        }
+
+        function selectSuggestion(suggestion) {
+            const suggestionText = suggestion.suggestion || suggestion.term || suggestion;
+            searchInput.value = suggestionText;
+            hideSuggestions();
+            postSearch(); // Trigger search with selected suggestion
+        }
+
+        function handleKeyboard(e) {
+            if (suggestBox.style.display === 'none' || currentSuggestions.length === 0) {
+                return;
+            }
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, currentSuggestions.length - 1);
+                    updateSuggestionSelection();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+                    updateSuggestionSelection();
+                    break;
+                case 'Enter':
+                    if (selectedSuggestionIndex >= 0) {
+                        e.preventDefault();
+                        selectSuggestion(currentSuggestions[selectedSuggestionIndex]);
+                    }
+                    break;
+                case 'Escape':
+                    hideSuggestions();
+                    break;
+            }
+        }
+
+        function updateSuggestionSelection() {
+            const items = suggestBox.querySelectorAll('.suggestion-item');
+            items.forEach((item, index) => {
+                if (index === selectedSuggestionIndex) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
 
         // Event listeners
-        searchInput.addEventListener('input', debouncedSearch);
+        searchInput.addEventListener('input', onInput);
+        searchInput.addEventListener('keydown', handleKeyboard);
+        searchInput.addEventListener('blur', () => {
+            // Hide suggestions with a delay to allow click selection
+            setTimeout(hideSuggestions, 150);
+        });
+        
         scopeSelect.addEventListener('change', debouncedSearch);
         caseSensitive.addEventListener('change', debouncedSearch);
+        fuzzySearch.addEventListener('change', debouncedSearch);
 
         clearButton.addEventListener('click', () => {
             searchInput.value = '';
             scopeSelect.value = 'both';
             caseSensitive.checked = false;
+            fuzzySearch.checked = false;
             resultInfo.classList.add('hidden');
+            hideSuggestions();
             
             vscode.postMessage({
                 type: 'clear'
@@ -329,7 +531,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                     searchInput.value = '';
                     scopeSelect.value = 'both';
                     caseSensitive.checked = false;
+                    fuzzySearch.checked = false;
                     resultInfo.classList.add('hidden');
+                    hideSuggestions();
                     break;
                 case 'updateResultCount':
                     resultCount.textContent = message.count;
@@ -341,6 +545,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                             resultInfo.classList.remove('no-results');
                         }
                     }
+                    break;
+                case 'suggestions':
+                    renderSuggestions(message.items);
                     break;
             }
         });

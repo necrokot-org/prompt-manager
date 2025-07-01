@@ -5,7 +5,7 @@ import * as path from "path";
 import * as os from "os";
 import { FileManager } from "../../features/prompt-manager/data/fileManager";
 import { SearchService } from "../../features/search/services/searchService";
-import { SearchCriteria } from "../../features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { FileSystemManager } from "../../infrastructure/fs/FileSystemManager";
 import { ConfigurationService } from "../../infrastructure/config/config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
@@ -124,8 +124,8 @@ suite("SearchService Tests", () => {
   });
 
   test("SearchService - Title Search", async () => {
-    const results = await searchService.searchInTitle("Test Prompt", {
-      exact: true,
+    const results = await searchService.searchInTitles("Test Prompt", {
+      caseSensitive: false,
     });
 
     assert.strictEqual(results.length, 1);
@@ -151,6 +151,7 @@ suite("SearchService Tests", () => {
       query: "JavaScript",
       scope: "content",
       caseSensitive: false,
+      fuzzy: false,
       isActive: true,
     };
 
@@ -182,11 +183,12 @@ suite("SearchService Tests", () => {
       query: "prompt",
       scope: "both",
       caseSensitive: false,
+      fuzzy: false,
       isActive: true,
     };
 
-    const count = await searchService.countMatches(criteria);
-    assert.ok(count > 0);
+    const results = await searchService.search(criteria);
+    assert.ok(results.length > 0);
   });
 
   test("SearchService - Matches Prompt", async () => {
@@ -200,6 +202,7 @@ suite("SearchService Tests", () => {
       query: "JavaScript",
       scope: "content",
       caseSensitive: false,
+      fuzzy: false,
       isActive: true,
     };
 
@@ -227,6 +230,7 @@ suite("SearchService Tests", () => {
       query: "",
       scope: "both",
       caseSensitive: false,
+      fuzzy: false,
       isActive: false,
     };
 

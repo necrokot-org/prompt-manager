@@ -17,8 +17,17 @@ export interface EventMap {
     query: string;
     scope: "titles" | "content" | "both";
     caseSensitive: boolean;
+    fuzzy: boolean;
     isActive: boolean;
   };
+  "search.suggest.requested": {
+    query: string;
+    scope: "titles" | "content" | "both";
+    caseSensitive: boolean;
+    fuzzy: boolean;
+    maxSuggestions?: number;
+  };
+  "search.suggestions.available": { suggestions: any[] };
   "search.results.updated": { resultCount: number; query: string };
   "search.cleared": {};
 

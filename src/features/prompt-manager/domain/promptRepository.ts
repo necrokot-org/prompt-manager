@@ -234,7 +234,7 @@ export class PromptRepository {
       exact?: boolean;
     } = {}
   ) {
-    return await this.searchService.searchInTitle(query, options);
+    return await this.searchService.searchInTitles(query, options);
   }
 
   /**

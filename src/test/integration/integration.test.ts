@@ -3,10 +3,8 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import {
-  SearchPanelProvider,
-  SearchCriteria,
-} from "@features/search/ui/SearchPanelProvider";
+import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
 import { eventBus } from "@infra/vscode/ExtensionBus";
@@ -110,6 +108,7 @@ suite("Integration Tests", () => {
       query: "test query",
       scope: "both",
       caseSensitive: false,
+      fuzzy: false,
       isActive: true,
     });
 
