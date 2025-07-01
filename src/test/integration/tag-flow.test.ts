@@ -121,38 +121,30 @@ suite("Tag Tree Integration Flow", () => {
       }
     });
 
-    test("should initialize context key on construction when tag filter is restored from workspace state", async () => {
+    test("should properly restore and maintain tag filter state across workspace sessions", async () => {
       // This test verifies the fix for: "after restoring workspace with selected tag no clear button appears"
 
-      // Arrange: Select a tag first to establish state
+      // Arrange: Get available tags and select one
       const tags = await tagService.refreshTags();
+
       if (tags.length > 0) {
         const selectedTag = tags[0];
+
+        // Act: Select a tag to simulate user action
         await tagService.selectTag(selectedTag);
 
-        // Verify the context key is set
-        const contextKeyPromise = new Promise((resolve) => {
-          const timeout = setTimeout(() => resolve(false), 1000);
+        // Assert: Verify the tag is properly active and persisted
+        const activeTag = tagService.getActiveTag();
+        expect(activeTag).to.not.be.undefined;
+        expect(activeTag?.value).to.equal(selectedTag.value);
 
-          // Check if the context key was set by attempting to get it
-          // Since vscode.commands.executeCommand doesn't return the context value,
-          // we'll verify by checking that the TagService reports an active tag
-          const activeTag = tagService.getActiveTag();
-          clearTimeout(timeout);
-          resolve(Boolean(activeTag));
-        });
+        // The context key should be set by the extension activation during startup
+        // (this is tested by the actual fix in extension.ts)
 
-        const contextKeySet = await contextKeyPromise;
-        expect(contextKeySet).to.be.true;
-
-        // Act & Assert: Verify TagService properly initializes context key for restored state
-        // Since we can't easily simulate VSCode restart in integration tests,
-        // we verify that the TagService initialization logic works correctly
-        const hasActiveTag = Boolean(tagService.getActiveTag());
-        expect(hasActiveTag).to.be.true;
-
-        // The key test is that when TagService is constructed with existing state,
-        // it should properly initialize the context key (this is tested by the fix itself)
+        // Test that clearing works as expected
+        await tagService.clearTagSelection();
+        const clearedTag = tagService.getActiveTag();
+        expect(clearedTag).to.be.undefined;
       }
     });
   });

@@ -23,6 +23,7 @@ import {
 } from "@infra/di/di-container";
 import { log } from "@infra/vscode/log";
 import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
+import { TagService } from "@features/prompt-manager/application/services/TagService";
 
 // Global instances - now resolved from DI container
 let configService: ConfigurationService | undefined;
@@ -105,6 +106,9 @@ async function initializeExtension(
     DI_TOKENS.EnvironmentDetector
   );
 
+  // Resolve tag service to check for restored tag filter state
+  const tagService = container.resolve<TagService>(DI_TOKENS.TagService);
+
   // Set environment context keys for VS Code 'when' clauses
   await Promise.all([
     vscode.commands.executeCommand(
@@ -126,6 +130,12 @@ async function initializeExtension(
       "setContext",
       "promptManager.isUnknown",
       environmentDetector.isUnknown()
+    ),
+    // Initialize tag filter context key based on restored workspace state
+    vscode.commands.executeCommand(
+      "setContext",
+      "promptManager.tagFilterActive",
+      Boolean(tagService.getActiveTag())
     ),
   ]);
 
