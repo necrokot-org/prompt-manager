@@ -37,6 +37,7 @@ export class SearchService {
       "filesystem.file.changed",
       "filesystem.directory.created",
       "filesystem.directory.deleted",
+      "filesystem.directory.changed",
     ];
 
     for (const key of eventsToWatch) {

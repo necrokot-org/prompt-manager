@@ -11,6 +11,12 @@ export interface EventMap {
   "filesystem.file.changed": { filePath: string; fileName: string };
   "filesystem.directory.created": { dirPath: string; dirName: string };
   "filesystem.directory.deleted": { dirPath: string; dirName: string };
+  /** Emitted when a directory is moved or renamed. */
+  "filesystem.directory.changed": {
+    oldPath: string;
+    newPath: string;
+    dirName: string;
+  };
 
   // Search
   "search.criteria.changed": {
