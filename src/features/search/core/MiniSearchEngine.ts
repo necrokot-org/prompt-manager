@@ -5,7 +5,6 @@ import {
 import { LRUCache } from "lru-cache";
 import trim from "lodash-es/trim.js";
 import MiniSearch, {
-  Options,
   Suggestion,
   SearchResult as MiniSearchResult,
 } from "minisearch";
@@ -59,16 +58,32 @@ const SCOPE_CONFIG = {
   },
 };
 
+/**
+ * Full-text search engine backed by `minisearch`.
+ *
+ * Typical lifecycle:
+ *   1. Create a single instance and keep it in memory.
+ *   2. Call `search`, `autocomplete`, or `matches` with the current file set.
+ *   3. When the caller knows that any file was **added, removed or modified**
+ *      it **must** invoke `clearCache()` (or build a new instance). The next
+ *      operation will rebuild the underlying index using the fresh files.
+ *
+ * Important design decisions:
+ *   • The class does **not** listen for file-system events – that is delegated
+ *     to higher-level services for better separation of concerns.
+ *   • An `LRUCache` is used to memoize expensive front-matter parsing.  TTL is
+ *     disabled (no time-based expiration); entries stay until they are evicted
+ *     by LRU policy or `clearCache()` is called.
+ *   • Index rebuild is performed lazily inside `ensureIndex()` so callers only
+ *     pay the cost when they actually search.
+ */
 export class MiniSearchEngine {
   private contentCache: LRUCache<string, ParsedPromptContent>;
   private index: MiniSearch<Searchable> | null = null;
-  private lastBuild = 0;
-  private readonly TTL = 5 * 60_000; // 5 minutes
 
   constructor() {
     this.contentCache = new LRUCache<string, ParsedPromptContent>({
-      max: 500,
-      ttl: 10 * 60 * 1000, // 10 minutes for parsed content
+      max: 5000,
     });
   }
 
@@ -215,7 +230,9 @@ export class MiniSearchEngine {
   public clearCache(): void {
     this.contentCache.clear();
     this.index = null;
-    this.lastBuild = 0;
+    // After clearing, the next `search`/`autocomplete`/`matches` call will
+    // trigger a full index rebuild.  Call this whenever the underlying file
+    // set changes.
   }
 
   // Private helper methods
@@ -277,18 +294,6 @@ export class MiniSearchEngine {
     files: FileContent[],
     scope: SearchCriteria["scope"]
   ): Promise<void> {
-    const now = Date.now();
-
-    // Check if we need to rebuild the index
-    if (
-      this.index &&
-      this.index.documentCount === files.length &&
-      now - this.lastBuild < this.TTL
-    ) {
-      return; // Index is still valid
-    }
-
-    // Create new MiniSearch index
     this.index = new MiniSearch({
       fields: ["title", "description", "tags", "content"],
       storeFields: ["filePath", "fileName", "title"],
@@ -307,8 +312,6 @@ export class MiniSearchEngine {
       const searchable = this.createSearchableContent(file, parsed);
       this.index.add(searchable);
     }
-
-    this.lastBuild = now;
   }
 
   private createSearchableContent(
