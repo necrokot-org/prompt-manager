@@ -96,7 +96,24 @@ export class MiniSearchEngine {
     const hits = this.index.search(criteria.query, searchOptions);
 
     // Convert MiniSearch results to our SearchResult format
-    return hits.map((hit) => this.mapHit(hit, criteria.query));
+    let results = hits.map((hit) => this.mapHit(hit, criteria.query));
+
+    // Apply explicit case-sensitive filtering, since MiniSearch does not natively support it
+    if (criteria.caseSensitive) {
+      const q = criteria.query;
+      const matcher = (text: string | undefined) =>
+        typeof text === "string" && text.includes(q);
+
+      results = results.filter((r) => {
+        if (matcher(r.title) || matcher(r.snippet) || matcher(r.fileName)) {
+          return true;
+        }
+        // Fallback: check matches contexts for exact case
+        return r.matches.some((m) => matcher(m.context));
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -161,6 +178,10 @@ export class MiniSearchEngine {
       searchOptions: {
         boost: this.getFieldBoosts(criteria.scope),
       },
+      processTerm: (term) => {
+        const lower = term.toLowerCase();
+        return lower === term ? term : [term, lower];
+      },
     });
 
     tempIndex.add(searchable);
@@ -173,7 +194,19 @@ export class MiniSearchEngine {
       return null;
     }
 
-    return this.mapHit(results[0], criteria.query);
+    let mapped = this.mapHit(results[0], criteria.query);
+    if (criteria.caseSensitive) {
+      const q = criteria.query;
+      const matcher = (text: string | undefined) =>
+        typeof text === "string" && text.includes(q);
+      return matcher(mapped.title) ||
+        matcher(mapped.snippet) ||
+        matcher(mapped.fileName)
+        ? mapped
+        : null;
+    }
+
+    return mapped;
   }
 
   /**
@@ -191,13 +224,25 @@ export class MiniSearchEngine {
    * Build search options object to avoid duplication between search methods
    */
   private buildSearchOptions(criteria: SearchCriteria) {
-    return {
+    const options: any = {
       prefix: !criteria.caseSensitive,
       fuzzy: criteria.fuzzy ? 0.2 : false,
       combineWith: "AND" as const,
       fields: this.getSearchFields(criteria.scope),
       boost: this.getFieldBoosts(criteria.scope),
     };
+
+    // For case-sensitive queries, do NOT lowercase the search term; for
+    // case-insensitive queries, lowercase everything so we only search using
+    // the lowercase variant (avoids AND issues when the term contains mixed
+    // cases).
+    if (criteria.caseSensitive) {
+      options.processTerm = (term: string) => term;
+    } else {
+      options.processTerm = (term: string) => term.toLowerCase();
+    }
+
+    return options;
   }
 
   private getParsedContent(file: FileContent): ParsedPromptContent {
@@ -250,6 +295,10 @@ export class MiniSearchEngine {
       searchOptions: {
         boost: this.getFieldBoosts(scope),
       },
+      processTerm: (term) => {
+        const lower = term.toLowerCase();
+        return lower === term ? term : [term, lower];
+      },
     });
 
     // Add documents to the index
@@ -267,6 +316,10 @@ export class MiniSearchEngine {
     parsed: ParsedPromptContent
   ): Searchable {
     const fileName = this.getFileNameFromPath(file.path);
+    // Add additional searchable tokens (slug title and base filename) to content to improve matching of concatenated queries like "newfile" without polluting tags.
+    const slugTitle = parsed.title.replace(/\s+/g, "");
+    const fileBaseName = fileName.replace(/\.[^/.]+$/, "");
+    const augmentedContent = `${parsed.content}\n${slugTitle}\n${fileBaseName}`;
 
     return {
       id: file.path, // Use file path as unique ID
@@ -275,7 +328,7 @@ export class MiniSearchEngine {
       title: parsed.title,
       description: parsed.description || "",
       tags: parsed.tags.join(" "),
-      content: parsed.content,
+      content: augmentedContent,
     };
   }
 
