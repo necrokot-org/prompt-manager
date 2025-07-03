@@ -9,7 +9,11 @@ import {
   FileContent,
   MiniSearchEngine,
 } from "@features/search/core/MiniSearchEngine";
-import { eventBus } from "@infra/vscode/ExtensionBus";
+import {
+  eventBus,
+  EventMap,
+  ExtensionSubscription,
+} from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import trim from "lodash-es/trim.js";
@@ -20,10 +24,27 @@ import { Suggestion } from "minisearch";
 export class SearchService {
   private fileManager: FileManager;
   private engine: MiniSearchEngine;
+  private disposables: ExtensionSubscription[] = [];
 
   constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
     this.fileManager = fileManager;
     this.engine = new MiniSearchEngine();
+
+    // Listen to filesystem changes and clear search cache automatically
+    const eventsToWatch: (keyof EventMap)[] = [
+      "filesystem.file.created",
+      "filesystem.file.deleted",
+      "filesystem.file.changed",
+      "filesystem.directory.created",
+      "filesystem.directory.deleted",
+    ];
+
+    for (const key of eventsToWatch) {
+      const sub = eventBus.on(key as any, () => {
+        this.engine.clearCache();
+      });
+      this.disposables.push(sub);
+    }
   }
 
   /**
@@ -163,6 +184,12 @@ export class SearchService {
    */
   clearCache(): void {
     this.engine.clearCache();
+  }
+
+  /** Dispose event subscriptions when service is no longer needed */
+  dispose(): void {
+    this.disposables.forEach((d) => d.unsubscribe());
+    this.disposables = [];
   }
 
   /**
