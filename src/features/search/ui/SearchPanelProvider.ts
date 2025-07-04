@@ -348,12 +348,12 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             
             <div class="checkbox-container">
                 <input type="checkbox" id="caseSensitive" class="checkbox">
-                <label for="caseSensitive">Aa</label>
+                <label for="caseSensitive" class="codicon codicon-case-sensitive"></label>
             </div>
             
             <div class="checkbox-container">
                 <input type="checkbox" id="fuzzySearch" class="checkbox">
-                <label for="fuzzySearch">Fuzzy</label>
+                <label for="fuzzySearch" class="codicon codicon-search-fuzzy"></label>
             </div>
 
             <div class="checkbox-container">
