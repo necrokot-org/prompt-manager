@@ -184,10 +184,13 @@ suite("Integration Flow Tests", () => {
 
   test("should handle prompt deletion and emit events", async () => {
     // Setup event listener for deletion
-    let fileDeletedEvent: any = null;
-    const subscription = eventBus.on("filesystem.file.deleted", (payload) => {
-      fileDeletedEvent = payload;
-    });
+    let resourceDeletedEvent: any = null;
+    const subscription = eventBus.on(
+      "filesystem.resource.deleted",
+      (payload) => {
+        resourceDeletedEvent = payload;
+      }
+    );
 
     try {
       // First create a test prompt
@@ -212,13 +215,13 @@ suite("Integration Flow Tests", () => {
       // Wait a moment for event to be processed
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Verify filesystem.file.deleted event was emitted
+      // Verify filesystem.resource.deleted event was emitted for the file
       assert.ok(
-        fileDeletedEvent,
-        "filesystem.file.deleted event should be emitted"
+        resourceDeletedEvent,
+        "filesystem.resource.deleted event should be emitted"
       );
-      assert.strictEqual(fileDeletedEvent.fileName, `${promptName}.md`);
-      assert.ok(fileDeletedEvent.filePath.includes(promptName));
+      assert.strictEqual(resourceDeletedEvent.name, `${promptName}.md`);
+      assert.ok(resourceDeletedEvent.path.includes(promptName));
 
       // Ensure cache invalidated and tree refresh triggered
       const updatedStructure = await fileManager.scanPrompts();
@@ -252,8 +255,10 @@ suite("Integration Flow Tests", () => {
       (payload) => events.push({ type: "created", payload })
     );
     const deletedSubscription = eventBus.on(
-      "filesystem.file.deleted",
-      (payload) => events.push({ type: "deleted", payload })
+      "filesystem.resource.deleted",
+      (payload) => {
+        events.push({ type: "deleted", payload });
+      }
     );
 
     try {
@@ -292,9 +297,9 @@ suite("Integration Flow Tests", () => {
       // Verify deleted event payload
       const deletedEvent = events.find((e) => e.type === "deleted");
       assert.ok(deletedEvent, "Should have deleted event");
-      assert.strictEqual(deletedEvent.payload.fileName, `${promptName}.md`);
-      assert.ok(deletedEvent.payload.filePath);
-      assert.ok(deletedEvent.payload.filePath.endsWith(`${promptName}.md`));
+      assert.strictEqual(deletedEvent.payload.name, `${promptName}.md`);
+      assert.ok(deletedEvent.payload.path);
+      assert.ok(deletedEvent.payload.path.endsWith(`${promptName}.md`));
     } finally {
       createdSubscription.dispose();
       deletedSubscription.dispose();

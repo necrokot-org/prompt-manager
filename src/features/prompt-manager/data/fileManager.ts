@@ -179,7 +179,7 @@ export class FileManager {
       await this.fileSystemManager.deleteFile(filePath);
 
       // Publish file deleted event
-      this.publishFileEvent("deleted", filePath);
+      fsEvents.resourceDeleted(filePath);
 
       return true;
     } catch (error) {
@@ -188,12 +188,16 @@ export class FileManager {
     }
   }
 
+  /**
+   * Delete a folder and all its contents
+   */
   public async deleteFolder(folderPath: string): Promise<boolean> {
     try {
-      await this.fileSystemManager.deleteFile(folderPath); // fs-extra.remove() handles both files and directories
+      await this.fileSystemManager.deleteFile(folderPath);
+      log.debug(`Folder deleted: ${folderPath}`);
 
       // Publish folder deleted event
-      this.publishFolderDeleted(folderPath);
+      fsEvents.resourceDeleted(folderPath);
 
       return true;
     } catch (error) {
@@ -218,7 +222,7 @@ export class FileManager {
         fsEvents.fileCreated(filePath);
         break;
       case "deleted":
-        fsEvents.fileDeleted(filePath);
+        fsEvents.resourceDeleted(filePath);
         break;
       case "changed":
         fsEvents.fileChanged(filePath);
@@ -228,9 +232,5 @@ export class FileManager {
 
   private publishDirectoryCreated(dirPath: string): void {
     fsEvents.dirCreated(dirPath);
-  }
-
-  private publishFolderDeleted(folderPath: string): void {
-    fsEvents.dirDeleted(folderPath);
   }
 }

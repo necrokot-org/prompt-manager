@@ -9,17 +9,20 @@ import * as path from "path";
  */
 export namespace FileSystemEventPublisher {
   // -------------------------------------------------------------------------
+  // Resource-level events ----------------------------------------------------
+  // -------------------------------------------------------------------------
+  export function resourceDeleted(resourcePath: string): void {
+    eventBus.emit("filesystem.resource.deleted", {
+      path: resourcePath,
+      name: path.basename(resourcePath),
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // File-level events --------------------------------------------------------
   // -------------------------------------------------------------------------
   export function fileCreated(filePath: string): void {
     eventBus.emit("filesystem.file.created", {
-      filePath,
-      fileName: path.basename(filePath),
-    });
-  }
-
-  export function fileDeleted(filePath: string): void {
-    eventBus.emit("filesystem.file.deleted", {
       filePath,
       fileName: path.basename(filePath),
     });
@@ -37,13 +40,6 @@ export namespace FileSystemEventPublisher {
   // -------------------------------------------------------------------------
   export function dirCreated(dirPath: string): void {
     eventBus.emit("filesystem.directory.created", {
-      dirPath,
-      dirName: path.basename(dirPath),
-    });
-  }
-
-  export function dirDeleted(dirPath: string): void {
-    eventBus.emit("filesystem.directory.deleted", {
       dirPath,
       dirName: path.basename(dirPath),
     });

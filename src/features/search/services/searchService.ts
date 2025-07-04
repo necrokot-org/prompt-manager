@@ -33,11 +33,10 @@ export class SearchService {
     // Listen to filesystem changes and clear search cache automatically
     const eventsToWatch: (keyof EventMap)[] = [
       "filesystem.file.created",
-      "filesystem.file.deleted",
       "filesystem.file.changed",
       "filesystem.directory.created",
-      "filesystem.directory.deleted",
       "filesystem.directory.changed",
+      "filesystem.resource.deleted",
     ];
 
     for (const key of eventsToWatch) {

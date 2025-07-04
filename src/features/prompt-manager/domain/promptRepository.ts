@@ -9,7 +9,6 @@ import { validatePrompt, getErrorMessages } from "@root/validation/index";
 import { parsePromptContentSync } from "@root/validation/schemas/prompt";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import * as fs from "fs";
-import * as path from "path";
 import { log } from "@infra/vscode/log";
 import { FileSystemEventPublisher as fsEvents } from "@infra/vscode/FileSystemEventPublisher";
 
@@ -102,15 +101,8 @@ export class PromptRepository {
   private handleFileDeleted(uri: vscode.Uri): void {
     log.debug("PromptRepository: File deleted, invalidating index");
 
-    // Determine if the deleted resource was a file or directory
-    const wasDirectory =
-      uri.fsPath.endsWith(path.sep) || uri.path.endsWith("/");
-
-    if (wasDirectory) {
-      fsEvents.dirDeleted(uri.fsPath);
-    } else {
-      fsEvents.fileDeleted(uri.fsPath);
-    }
+    // Emit unified deletion event (resource deleted)
+    fsEvents.resourceDeleted(uri.fsPath);
 
     this.invalidateCache().catch((error) => {
       log.error(
