@@ -92,42 +92,10 @@ const watchPlugin = {
     tsconfig: "tsconfig.json",
   });
 
-  async function copyCodicons() {
-    const srcDir = path.join(
-      process.cwd(),
-      "node_modules",
-      "@vscode",
-      "codicons",
-      "dist"
-    );
-    const destDir = path.join(process.cwd(), "media");
-
-    const filesToCopy = [
-      "codicon.css",
-      "codicon.ttf",
-      "codicon.woff",
-      "codicon.woff2",
-    ];
-
-    if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
-    }
-
-    for (const f of filesToCopy) {
-      const src = path.join(srcDir, f);
-      const dest = path.join(destDir, f);
-      if (fs.existsSync(src) && (!fs.existsSync(dest) || production)) {
-        fs.copyFileSync(src, dest);
-      }
-    }
-  }
-
   if (watch) {
-    await copyCodicons();
     await ctx.watch();
   } else {
     await ctx.rebuild();
-    await copyCodicons();
     await ctx.dispose();
   }
 })();
