@@ -109,6 +109,7 @@ suite("Integration Tests", () => {
       scope: "both",
       caseSensitive: false,
       fuzzy: false,
+      matchWholeWord: false,
       isActive: true,
     });
 

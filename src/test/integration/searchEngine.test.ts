@@ -475,10 +475,13 @@ Testing search functionality with edge cases.`,
         content: `---
 title: "New File"
 ---
-This is a new file for testing.`,
+This is a newfile for testing.`,
       };
 
       const updatedFiles = [...mockFiles, newFile];
+
+      // Clear cache to rebuild index with updated files
+      searchEngine.clearCache();
 
       // Search again with updated files
       const updatedResults = await searchEngine.search(
