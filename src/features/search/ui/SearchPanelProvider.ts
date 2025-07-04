@@ -301,11 +301,39 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         .checkbox-container {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
         }
 
-        .checkbox {
-            margin: 0;
+        .checkbox-icon {
+            cursor: pointer;
+            opacity: 0.4;
+            transition: opacity 0.2s ease;
+            padding: 2px;
+            border-radius: 2px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .checkbox-icon:hover {
+            opacity: 0.7;
+            background-color: var(--vscode-toolbar-hoverBackground);
+        }
+
+        .checkbox-icon.checked {
+            opacity: 1;
+            color: var(--vscode-foreground);
+        }
+
+        .checkbox-icon.checked::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 2px;
+            background-color: var(--vscode-focusBorder);
+            border-radius: 1px;
         }
 
         .result-info {
@@ -347,20 +375,15 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             </select>
             
             <div class="checkbox-container">
-                <input type="checkbox" id="caseSensitive" class="checkbox">
-                <label for="caseSensitive" class="codicon codicon-case-sensitive"></label>
+                <span id="caseSensitive" class="checkbox-icon codicon codicon-case-sensitive" title="Case sensitive"></span>
             </div>
             
             <div class="checkbox-container">
-                <input type="checkbox" id="fuzzySearch" class="checkbox">
-                <label for="fuzzySearch" class="codicon codicon-search-fuzzy"></label>
+                <span id="fuzzySearch" class="checkbox-icon codicon codicon-search-fuzzy" title="Fuzzy search"></span>
             </div>
 
             <div class="checkbox-container">
-                <input type="checkbox" id="wholeWord" class="checkbox">
-                <label for="wholeWord" title="Match whole word">
-                    <span class="codicon codicon-whole-word"></span>
-                </label>
+                <span id="wholeWord" class="checkbox-icon codicon codicon-whole-word" title="Match whole word"></span>
             </div>
         </div>
     </div>
@@ -403,9 +426,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             return {
                 query: searchInput.value.trim(),
                 scope: scopeSelect.value,
-                caseSensitive: caseSensitive.checked,
-                fuzzy: fuzzySearch.checked,
-                matchWholeWord: wholeWord.checked,
+                caseSensitive: caseSensitive.classList.contains('checked'),
+                fuzzy: fuzzySearch.classList.contains('checked'),
+                matchWholeWord: wholeWord.classList.contains('checked'),
                 maxSuggestions: 5
             };
         }
@@ -522,6 +545,15 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             });
         }
 
+        function toggleCheckbox(element) {
+            if (element.classList.contains('checked')) {
+                element.classList.remove('checked');
+            } else {
+                element.classList.add('checked');
+            }
+            debouncedSearch();
+        }
+
         // Event listeners
         searchInput.addEventListener('input', onInput);
         searchInput.addEventListener('keydown', handleKeyboard);
@@ -531,16 +563,16 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         });
         
         scopeSelect.addEventListener('change', debouncedSearch);
-        caseSensitive.addEventListener('change', debouncedSearch);
-        fuzzySearch.addEventListener('change', debouncedSearch);
-        wholeWord.addEventListener('change', debouncedSearch);
+        caseSensitive.addEventListener('click', () => toggleCheckbox(caseSensitive));
+        fuzzySearch.addEventListener('click', () => toggleCheckbox(fuzzySearch));
+        wholeWord.addEventListener('click', () => toggleCheckbox(wholeWord));
 
         clearButton.addEventListener('click', () => {
             searchInput.value = '';
             scopeSelect.value = 'both';
-            caseSensitive.checked = false;
-            fuzzySearch.checked = false;
-            wholeWord.checked = false;
+            caseSensitive.classList.remove('checked');
+            fuzzySearch.classList.remove('checked');
+            wholeWord.classList.remove('checked');
             resultInfo.classList.add('hidden');
             hideSuggestions();
             
@@ -557,9 +589,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                 case 'clearSearchInput':
                     searchInput.value = '';
                     scopeSelect.value = 'both';
-                    caseSensitive.checked = false;
-                    fuzzySearch.checked = false;
-                    wholeWord.checked = false;
+                    caseSensitive.classList.remove('checked');
+                    fuzzySearch.classList.remove('checked');
+                    wholeWord.classList.remove('checked');
                     resultInfo.classList.add('hidden');
                     hideSuggestions();
                     break;
