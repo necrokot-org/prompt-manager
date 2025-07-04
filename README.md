@@ -6,13 +6,29 @@ This is a VSCode extension for managing prompts with tree view organization and 
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### Search Functionality
 
-For example if there is an image subfolder under your extension project workspace:
+The extension provides powerful search capabilities powered by MiniSearch with typo-tolerant autocomplete:
 
-\!\[feature X\]\(images/feature-x.png\)
+- **Smart Search** (default): Fast, field-weighted search with title prioritization for relevant results
+- **Fuzzy Search**: Typo-tolerant matching that finds results even with spelling mistakes
+- **Autocomplete**: Real-time suggestions with ≤50ms response time for smooth user experience
+- **Scope Filtering**: Search in titles only, content only, or both
+- **Case Sensitivity**: Optional case-sensitive matching
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+**Search Features:**
+
+- Autocomplete suggestions appear as you type
+- Field weighting prioritizes title matches over content
+- Fuzzy search finds "JavaScipt" when searching for "JavaScript"
+- Space acts as AND operator, | as OR operator
+- Keyboard navigation in suggestion dropdown (arrow keys, Enter, Escape)
+
+**Search Scopes:**
+
+- **All**: Search in titles, descriptions, tags, and content
+- **Titles**: Search only in prompt titles
+- **Content**: Search only in prompt content and tags
 
 ## Requirements
 

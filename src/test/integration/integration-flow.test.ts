@@ -384,8 +384,8 @@ suite("Integration Flow Tests", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Test search functionality
-    const titleResults = await searchService.searchInTitle("Search Test", {
-      exact: false,
+    const titleResults = await searchService.searchInTitles("Search Test", {
+      fuzzy: false,
     });
     assert.ok(
       titleResults.length >= 2,
@@ -393,7 +393,7 @@ suite("Integration Flow Tests", () => {
     );
 
     const contentResults = await searchService.searchInContent("testing", {
-      exact: false,
+      fuzzy: false,
     });
     assert.ok(
       contentResults.length >= 1,

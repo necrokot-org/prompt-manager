@@ -6,10 +6,8 @@ import { PromptController } from "@features/prompt-manager/domain/promptControll
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
 import { TagTreeProvider } from "@features/prompt-manager/ui/tree/TagTreeProvider";
 import { CommandHandler } from "@ext/commands/commandHandler";
-import {
-  SearchPanelProvider,
-  SearchCriteria,
-} from "@features/search/ui/SearchPanelProvider";
+import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { SearchService } from "@features/search/services/searchService";
 import {
   EXTENSION_CONSTANTS,
@@ -189,13 +187,36 @@ async function initializeExtension(
           query: payload.query,
           scope: payload.scope,
           caseSensitive: payload.caseSensitive,
+          fuzzy: payload.fuzzy,
+          matchWholeWord: payload.matchWholeWord,
           isActive: payload.isActive,
         };
 
         // Update result count in search panel
         if (criteria.isActive) {
-          const count = await searchService!.countMatches(criteria);
-          searchProvider!.updateResultCount(count);
+          const results = await searchService!.search(criteria);
+          searchProvider!.updateResultCount(results.length);
+        }
+      });
+
+      // Handle suggestion requests
+      eventBus.on("search.suggest.requested", async (payload) => {
+        const criteria: SearchCriteria = {
+          query: payload.query,
+          scope: payload.scope,
+          caseSensitive: payload.caseSensitive,
+          fuzzy: payload.fuzzy,
+          matchWholeWord: payload.matchWholeWord,
+          maxSuggestions: payload.maxSuggestions,
+          isActive: true,
+        };
+
+        try {
+          const suggestions = await searchService!.getSuggestions(criteria);
+          searchProvider!.updateSuggestions(suggestions);
+        } catch (error) {
+          log.warn("Failed to get search suggestions:", error);
+          searchProvider!.updateSuggestions([]);
         }
       });
     }

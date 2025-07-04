@@ -1,5 +1,5 @@
 import { PromptFile } from "core/DirectoryScanner";
-import { SearchResult } from "@features/search/core/SearchEngine";
+import { SearchResult } from "@features/search/core/MiniSearchEngine";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { log } from "@infra/vscode/log";
 

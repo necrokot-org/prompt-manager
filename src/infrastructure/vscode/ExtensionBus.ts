@@ -11,14 +11,31 @@ export interface EventMap {
   "filesystem.file.changed": { filePath: string; fileName: string };
   "filesystem.directory.created": { dirPath: string; dirName: string };
   "filesystem.directory.deleted": { dirPath: string; dirName: string };
+  /** Emitted when a directory is moved or renamed. */
+  "filesystem.directory.changed": {
+    oldPath: string;
+    newPath: string;
+    dirName: string;
+  };
 
   // Search
   "search.criteria.changed": {
     query: string;
     scope: "titles" | "content" | "both";
     caseSensitive: boolean;
+    fuzzy: boolean;
+    matchWholeWord: boolean;
     isActive: boolean;
   };
+  "search.suggest.requested": {
+    query: string;
+    scope: "titles" | "content" | "both";
+    caseSensitive: boolean;
+    fuzzy: boolean;
+    matchWholeWord: boolean;
+    maxSuggestions?: number;
+  };
+  "search.suggestions.available": { suggestions: any[] };
   "search.results.updated": { resultCount: number; query: string };
   "search.cleared": {};
 

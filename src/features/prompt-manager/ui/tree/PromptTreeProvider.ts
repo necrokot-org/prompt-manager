@@ -382,6 +382,12 @@ export class PromptTreeProvider
         await this.fileSystemManager.moveFile(sourcePath, newPath);
       } else if (dragData.type === "folder") {
         await this.fileSystemManager.moveFolder(sourcePath, newPath);
+        // Emit directory changed event
+        eventBus.emit("filesystem.directory.changed", {
+          oldPath: sourcePath,
+          newPath,
+          dirName: path.basename(newPath),
+        });
       } else {
         throw new Error(`Unknown drag data type: ${dragData.type}`);
       }

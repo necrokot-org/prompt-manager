@@ -5,6 +5,7 @@ import { injectable, inject } from "tsyringe";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import { ConfigurationService } from "@infra/config/config";
 import { log } from "@infra/vscode/log";
+import { FileSystemEventPublisher as fsEvents } from "@infra/vscode/FileSystemEventPublisher";
 
 export interface FileSystemOperation {
   path: string;
@@ -202,6 +203,9 @@ Happy prompting!
       await fsExtra.move(sourcePath, targetPath, { overwrite: false });
 
       log.debug(`File moved from ${sourcePath} to ${targetPath}`);
+
+      // Fire event so listeners (e.g., search cache, tree view) can react
+      fsEvents.fileChanged(targetPath);
     } catch (error) {
       log.error(
         `Failed to move file from ${sourcePath} to ${targetPath}:`,
@@ -233,6 +237,9 @@ Happy prompting!
       await fsExtra.move(sourcePath, targetPath, { overwrite: false });
 
       log.debug(`Folder moved from ${sourcePath} to ${targetPath}`);
+
+      // Inform listeners of directory move/rename
+      fsEvents.dirChanged(sourcePath, targetPath);
     } catch (error) {
       log.error(
         `Failed to move folder from ${sourcePath} to ${targetPath}:`,

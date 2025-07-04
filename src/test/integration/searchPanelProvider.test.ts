@@ -47,6 +47,8 @@ suite("SearchPanelProvider", () => {
       query: "test",
       scope: "both",
       caseSensitive: false,
+      fuzzy: false,
+      matchWholeWord: false,
       isActive: true,
     });
   });

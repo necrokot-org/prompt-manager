@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import { searchResultToPromptFile } from "@features/search/utils/promptFile";
 import { PromptFile } from "@root/scanner/types";
-import { SearchResult } from "@features/search/core/SearchEngine";
+import { SearchResult } from "@features/search/core/MiniSearchEngine";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
 suite("PromptFile Utils Tests", () => {
