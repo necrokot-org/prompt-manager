@@ -4,5 +4,10 @@ export interface SearchCriteria {
   caseSensitive?: boolean; // applies to simple token match
   fuzzy?: boolean; // MiniSearch option
   maxSuggestions?: number; // for autocomplete
+  /**
+   * When true, search matches only complete tokens ("whole words").
+   * When false (default) prefix matching is allowed.
+   */
+  matchWholeWord?: boolean;
   isActive: boolean;
 }

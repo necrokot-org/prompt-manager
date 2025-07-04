@@ -188,6 +188,7 @@ async function initializeExtension(
           scope: payload.scope,
           caseSensitive: payload.caseSensitive,
           fuzzy: payload.fuzzy,
+          matchWholeWord: payload.matchWholeWord,
           isActive: payload.isActive,
         };
 
@@ -205,6 +206,7 @@ async function initializeExtension(
           scope: payload.scope,
           caseSensitive: payload.caseSensitive,
           fuzzy: payload.fuzzy,
+          matchWholeWord: payload.matchWholeWord,
           maxSuggestions: payload.maxSuggestions,
           isActive: true,
         };

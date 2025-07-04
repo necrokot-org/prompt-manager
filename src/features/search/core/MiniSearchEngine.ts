@@ -4,6 +4,7 @@ import {
 } from "@root/validation/schemas/prompt";
 import { LRUCache } from "lru-cache";
 import trim from "lodash-es/trim.js";
+import { createHash } from "node:crypto";
 import MiniSearch, {
   Suggestion,
   SearchResult as MiniSearchResult,
@@ -242,7 +243,8 @@ export class MiniSearchEngine {
    */
   private buildSearchOptions(criteria: SearchCriteria) {
     const options: any = {
-      prefix: !criteria.caseSensitive,
+      // Use prefix search unless the caller requested whole-word matching.
+      prefix: !criteria.matchWholeWord,
       fuzzy: criteria.fuzzy ? 0.2 : false,
       combineWith: "AND" as const,
       fields: this.getSearchFields(criteria.scope),
@@ -267,7 +269,12 @@ export class MiniSearchEngine {
       return file.parsed;
     }
 
-    const cacheKey = `${file.path}-${file.content.length}`;
+    // Generate a stable hash of the content so that any modification – even if
+    // the length stays the same – produces a different cache key. This avoids
+    // returning stale parsed data when the file is edited without changing
+    // its size.
+    const contentHash = createHash("sha1").update(file.content).digest("hex");
+    const cacheKey = `${file.path}-${contentHash}`;
     const cached = this.contentCache.get(cacheKey);
 
     if (cached) {

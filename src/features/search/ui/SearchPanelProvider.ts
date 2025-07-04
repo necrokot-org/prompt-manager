@@ -14,6 +14,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     scope: "both",
     caseSensitive: false,
     fuzzy: false,
+    matchWholeWord: false,
     isActive: false,
   };
 
@@ -37,6 +38,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     const scope = criteria.scope || ("both" as const);
     const caseSensitive = criteria.caseSensitive ?? false;
     const fuzzy = criteria.fuzzy ?? false;
+    const matchWholeWord = criteria.matchWholeWord ?? false;
 
     let isActive = criteria.isActive ?? false;
     if (options.computeIsActive) {
@@ -48,6 +50,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       scope,
       caseSensitive,
       fuzzy,
+      matchWholeWord,
       isActive,
     };
 
@@ -108,6 +111,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       scope: normalizedCriteria.scope,
       caseSensitive: normalizedCriteria.caseSensitive ?? false,
       fuzzy: normalizedCriteria.fuzzy ?? false,
+      matchWholeWord: normalizedCriteria.matchWholeWord ?? false,
       isActive: normalizedCriteria.isActive,
     });
   }
@@ -156,12 +160,24 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
+    // Resolve Codicon stylesheet URI (fallback to CDN if local not found)
+    const codiconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "node_modules",
+        "@vscode/codicons",
+        "dist",
+        "codicon.css"
+      )
+    );
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prompt Search</title>
+    <link rel="stylesheet" href="${codiconUri}">
     <style>
         body {
             padding: 8px;
@@ -339,6 +355,13 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                 <input type="checkbox" id="fuzzySearch" class="checkbox">
                 <label for="fuzzySearch">Fuzzy</label>
             </div>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="wholeWord" class="checkbox">
+                <label for="wholeWord" title="Match whole word">
+                    <span class="codicon codicon-whole-word"></span>
+                </label>
+            </div>
         </div>
     </div>
     
@@ -354,6 +377,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         const scopeSelect = document.getElementById('scopeSelect');
         const caseSensitive = document.getElementById('caseSensitive');
         const fuzzySearch = document.getElementById('fuzzySearch');
+        const wholeWord = document.getElementById('wholeWord');
         const resultInfo = document.getElementById('resultInfo');
         const resultCount = document.getElementById('resultCount');
         const suggestBox = document.getElementById('suggestBox');
@@ -381,6 +405,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                 scope: scopeSelect.value,
                 caseSensitive: caseSensitive.checked,
                 fuzzy: fuzzySearch.checked,
+                matchWholeWord: wholeWord.checked,
                 maxSuggestions: 5
             };
         }
@@ -508,12 +533,14 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         scopeSelect.addEventListener('change', debouncedSearch);
         caseSensitive.addEventListener('change', debouncedSearch);
         fuzzySearch.addEventListener('change', debouncedSearch);
+        wholeWord.addEventListener('change', debouncedSearch);
 
         clearButton.addEventListener('click', () => {
             searchInput.value = '';
             scopeSelect.value = 'both';
             caseSensitive.checked = false;
             fuzzySearch.checked = false;
+            wholeWord.checked = false;
             resultInfo.classList.add('hidden');
             hideSuggestions();
             
@@ -532,6 +559,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
                     scopeSelect.value = 'both';
                     caseSensitive.checked = false;
                     fuzzySearch.checked = false;
+                    wholeWord.checked = false;
                     resultInfo.classList.add('hidden');
                     hideSuggestions();
                     break;

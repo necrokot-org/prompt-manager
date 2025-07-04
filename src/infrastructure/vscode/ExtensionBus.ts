@@ -24,6 +24,7 @@ export interface EventMap {
     scope: "titles" | "content" | "both";
     caseSensitive: boolean;
     fuzzy: boolean;
+    matchWholeWord: boolean;
     isActive: boolean;
   };
   "search.suggest.requested": {
@@ -31,6 +32,7 @@ export interface EventMap {
     scope: "titles" | "content" | "both";
     caseSensitive: boolean;
     fuzzy: boolean;
+    matchWholeWord: boolean;
     maxSuggestions?: number;
   };
   "search.suggestions.available": { suggestions: any[] };

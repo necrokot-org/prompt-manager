@@ -102,6 +102,7 @@ export class SearchService {
     options: {
       caseSensitive?: boolean;
       fuzzy?: boolean;
+      matchWholeWord?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
@@ -110,6 +111,7 @@ export class SearchService {
       caseSensitive: options.caseSensitive || false,
       fuzzy: options.fuzzy || false,
       isActive: true,
+      matchWholeWord: options.matchWholeWord ?? false,
     };
 
     return await this.search(searchCriteria);
@@ -123,6 +125,7 @@ export class SearchService {
     options: {
       caseSensitive?: boolean;
       fuzzy?: boolean;
+      matchWholeWord?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
@@ -131,6 +134,7 @@ export class SearchService {
       caseSensitive: options.caseSensitive || false,
       fuzzy: options.fuzzy || false,
       isActive: true,
+      matchWholeWord: options.matchWholeWord ?? false,
     };
 
     return await this.search(searchCriteria);
@@ -144,6 +148,7 @@ export class SearchService {
     options: {
       caseSensitive?: boolean;
       fuzzy?: boolean;
+      matchWholeWord?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
@@ -152,6 +157,7 @@ export class SearchService {
       caseSensitive: options.caseSensitive || false,
       fuzzy: options.fuzzy || false,
       isActive: true,
+      matchWholeWord: options.matchWholeWord ?? false,
     };
 
     return await this.search(searchCriteria);
