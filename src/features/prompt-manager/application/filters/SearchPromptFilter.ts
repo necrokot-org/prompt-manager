@@ -21,9 +21,10 @@ export class SearchPromptFilter implements PromptFilter {
     // Listen to search criteria changes
     this.subscriptions.push(
       eventBus.on("search.criteria.changed", (payload) => {
-        const { query, scope, caseSensitive, isActive } = payload;
+        const { query, scope, caseSensitive, fuzzy, matchWholeWord, isActive } =
+          payload;
         this.criteria = isActive
-          ? { query, scope, caseSensitive, isActive }
+          ? { query, scope, caseSensitive, fuzzy, matchWholeWord, isActive }
           : null;
       })
     );

@@ -80,7 +80,8 @@ const SCOPE_CONFIG = {
  */
 export class MiniSearchEngine {
   private contentCache: LRUCache<string, ParsedPromptContent>;
-  private index: MiniSearch<Searchable> | null = null;
+  // Maintain separate indices for each (scope, caseSensitive) pair
+  private indices: Map<string, MiniSearch<Searchable>> = new Map();
 
   constructor() {
     this.contentCache = new LRUCache<string, ParsedPromptContent>({
@@ -99,17 +100,15 @@ export class MiniSearchEngine {
       return [];
     }
 
-    await this.ensureIndex(files, criteria.scope);
+    const index = await this.ensureIndex(
+      files,
+      criteria.scope,
+      criteria.caseSensitive ?? false
+    );
 
-    if (!this.index) {
-      return [];
-    }
-
-    // Configure MiniSearch options based on criteria
     const searchOptions = this.buildSearchOptions(criteria);
 
-    // Perform the search
-    const hits = this.index.search(criteria.query, searchOptions);
+    const hits = index.search(criteria.query, searchOptions);
 
     // Convert MiniSearch results to our SearchResult format
     let results = hits.map((hit) => this.mapHit(hit, criteria.query));
@@ -121,11 +120,44 @@ export class MiniSearchEngine {
         typeof text === "string" && text.includes(q);
 
       results = results.filter((r) => {
-        if (matcher(r.title) || matcher(r.snippet) || matcher(r.fileName)) {
+        const checkTitle = matcher(r.title);
+        const checkSnippet = matcher(r.snippet);
+        const checkFileName = matcher(r.fileName);
+
+        const inScopeMatch = () => {
+          switch (criteria.scope) {
+            case "titles":
+              return checkTitle;
+            case "content":
+              return checkSnippet;
+            case "both":
+            default:
+              return checkTitle || checkSnippet;
+          }
+        };
+
+        if (inScopeMatch() || (criteria.scope !== "titles" && checkFileName)) {
           return true;
         }
-        // Fallback: check matches contexts for exact case
+
+        // Fallback: check match contexts for exact case
         return r.matches.some((m) => matcher(m.context));
+      });
+    }
+
+    if (criteria.matchWholeWord) {
+      const boundary = "\\b";
+      const pattern = criteria.caseSensitive
+        ? new RegExp(`${boundary}${criteria.query}${boundary}`)
+        : new RegExp(`${boundary}${criteria.query}${boundary}`, "i");
+
+      results = results.filter((r) => {
+        const fields = [r.title, r.snippet, r.fileName];
+        if (fields.some((f) => pattern.test(f || ""))) {
+          return true;
+        }
+        // Also check matches contexts
+        return r.matches.some((m) => pattern.test(m.context));
       });
     }
 
@@ -143,13 +175,13 @@ export class MiniSearchEngine {
       return [];
     }
 
-    await this.ensureIndex(files, criteria.scope);
+    const index = await this.ensureIndex(
+      files,
+      criteria.scope,
+      criteria.caseSensitive ?? false
+    );
 
-    if (!this.index) {
-      return [];
-    }
-
-    return this.index
+    return index
       .autoSuggest(criteria.query, {
         fuzzy: criteria.fuzzy ? 0.2 : false,
         prefix: true,
@@ -194,10 +226,8 @@ export class MiniSearchEngine {
       searchOptions: {
         boost: this.getFieldBoosts(criteria.scope),
       },
-      processTerm: (term) => {
-        const lower = term.toLowerCase();
-        return lower === term ? term : [term, lower];
-      },
+      processTerm: (term) =>
+        criteria.caseSensitive ? term : term.toLowerCase(),
     });
 
     tempIndex.add(searchable);
@@ -230,7 +260,7 @@ export class MiniSearchEngine {
    */
   public clearCache(): void {
     this.contentCache.clear();
-    this.index = null;
+    this.indices.clear();
     // After clearing, the next `search`/`autocomplete`/`matches` call will
     // trigger a full index rebuild.  Call this whenever the underlying file
     // set changes.
@@ -299,26 +329,35 @@ export class MiniSearchEngine {
 
   private async ensureIndex(
     files: FileContent[],
-    scope: SearchCriteria["scope"]
-  ): Promise<void> {
-    this.index = new MiniSearch({
+    scope: SearchCriteria["scope"],
+    caseSensitive: boolean
+  ): Promise<MiniSearch<Searchable>> {
+    const key = `${scope}-${caseSensitive ? "C" : "I"}`;
+
+    if (this.indices.has(key)) {
+      return this.indices.get(key)!;
+    }
+
+    const newIndex = new MiniSearch({
       fields: ["title", "description", "tags", "content"],
       storeFields: ["filePath", "fileName", "title"],
       searchOptions: {
         boost: this.getFieldBoosts(scope),
       },
       processTerm: (term) => {
-        const lower = term.toLowerCase();
-        return lower === term ? term : [term, lower];
+        return caseSensitive ? term : term.toLowerCase();
       },
     });
 
-    // Add documents to the index
     for (const file of files) {
       const parsed = this.getParsedContent(file);
       const searchable = this.createSearchableContent(file, parsed);
-      this.index.add(searchable);
+      newIndex.add(searchable);
     }
+
+    this.indices.set(key, newIndex);
+
+    return newIndex;
   }
 
   private createSearchableContent(
@@ -326,10 +365,6 @@ export class MiniSearchEngine {
     parsed: ParsedPromptContent
   ): Searchable {
     const fileName = this.getFileNameFromPath(file.path);
-    // Add additional searchable tokens (slug title and base filename) to content to improve matching of concatenated queries like "newfile" without polluting tags.
-    const slugTitle = parsed.title.replace(/\s+/g, "");
-    const fileBaseName = fileName.replace(/\.[^/.]+$/, "");
-    const augmentedContent = `${parsed.content}\n${slugTitle}\n${fileBaseName}`;
 
     return {
       id: file.path, // Use file path as unique ID
@@ -338,7 +373,7 @@ export class MiniSearchEngine {
       title: parsed.title,
       description: parsed.description || "",
       tags: parsed.tags.join(" "),
-      content: augmentedContent,
+      content: parsed.content,
     };
   }
 
