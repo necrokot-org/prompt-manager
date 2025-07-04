@@ -460,10 +460,10 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             }
         }
 
-        const debouncedSearch = debounce(postSearch, 300);
+        const debouncedSearch = debounce(postSearch, 80);
 
         function onInput() {
-            postSearch();
+            debouncedSearch();
             
             // Clear previous suggestion timer
             clearTimeout(suggestDebounceTimer);
