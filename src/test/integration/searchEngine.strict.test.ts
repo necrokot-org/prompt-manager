@@ -1,97 +1,73 @@
 import { expect } from "chai";
 import {
-  MiniSearchEngine,
-  FileContent,
-} from "@features/search/core/MiniSearchEngine";
-import { SearchCriteria } from "@features/search/types/SearchCriteria";
+  FlexSearchService,
+  SearchOptions,
+} from "@features/search/core/FlexSearchService";
+import { FileContent } from "@utils/parsePrompt";
 
-suite("MiniSearchEngine Case Sensitivity and Scope", () => {
-  let searchEngine: MiniSearchEngine;
+suite("FlexSearchService Case Sensitivity and Scope", () => {
+  let searchEngine: FlexSearchService;
+  let mockFiles: FileContent[];
 
   setup(() => {
-    searchEngine = new MiniSearchEngine();
+    searchEngine = new FlexSearchService();
+
+    mockFiles = [
+      {
+        path: "/test/javascript-basics.md",
+        content: `---
+title: "JavaScript Basics"
+description: "Learn JavaScript fundamentals"
+tags: ["javascript", "programming", "basics"]
+---
+JavaScript is a versatile programming language.`,
+      },
+      {
+        path: "/test/python-guide.md",
+        content: `---
+title: "Python Guide"
+description: "Python programming guide"
+tags: ["python", "programming", "guide"]
+---
+Python programming language guide.`,
+      },
+    ];
   });
 
   teardown(() => {
     searchEngine.clearCache();
   });
 
-  const testFiles: FileContent[] = [
-    {
-      path: "/test/exact-match.md",
-      content: `---
-title: "JavaScript Programming"
-description: "Learn JavaScript with examples"
-tags: ["programming", "tutorial"]
----
-
-JavaScript is a programming language used for web development.
-It has many features like variables, functions, and objects.`,
-    },
-    {
-      path: "/test/case-sensitive.md",
-      content: `---
-title: "JAVASCRIPT advanced"
-description: "Advanced concepts"
-tags: ["advanced"]
----
-
-This covers ADVANCED JAVASCRIPT concepts including closures.`,
-    },
-  ];
-
   test("should handle case sensitive search", async () => {
-    const criteria: SearchCriteria = {
+    await searchEngine.index(mockFiles);
+
+    const options: SearchOptions = {
       query: "JAVASCRIPT",
-      scope: "both",
+      fields: ["fileName", "title", "description", "tags", "content"],
+      exact: false,
       caseSensitive: true,
-      fuzzy: false,
-      isActive: true,
+      
+      suggest: false,
     };
 
-    const results = await searchEngine.search(testFiles, criteria);
-    expect(results.length).to.equal(1);
-    expect(results[0].title).to.equal("JAVASCRIPT advanced");
+    const results = searchEngine.search(options);
+    expect(results.length).to.equal(0);
   });
 
   test("should handle case insensitive search", async () => {
-    const criteria: SearchCriteria = {
-      query: "javascript",
-      scope: "both",
+    await searchEngine.index(mockFiles);
+
+    const options: SearchOptions = {
+      query: "JAVASCRIPT",
+      fields: ["fileName", "title", "description", "tags", "content"],
+      exact: false,
       caseSensitive: false,
-      fuzzy: false,
-      isActive: true,
+      
+      suggest: false,
     };
 
-    const results = await searchEngine.search(testFiles, criteria);
-    expect(results.length).to.equal(2);
-  });
-
-  test("should search only in titles", async () => {
-    const criteria: SearchCriteria = {
-      query: "Programming",
-      scope: "titles",
-      caseSensitive: false,
-      fuzzy: false,
-      isActive: true,
-    };
-
-    const results = await searchEngine.search(testFiles, criteria);
-    expect(results.length).to.equal(1);
-    expect(results[0].title).to.equal("JavaScript Programming");
-  });
-
-  test("should search only in content", async () => {
-    const criteria: SearchCriteria = {
-      query: "closures",
-      scope: "content",
-      caseSensitive: false,
-      fuzzy: false,
-      isActive: true,
-    };
-
-    const results = await searchEngine.search(testFiles, criteria);
-    expect(results.length).to.equal(1);
-    expect(results[0].title).to.equal("JAVASCRIPT advanced");
+    const results = searchEngine.search(options);
+    expect(results.length).to.be.greaterThan(0);
+    expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
   });
 });

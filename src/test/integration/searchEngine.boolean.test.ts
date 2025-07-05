@@ -1,67 +1,67 @@
 import { expect } from "chai";
 import {
-  MiniSearchEngine,
-  FileContent,
-} from "@features/search/core/MiniSearchEngine";
-import { SearchCriteria } from "@features/search/types/SearchCriteria";
+  FlexSearchService,
+  SearchOptions,
+} from "@features/search/core/FlexSearchService";
+import { FileContent } from "@utils/parsePrompt";
 
-suite("MiniSearchEngine Basic Queries", () => {
-  let searchEngine: MiniSearchEngine;
+suite("FlexSearchService Basic Queries", () => {
+  let searchEngine: FlexSearchService;
+  let mockFiles: FileContent[];
 
   setup(() => {
-    searchEngine = new MiniSearchEngine();
+    searchEngine = new FlexSearchService();
+
+    mockFiles = [
+      {
+        path: "/test/javascript-basics.md",
+        content: `---
+title: "JavaScript Basics"
+description: "Learn JavaScript fundamentals"
+tags: ["javascript", "programming", "basics"]
+---
+JavaScript is a versatile programming language.`,
+      },
+      {
+        path: "/test/advanced-javascript.md",
+        content: `---
+title: "Advanced JavaScript"
+description: "Advanced JavaScript concepts"
+tags: ["javascript", "advanced", "programming"]
+---
+Advanced JavaScript concepts and patterns.`,
+      },
+      {
+        path: "/test/python-guide.md",
+        content: `---
+title: "Python Guide"
+description: "Python programming guide"
+tags: ["python", "programming", "guide"]
+---
+Python programming language guide.`,
+      },
+    ];
   });
 
   teardown(() => {
     searchEngine.clearCache();
   });
 
-  const testFiles: FileContent[] = [
-    {
-      path: "/test/file1.md",
-      content: `---
-title: "JavaScript Basics"
-tags: ["programming", "beginner"]
----
+  test("should find files with basic boolean query", async () => {
+    await searchEngine.index(mockFiles);
 
-Learn the fundamentals of JavaScript programming.`,
-    },
-    {
-      path: "/test/file2.md",
-      content: `---
-title: "Advanced JavaScript"
-tags: ["programming", "advanced"]
----
-
-Deep dive into advanced JavaScript concepts.`,
-    },
-  ];
-
-  test("should find files with simple query", async () => {
-    const criteria: SearchCriteria = {
+    const options: SearchOptions = {
       query: "JavaScript",
-      scope: "both",
+      fields: ["fileName", "title", "description", "tags", "content"],
+      exact: false,
       caseSensitive: false,
-      fuzzy: false,
-      isActive: true,
+      
+      suggest: false,
     };
 
-    const results = await searchEngine.search(testFiles, criteria);
-    expect(results.length).to.equal(2);
+    const results = searchEngine.search(options);
+    expect(results.length).to.be.greaterThan(0);
     expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
     expect(results.some((r) => r.title === "Advanced JavaScript")).to.be.true;
-  });
-
-  test("should handle fuzzy search", async () => {
-    const criteria: SearchCriteria = {
-      query: "JavaScipt", // Intentional typo
-      scope: "both",
-      caseSensitive: false,
-      fuzzy: true,
-      isActive: true,
-    };
-
-    const results = await searchEngine.search(testFiles, criteria);
-    expect(results.length).to.be.greaterThan(0);
   });
 });

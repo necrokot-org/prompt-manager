@@ -1,7 +1,7 @@
-import * as assert from "assert";
+import { expect } from "chai";
 import { searchResultToPromptFile } from "@features/search/utils/promptFile";
 import { PromptFile } from "@root/scanner/types";
-import { SearchResult } from "@features/search/core/MiniSearchEngine";
+import { SearchResult } from "@features/search/core/FlexSearchService";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 
 suite("PromptFile Utils Tests", () => {
@@ -20,11 +20,12 @@ suite("PromptFile Utils Tests", () => {
     const allFiles = [existingFile];
 
     const searchResult: SearchResult = {
+      id: "/path/to/existing-prompt.md",
       filePath: "/path/to/existing-prompt.md",
       fileName: "existing-prompt.md",
       title: "Search Title", // Different title to verify we get the existing file
       score: 0.8,
-      matches: [],
+      matches: {},
       snippet: "test snippet",
     };
 
@@ -39,11 +40,11 @@ suite("PromptFile Utils Tests", () => {
     );
 
     // Assert
-    assert.strictEqual(result, existingFile); // Should return the exact existing file
-    assert.strictEqual(result.title, "Existing Prompt"); // Should use existing file's title
-    assert.strictEqual(result.description, "An existing prompt");
-    assert.deepStrictEqual(result.tags, ["test", "existing"]);
-    assert.strictEqual(result.fileSize, 1024);
+    expect(result).to.equal(existingFile); // Should return the exact existing file
+    expect(result.title).to.equal("Existing Prompt"); // Should use existing file's title
+    expect(result.description).to.equal("An existing prompt");
+    expect(result.tags).to.deep.equal(["test", "existing"]);
+    expect(result.fileSize).to.equal(1024);
   });
 
   test("should handle file not found in allFiles", async () => {
@@ -51,11 +52,12 @@ suite("PromptFile Utils Tests", () => {
     const allFiles: PromptFile[] = []; // Empty array
 
     const searchResult: SearchResult = {
+      id: "/path/to/new-prompt.md",
       filePath: "/path/to/new-prompt.md",
       fileName: "new-prompt.md",
       title: "New Prompt",
       score: 0.8,
-      matches: [],
+      matches: {},
       snippet: "test snippet",
     };
 
@@ -74,12 +76,12 @@ suite("PromptFile Utils Tests", () => {
     );
 
     // Assert - Should return minimal file info when stats fail
-    assert.strictEqual(result.path, "/path/to/new-prompt.md");
-    assert.strictEqual(result.name, "new-prompt.md");
-    assert.strictEqual(result.title, "New Prompt");
-    assert.strictEqual(result.description, undefined);
-    assert.deepStrictEqual(result.tags, []);
-    assert.strictEqual(result.fileSize, 0); // Default when stats fail
-    assert.strictEqual(result.isDirectory, false);
+    expect(result.path).to.equal("/path/to/new-prompt.md");
+    expect(result.name).to.equal("new-prompt.md");
+    expect(result.title).to.equal("New Prompt");
+    expect(result.description).to.equal(undefined);
+    expect(result.tags).to.deep.equal([]);
+    expect(result.fileSize).to.equal(0); // Default when stats fail
+    expect(result.isDirectory).to.equal(false);
   });
 });

@@ -1,8 +1,10 @@
+import { SearchScope, FuzzyOptions } from "../core/FlexSearchService";
+
 export interface SearchCriteria {
   query: string; // raw text
-  scope: "titles" | "content" | "both";
+  scope: SearchScope;
   caseSensitive?: boolean; // applies to simple token match
-  fuzzy?: boolean; // MiniSearch option
+  fuzzy?: FuzzyOptions; // FlexSearch fuzzy options
   maxSuggestions?: number; // for autocomplete
   /**
    * When true, search matches only complete tokens ("whole words").

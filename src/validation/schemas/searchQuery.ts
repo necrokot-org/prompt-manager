@@ -1,5 +1,6 @@
 import { z } from "zod";
 import safeRegex from "safe-regex2";
+import { SearchScope } from "@features/search/core/FlexSearchService";
 
 /**
  * Validate regex syntax and security using safe-regex2 and standard RegExp
@@ -66,8 +67,45 @@ export function createSearchQuerySchema(options: SearchQueryOptions = {}) {
       .transform((val) => val.trim().replace(/\s+/g, " ")), // Normalize whitespace
 
     caseSensitive: z.boolean().optional().default(false),
-    fuzzy: z.boolean().optional().default(false),
-    scope: z.enum(["titles", "content", "both"]).default("both"),
+    fuzzy: z
+      .object({
+        enabled: z.boolean(),
+        distance: z
+          .union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)])
+          .optional(),
+        tokenizer: z
+          .enum(["tolerant", "forward", "reverse", "full"] as [
+            "tolerant",
+            "forward",
+            "reverse",
+            "full"
+          ])
+          .optional(),
+        encoder: z
+          .enum(["normalize", "balance", "advanced", "extra", "soundex"] as [
+            "normalize",
+            "balance",
+            "advanced",
+            "extra",
+            "soundex"
+          ])
+          .optional(),
+        languagePreset: z
+          .enum(["en", "de", "fr", "es", "it", "pt", "ru", "zh"] as [
+            "en",
+            "de",
+            "fr",
+            "es",
+            "it",
+            "pt",
+            "ru",
+            "zh"
+          ])
+          .optional(),
+        suggest: z.boolean().optional(),
+      })
+      .optional(),
+    scope: z.nativeEnum(SearchScope).default(SearchScope.ALL),
     maxSuggestions: z.number().min(1).max(20).optional().default(5),
   });
 

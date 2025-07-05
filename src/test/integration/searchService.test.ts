@@ -9,6 +9,7 @@ import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { FileSystemManager } from "../../infrastructure/fs/FileSystemManager";
 import { ConfigurationService } from "../../infrastructure/config/config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
+import { SearchScope } from "@features/search/core/FlexSearchService";
 
 suite("SearchService Tests", () => {
   let fileManager: FileManager;
@@ -149,9 +150,9 @@ suite("SearchService Tests", () => {
   test("SearchService - Unified Search Interface", async () => {
     const criteria: SearchCriteria = {
       query: "JavaScript",
-      scope: "content",
+      scope: SearchScope.CONTENT,
       caseSensitive: false,
-      fuzzy: false,
+      
       isActive: true,
     };
 
@@ -181,9 +182,9 @@ suite("SearchService Tests", () => {
   test("SearchService - Match Count", async () => {
     const criteria: SearchCriteria = {
       query: "prompt",
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: false,
-      fuzzy: false,
+      
       isActive: true,
     };
 
@@ -200,9 +201,9 @@ suite("SearchService Tests", () => {
 
     const criteria: SearchCriteria = {
       query: "JavaScript",
-      scope: "content",
+      scope: SearchScope.CONTENT,
       caseSensitive: false,
-      fuzzy: false,
+      
       isActive: true,
     };
 
@@ -220,17 +221,17 @@ suite("SearchService Tests", () => {
 
   test("SearchService - Available Scopes", async () => {
     const scopes = searchService.getAvailableScopes();
-    assert.ok(scopes.includes("titles"));
-    assert.ok(scopes.includes("content"));
-    assert.ok(scopes.includes("both"));
+    assert.ok(scopes.includes(SearchScope.TITLES));
+    assert.ok(scopes.includes(SearchScope.CONTENT));
+    assert.ok(scopes.includes(SearchScope.ALL));
   });
 
   test("SearchService - Empty Query", async () => {
     const criteria: SearchCriteria = {
       query: "",
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: false,
-      fuzzy: false,
+      
       isActive: false,
     };
 

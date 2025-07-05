@@ -3,20 +3,13 @@ import { injectable, inject } from "tsyringe";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import { SearchCriteria } from "@features/search/types/SearchCriteria";
+import { SearchScope } from "@features/search/core/FlexSearchService";
 
 @injectable()
 export class SearchPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "promptManagerSearch";
 
   private _view?: vscode.WebviewView;
-  private _criteria: SearchCriteria = {
-    query: "",
-    scope: "both",
-    caseSensitive: false,
-    fuzzy: false,
-    matchWholeWord: false,
-    isActive: false,
-  };
 
   constructor(
     @inject(DI_TOKENS.ExtensionContext)
@@ -35,9 +28,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     T extends { includeSuggestions?: boolean; computeIsActive?: boolean }
   >(criteria: Partial<SearchCriteria> = {}, options: T = {} as T) {
     const query = criteria.query || "";
-    const scope = criteria.scope || ("both" as const);
+    const scope = criteria.scope || SearchScope.ALL;
     const caseSensitive = criteria.caseSensitive ?? false;
-    const fuzzy = criteria.fuzzy ?? false;
+
     const matchWholeWord = criteria.matchWholeWord ?? false;
 
     let isActive = criteria.isActive ?? false;
@@ -49,16 +42,16 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       query,
       scope,
       caseSensitive,
-      fuzzy,
+      fuzzy: criteria.fuzzy ?? undefined,
       matchWholeWord,
       isActive,
-    };
+    } as SearchCriteria & T;
 
     if (options.includeSuggestions) {
       return {
         ...normalized,
         maxSuggestions: criteria.maxSuggestions ?? 5,
-      };
+      } as SearchCriteria & T;
     }
 
     return normalized;
@@ -66,7 +59,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
-    context: vscode.WebviewViewResolveContext,
+    _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ) {
     this._view = webviewView;
@@ -103,14 +96,12 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
       computeIsActive: true,
     });
 
-    this._criteria = normalizedCriteria;
-
     // Publish search criteria changed event with normalized data
     eventBus.emit("search.criteria.changed", {
       query: normalizedCriteria.query,
       scope: normalizedCriteria.scope,
       caseSensitive: normalizedCriteria.caseSensitive ?? false,
-      fuzzy: normalizedCriteria.fuzzy ?? false,
+      fuzzy: normalizedCriteria.fuzzy,
       matchWholeWord: normalizedCriteria.matchWholeWord ?? false,
       isActive: normalizedCriteria.isActive,
     });
@@ -124,39 +115,38 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
     });
 
     // Publish suggestion request event
-    eventBus.emit("search.suggest.requested", normalizedCriteria);
+    eventBus.emit("search.suggest.requested", {
+      query: normalizedCriteria.query,
+      scope: normalizedCriteria.scope,
+      caseSensitive: normalizedCriteria.caseSensitive ?? false,
+      fuzzy: normalizedCriteria.fuzzy,
+      matchWholeWord: normalizedCriteria.matchWholeWord ?? false,
+      maxSuggestions: (normalizedCriteria as any).maxSuggestions,
+    });
   }
 
   private handleClear(): void {
-    this._criteria = this.normalizeSearchCriteria();
-
     // Emit search cleared event
     eventBus.emit("search.cleared", {});
 
     // Update the webview
-    if (this._view) {
-      this._view.webview.postMessage({
-        type: "clearSearchInput",
-      });
-    }
+    this._view?.webview.postMessage({
+      type: "clearSearchInput",
+    });
   }
 
   public updateResultCount(count: number): void {
-    if (this._view) {
-      this._view.webview.postMessage({
-        type: "updateResultCount",
-        count: count,
-      });
-    }
+    this._view?.webview.postMessage({
+      type: "updateResultCount",
+      count: count,
+    });
   }
 
   public updateSuggestions(suggestions: any[]): void {
-    if (this._view) {
-      this._view.webview.postMessage({
-        type: "suggestions",
-        items: suggestions,
-      });
-    }
+    this._view?.webview.postMessage({
+      type: "suggestions",
+      items: suggestions,
+    });
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
@@ -369,9 +359,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         
         <div class="search-options">
             <select id="scopeSelect" class="scope-select" title="Search scope">
-                <option value="both">All</option>
-                <option value="titles">Titles</option>
-                <option value="content">Content</option>
+                                        <option value="${SearchScope.ALL}">All</option>
+                        <option value="${SearchScope.TITLES}">Titles</option>
+                        <option value="${SearchScope.CONTENT}">Content</option>
             </select>
             
             <div class="checkbox-container">
@@ -569,7 +559,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
         clearButton.addEventListener('click', () => {
             searchInput.value = '';
-            scopeSelect.value = 'both';
+            scopeSelect.value = SearchScope.ALL;
             caseSensitive.classList.remove('checked');
             fuzzySearch.classList.remove('checked');
             wholeWord.classList.remove('checked');
@@ -588,7 +578,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             switch (message.type) {
                 case 'clearSearchInput':
                     searchInput.value = '';
-                    scopeSelect.value = 'both';
+                    scopeSelect.value = SearchScope.ALL;
                     caseSensitive.classList.remove('checked');
                     fuzzySearch.classList.remove('checked');
                     wholeWord.classList.remove('checked');

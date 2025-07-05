@@ -390,7 +390,7 @@ suite("Integration Flow Tests", () => {
 
     // Test search functionality
     const titleResults = await searchService.searchInTitles("Search Test", {
-      fuzzy: false,
+      fuzzy: undefined,
     });
     assert.ok(
       titleResults.length >= 2,
@@ -398,7 +398,7 @@ suite("Integration Flow Tests", () => {
     );
 
     const contentResults = await searchService.searchInContent("testing", {
-      fuzzy: false,
+      fuzzy: undefined,
     });
     assert.ok(
       contentResults.length >= 1,

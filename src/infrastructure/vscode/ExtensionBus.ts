@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import {
+  SearchScope,
+  FuzzyOptions,
+} from "@features/search/core/FlexSearchService";
 
 // ---------------------------------------------------------------------------
 // Typed Event Map -----------------------------------------------------------
@@ -27,17 +31,17 @@ export interface EventMap {
   // Search
   "search.criteria.changed": {
     query: string;
-    scope: "titles" | "content" | "both";
+    scope: SearchScope;
     caseSensitive: boolean;
-    fuzzy: boolean;
+    fuzzy: FuzzyOptions | undefined;
     matchWholeWord: boolean;
     isActive: boolean;
   };
   "search.suggest.requested": {
     query: string;
-    scope: "titles" | "content" | "both";
+    scope: SearchScope;
     caseSensitive: boolean;
-    fuzzy: boolean;
+    fuzzy: FuzzyOptions | undefined;
     matchWholeWord: boolean;
     maxSuggestions?: number;
   };

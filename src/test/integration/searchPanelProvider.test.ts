@@ -2,6 +2,7 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
 import { eventBus } from "@infra/vscode/ExtensionBus";
+import { SearchScope } from "@features/search/core/FlexSearchService";
 
 suite("SearchPanelProvider", () => {
   let searchProvider: SearchPanelProvider;
@@ -36,7 +37,7 @@ suite("SearchPanelProvider", () => {
     // Listen to event
     eventBus.on("search.criteria.changed", (payload) => {
       assert.strictEqual(payload.query, "test");
-      assert.strictEqual(payload.scope, "both");
+      assert.strictEqual(payload.scope, SearchScope.ALL);
       assert.strictEqual(payload.caseSensitive, false);
       assert.strictEqual(payload.isActive, true);
       done();
@@ -45,9 +46,9 @@ suite("SearchPanelProvider", () => {
     // Emit event
     eventBus.emit("search.criteria.changed", {
       query: "test",
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: false,
-      fuzzy: false,
+      fuzzy: undefined,
       matchWholeWord: false,
       isActive: true,
     });

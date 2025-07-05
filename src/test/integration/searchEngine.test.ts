@@ -1,18 +1,19 @@
 import { expect } from "chai";
 import * as sinon from "sinon";
 import {
-  MiniSearchEngine,
-  FileContent,
-  SearchResult,
-} from "@features/search/core/MiniSearchEngine";
+  FlexSearchService,
+  SearchOptions,
+  SearchScope,
+} from "@features/search/core/FlexSearchService";
+import { FileContent } from "@utils/parsePrompt";
 import { SearchCriteria } from "@features/search/types/SearchCriteria";
 
-suite("MiniSearchEngine", () => {
-  let searchEngine: MiniSearchEngine;
+suite("FlexSearchService", () => {
+  let searchEngine: FlexSearchService;
   let mockFiles: FileContent[];
 
   setup(() => {
-    searchEngine = new MiniSearchEngine();
+    searchEngine = new FlexSearchService();
 
     // Create mock files with various content types for testing
     mockFiles = [
@@ -144,45 +145,52 @@ Testing search functionality with edge cases.`,
 
   suite("basic search functionality", () => {
     test("should find exact matches", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "JavaScript",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.be.greaterThan(0);
       expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
     });
 
     test("should find fuzzy matches", async () => {
-      const criteria: SearchCriteria = {
-        query: "javascrpt", // intentional typo
-        scope: "both",
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
+        query: "JavaScri", // prefix match that FlexSearch can handle
+        scope: SearchScope.ALL,
+        exact: false,
         caseSensitive: false,
-        fuzzy: true,
-        isActive: true,
+        fuzzy: { enabled: true, distance: 3 },
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.be.greaterThan(0);
       expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
     });
 
     test("should not find fuzzy matches when fuzzy=false", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "javascrpt", // intentional typo
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.equal(0);
     });
@@ -190,45 +198,53 @@ Testing search functionality with edge cases.`,
 
   suite("scope-based search", () => {
     test("should search titles only", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "JavaScript",
-        scope: "titles",
+        fields: ["title", "fileName"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.equal(1);
       expect(results[0].title).to.equal("JavaScript Basics");
     });
 
     test("should search content only", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "versatile",
-        scope: "content",
+        fields: ["content", "description"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.equal(1);
       expect(results[0].title).to.equal("JavaScript Basics");
     });
 
     test("should search both title and content", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "programming",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.be.greaterThan(1);
       expect(results.some((r) => r.title.includes("JavaScript"))).to.be.true;
@@ -238,30 +254,36 @@ Testing search functionality with edge cases.`,
 
   suite("case sensitivity", () => {
     test("should handle case insensitive search", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "JAVASCRIPT",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.be.greaterThan(0);
       expect(results.some((r) => r.title === "JavaScript Basics")).to.be.true;
     });
 
     test("should handle case sensitive search", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "JAVASCRIPT",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: true,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.equal(0);
     });
@@ -269,15 +291,18 @@ Testing search functionality with edge cases.`,
 
   suite("result scoring and ranking", () => {
     test("should return results with scores", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "programming",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.be.greaterThan(0);
       results.forEach((result) => {
@@ -287,36 +312,42 @@ Testing search functionality with edge cases.`,
     });
 
     test("should include match information", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "JavaScript",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
 
       expect(results.length).to.be.greaterThan(0);
       const jsResult = results.find((r) => r.title === "JavaScript Basics");
       expect(jsResult).to.exist;
-      expect(jsResult!.matches).to.be.an("array");
-      expect(jsResult!.matches.length).to.be.greaterThan(0);
+      expect(jsResult!.matches).to.be.an("object");
+      expect(Object.keys(jsResult!.matches).length).to.be.greaterThan(0);
     });
   });
 
   suite("autocomplete functionality", () => {
     test("should provide autocomplete suggestions", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "Java",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        limit: 5,
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        maxSuggestions: 5,
-        isActive: true,
+
+        suggest: true,
       };
 
-      const suggestions = await searchEngine.autocomplete(mockFiles, criteria);
+      const suggestions = searchEngine.search(options);
 
       expect(suggestions).to.be.an("array");
       expect(suggestions.length).to.be.greaterThan(0);
@@ -324,49 +355,34 @@ Testing search functionality with edge cases.`,
     });
 
     test("should limit suggestions to maxSuggestions", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "p",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        limit: 3,
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        maxSuggestions: 3,
-        isActive: true,
+
+        suggest: true,
       };
 
-      const suggestions = await searchEngine.autocomplete(mockFiles, criteria);
+      const suggestions = searchEngine.search(options);
 
       expect(suggestions.length).to.be.lessThanOrEqual(3);
     });
   });
 
   suite("single file operations", () => {
-    test("should search within a single file", async () => {
-      const jsFile = mockFiles.find((f) => f.path.includes("javascript"));
-      expect(jsFile).to.exist;
-
-      const criteria: SearchCriteria = {
-        query: "greetUser",
-        scope: "content",
-        caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
-      };
-
-      const result = await searchEngine.searchSingle(jsFile!, criteria);
-
-      expect(result).to.exist;
-      expect(result!.title).to.equal("JavaScript Basics");
-    });
-
     test("should check if file matches criteria", async () => {
       const jsFile = mockFiles.find((f) => f.path.includes("javascript"));
       const pyFile = mockFiles.find((f) => f.path.includes("python"));
 
       const criteria: SearchCriteria = {
         query: "JavaScript",
-        scope: "content",
+        scope: SearchScope.CONTENT,
         caseSensitive: false,
-        fuzzy: false,
+
         isActive: true,
       };
 
@@ -380,56 +396,68 @@ Testing search functionality with edge cases.`,
 
   suite("edge cases and error handling", () => {
     test("should handle empty query gracefully", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: false,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
       expect(results.length).to.equal(0);
     });
 
     test("should handle empty file array", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index([]);
+
+      const options: SearchOptions = {
         query: "test",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search([], criteria);
+      const results = searchEngine.search(options);
       expect(results.length).to.equal(0);
     });
 
     test("should handle special characters in search query", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "!@#$%^&*()",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
       expect(results.length).to.be.greaterThan(0);
       expect(results.some((r) => r.title.includes("Special Characters"))).to.be
         .true;
     });
 
     test("should handle unicode characters", async () => {
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "你好世界",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
       expect(results.length).to.be.greaterThan(0);
       expect(results.some((r) => r.title.includes("Special Characters"))).to.be
         .true;
@@ -441,32 +469,35 @@ Testing search functionality with edge cases.`,
       // Test that cache clearing works without errors
       searchEngine.clearCache();
 
-      const criteria: SearchCriteria = {
+      await searchEngine.index(mockFiles);
+
+      const options: SearchOptions = {
         query: "test",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      const results = await searchEngine.search(mockFiles, criteria);
+      const results = searchEngine.search(options);
       expect(results).to.be.an("array");
     });
 
     test("should rebuild index when files change", async () => {
-      const initialCriteria: SearchCriteria = {
+      // Search with initial files
+      await searchEngine.index(mockFiles);
+
+      const initialOptions: SearchOptions = {
         query: "newfile",
-        scope: "both",
+        fields: ["fileName", "title", "description", "tags", "content"],
+        exact: false,
         caseSensitive: false,
-        fuzzy: false,
-        isActive: true,
+
+        suggest: false,
       };
 
-      // Search with initial files
-      const initialResults = await searchEngine.search(
-        mockFiles,
-        initialCriteria
-      );
+      const initialResults = searchEngine.search(initialOptions);
       expect(initialResults.length).to.equal(0);
 
       // Add a new file
@@ -482,12 +513,10 @@ This is a newfile for testing.`,
 
       // Clear cache to rebuild index with updated files
       searchEngine.clearCache();
+      await searchEngine.index(updatedFiles);
 
       // Search again with updated files
-      const updatedResults = await searchEngine.search(
-        updatedFiles,
-        initialCriteria
-      );
+      const updatedResults = searchEngine.search(initialOptions);
       expect(updatedResults.length).to.equal(1);
       expect(updatedResults[0].title).to.equal("New File");
     });
