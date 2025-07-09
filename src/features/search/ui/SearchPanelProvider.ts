@@ -359,9 +359,9 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         
         <div class="search-options">
             <select id="scopeSelect" class="scope-select" title="Search scope">
-                                        <option value="${SearchScope.ALL}">All</option>
-                        <option value="${SearchScope.TITLES}">Titles</option>
-                        <option value="${SearchScope.CONTENT}">Content</option>
+                                        <option value="both">All</option>
+                        <option value="titles">Titles</option>
+                        <option value="content">Content</option>
             </select>
             
             <div class="checkbox-container">
@@ -413,13 +413,19 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
         }
 
         function buildCriteria() {
+            // Gracefully handle elements that may still be undefined
+            const caseSensitiveChecked = !!caseSensitive?.classList?.contains('checked');
+            const fuzzyChecked        = !!fuzzySearch?.classList?.contains('checked');
+            const wholeWordChecked    = !!wholeWord?.classList?.contains('checked');
+
             return {
-                query: searchInput.value.trim(),
-                scope: scopeSelect.value,
-                caseSensitive: caseSensitive.classList.contains('checked'),
-                fuzzy: fuzzySearch.classList.contains('checked'),
-                matchWholeWord: wholeWord.classList.contains('checked'),
-                maxSuggestions: 5
+                query:  searchInput?.value?.trim() || '',
+                scope:  scopeSelect?.value || 'both',
+                caseSensitive: caseSensitiveChecked,
+                // Backend expects a FuzzyOptions object
+                fuzzy:  fuzzyChecked ? { enabled: true } : undefined,
+                matchWholeWord: wholeWordChecked,
+                maxSuggestions: 5,
             };
         }
 
@@ -559,7 +565,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
 
         clearButton.addEventListener('click', () => {
             searchInput.value = '';
-            scopeSelect.value = SearchScope.ALL;
+            scopeSelect.value = 'both';
             caseSensitive.classList.remove('checked');
             fuzzySearch.classList.remove('checked');
             wholeWord.classList.remove('checked');
@@ -578,7 +584,7 @@ export class SearchPanelProvider implements vscode.WebviewViewProvider {
             switch (message.type) {
                 case 'clearSearchInput':
                     searchInput.value = '';
-                    scopeSelect.value = SearchScope.ALL;
+                    scopeSelect.value = 'both';
                     caseSensitive.classList.remove('checked');
                     fuzzySearch.classList.remove('checked');
                     wholeWord.classList.remove('checked');
