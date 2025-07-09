@@ -68,6 +68,8 @@ export const ScopeFields: Record<SearchScope, readonly string[]> = {
   [SearchScope.ALL]: ["fileName", "title", "description", "tags", "content"],
 };
 
+type _FlexSearchIndex = FlexSearch.Document<SearchableDocument, string[]>;
+
 /**
  * Full-text search engine backed by FlexSearch.
  *
@@ -80,14 +82,14 @@ export const ScopeFields: Record<SearchScope, readonly string[]> = {
  */
 export class FlexSearchService {
   // Four indexes to support combinations of case sensitivity and whole-word matching
-  private ciForwardIndex: any; // case-insensitive, substring
-  private ciStrictIndex: any; // case-insensitive, whole-word
-  private csForwardIndex: any; // case-sensitive, substring
-  private csStrictIndex: any; // case-sensitive, whole-word
+  private ciForwardIndex: _FlexSearchIndex; // case-insensitive, substring
+  private ciStrictIndex: _FlexSearchIndex; // case-insensitive, whole-word
+  private csForwardIndex: _FlexSearchIndex; // case-sensitive, substring
+  private csStrictIndex: _FlexSearchIndex; // case-sensitive, whole-word
 
   // Fuzzy indexes for fuzzy search
-  private ciFuzzyIndex: any; // case-insensitive, fuzzy
-  private csFuzzyIndex: any; // case-sensitive, fuzzy
+  private ciFuzzyIndex: _FlexSearchIndex; // case-insensitive, fuzzy
+  private csFuzzyIndex: _FlexSearchIndex; // case-sensitive, fuzzy
 
   private indexedFiles: Map<string, SearchableDocument> = new Map();
   private isReady = false;
