@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import {
+  SearchScope,
+  FuzzyOptions,
+} from "@features/search/core/FlexSearchService";
 
 // ---------------------------------------------------------------------------
 // Typed Event Map -----------------------------------------------------------
@@ -7,18 +11,41 @@ import * as vscode from "vscode";
 export interface EventMap {
   // Filesystem
   "filesystem.file.created": { filePath: string; fileName: string };
-  "filesystem.file.deleted": { filePath: string; fileName: string };
   "filesystem.file.changed": { filePath: string; fileName: string };
   "filesystem.directory.created": { dirPath: string; dirName: string };
-  "filesystem.directory.deleted": { dirPath: string; dirName: string };
+  /**
+   * A unified deletion event for both files and directories.
+   * `isDirectory` flag indicates resource type.
+   */
+  "filesystem.resource.deleted": {
+    path: string;
+    name: string;
+  };
+  /** Emitted when a directory is moved or renamed. */
+  "filesystem.directory.changed": {
+    oldPath: string;
+    newPath: string;
+    dirName: string;
+  };
 
   // Search
   "search.criteria.changed": {
     query: string;
-    scope: "titles" | "content" | "both";
+    scope: SearchScope;
     caseSensitive: boolean;
+    fuzzy: FuzzyOptions | undefined;
+    matchWholeWord: boolean;
     isActive: boolean;
   };
+  "search.suggest.requested": {
+    query: string;
+    scope: SearchScope;
+    caseSensitive: boolean;
+    fuzzy: FuzzyOptions | undefined;
+    matchWholeWord: boolean;
+    maxSuggestions?: number;
+  };
+  "search.suggestions.available": { suggestions: any[] };
   "search.results.updated": { resultCount: number; query: string };
   "search.cleared": {};
 

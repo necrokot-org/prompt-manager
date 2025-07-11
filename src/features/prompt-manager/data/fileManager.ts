@@ -1,7 +1,7 @@
 import * as path from "path";
 import { injectable, inject } from "tsyringe";
 
-import { eventBus } from "@infra/vscode/ExtensionBus";
+import { FileSystemEventPublisher as fsEvents } from "@infra/vscode/FileSystemEventPublisher";
 import { log } from "@infra/vscode/log";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 
@@ -179,7 +179,7 @@ export class FileManager {
       await this.fileSystemManager.deleteFile(filePath);
 
       // Publish file deleted event
-      this.publishFileEvent("deleted", filePath);
+      fsEvents.resourceDeleted(filePath);
 
       return true;
     } catch (error) {
@@ -188,12 +188,16 @@ export class FileManager {
     }
   }
 
+  /**
+   * Delete a folder and all its contents
+   */
   public async deleteFolder(folderPath: string): Promise<boolean> {
     try {
-      await this.fileSystemManager.deleteFile(folderPath); // fs-extra.remove() handles both files and directories
+      await this.fileSystemManager.deleteFile(folderPath);
+      log.debug(`Folder deleted: ${folderPath}`);
 
       // Publish folder deleted event
-      this.publishFolderDeleted(folderPath);
+      fsEvents.resourceDeleted(folderPath);
 
       return true;
     } catch (error) {
@@ -215,28 +219,18 @@ export class FileManager {
     const fileName = filePath.split(/[\\/]/).pop() || filePath;
     switch (eventType) {
       case "created":
-        eventBus.emit("filesystem.file.created", { filePath, fileName });
+        fsEvents.fileCreated(filePath);
         break;
       case "deleted":
-        eventBus.emit("filesystem.file.deleted", { filePath, fileName });
+        fsEvents.resourceDeleted(filePath);
         break;
       case "changed":
-        eventBus.emit("filesystem.file.changed", { filePath, fileName });
+        fsEvents.fileChanged(filePath);
         break;
     }
   }
 
   private publishDirectoryCreated(dirPath: string): void {
-    eventBus.emit("filesystem.directory.created", {
-      dirPath,
-      dirName: dirPath.split(/[\\/]/).pop() || dirPath,
-    });
-  }
-
-  private publishFolderDeleted(folderPath: string): void {
-    eventBus.emit("filesystem.directory.deleted", {
-      dirPath: folderPath,
-      dirName: folderPath.split(/[\\/]/).pop() || folderPath,
-    });
+    fsEvents.dirCreated(dirPath);
   }
 }

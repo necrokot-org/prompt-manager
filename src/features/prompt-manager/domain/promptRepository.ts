@@ -10,6 +10,7 @@ import { parsePromptContentSync } from "@root/validation/schemas/prompt";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import * as fs from "fs";
 import { log } from "@infra/vscode/log";
+import { FileSystemEventPublisher as fsEvents } from "@infra/vscode/FileSystemEventPublisher";
 
 /**
  * PromptRepository handles all file system operations, caching, and watching
@@ -70,6 +71,22 @@ export class PromptRepository {
    */
   private handleFileCreated(uri: vscode.Uri): void {
     log.debug("PromptRepository: File created, invalidating index");
+
+    // Determine if the created resource is a file or directory
+    let isDirectory = false;
+    try {
+      isDirectory = fs.lstatSync(uri.fsPath).isDirectory();
+    } catch {
+      // Ignore errors – assume file by default
+    }
+
+    // Emit corresponding event so other subsystems (search, tree view, etc.) can react
+    if (isDirectory) {
+      fsEvents.dirCreated(uri.fsPath);
+    } else {
+      fsEvents.fileCreated(uri.fsPath);
+    }
+
     this.invalidateCache().catch((error) => {
       log.error(
         "PromptRepository: Failed to invalidate cache on file creation",
@@ -83,6 +100,10 @@ export class PromptRepository {
    */
   private handleFileDeleted(uri: vscode.Uri): void {
     log.debug("PromptRepository: File deleted, invalidating index");
+
+    // Emit unified deletion event (resource deleted)
+    fsEvents.resourceDeleted(uri.fsPath);
+
     this.invalidateCache().catch((error) => {
       log.error(
         "PromptRepository: Failed to invalidate cache on file deletion",
@@ -96,6 +117,10 @@ export class PromptRepository {
    */
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
     // File change handling without timestamp updates
+
+    // Emit generic file changed event (content modification). Directories rarely emit change.
+    fsEvents.fileChanged(uri.fsPath);
+
     await this.invalidateCache();
   }
 
@@ -234,7 +259,7 @@ export class PromptRepository {
       exact?: boolean;
     } = {}
   ) {
-    return await this.searchService.searchInTitle(query, options);
+    return await this.searchService.searchInTitles(query, options);
   }
 
   /**

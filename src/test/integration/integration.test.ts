@@ -3,16 +3,15 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { PromptController } from "@features/prompt-manager/domain/promptController";
 import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import {
-  SearchPanelProvider,
-  SearchCriteria,
-} from "@features/search/ui/SearchPanelProvider";
+import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { FileManager } from "@features/prompt-manager/data/fileManager";
 import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { setupDependencyInjection, container } from "@infra/di/di-container";
 
 import { DI_TOKENS } from "@infra/di/di-tokens";
+import { SearchScope } from "@features/search/core/FlexSearchService";
 
 suite("Integration Tests", () => {
   let controller: PromptController;
@@ -99,7 +98,7 @@ suite("Integration Tests", () => {
     eventBus.on("search.criteria.changed", (payload) => {
       eventReceived = true;
       assert.strictEqual(payload.query, "test query");
-      assert.strictEqual(payload.scope, "both");
+      assert.strictEqual(payload.scope, SearchScope.ALL);
       assert.strictEqual(payload.caseSensitive, false);
       assert.strictEqual(payload.isActive, true);
       done();
@@ -108,8 +107,10 @@ suite("Integration Tests", () => {
     // Emit a search event
     eventBus.emit("search.criteria.changed", {
       query: "test query",
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: false,
+      fuzzy: undefined,
+      matchWholeWord: false,
       isActive: true,
     });
 

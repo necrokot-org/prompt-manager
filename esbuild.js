@@ -29,13 +29,17 @@ const pathAliasPlugin = {
             const idx = ["index.ts", "index.tsx", "index.js"].find((f) =>
               fs.existsSync(path.join(abs, f))
             );
-            if (idx) abs = path.join(abs, idx);
+            if (idx) {
+              abs = path.join(abs, idx);
+            }
           }
           // if still no extension, append common ones
           if (!path.extname(abs)) {
             const candidates = [".ts", ".tsx", ".mjs", ".cjs", ".js"];
             const found = candidates.find((ext) => fs.existsSync(abs + ext));
-            if (found) abs = abs + found;
+            if (found) {
+              abs = abs + found;
+            }
           }
           return { path: abs };
         }
@@ -87,5 +91,11 @@ const watchPlugin = {
     logLevel: "silent",
     tsconfig: "tsconfig.json",
   });
-  watch ? await ctx.watch() : (await ctx.rebuild(), await ctx.dispose());
+
+  if (watch) {
+    await ctx.watch();
+  } else {
+    await ctx.rebuild();
+    await ctx.dispose();
+  }
 })();

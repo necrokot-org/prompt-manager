@@ -2,12 +2,19 @@ import { injectable, inject } from "tsyringe";
 import {
   FileManager,
   ContentSearchResult,
+  SearchMatch,
   PromptFile,
 } from "@features/prompt-manager/data/fileManager";
-import { SearchCriteria as PanelSearchCriteria } from "@features/search/ui/SearchPanelProvider";
-import { SearchCriteria } from "@features/search/core/SearchEngine";
-import { FileContent, SearchEngine } from "@features/search/core/SearchEngine";
-import { eventBus } from "@infra/vscode/ExtensionBus";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
+import {
+  FlexSearchService,
+  FuzzyOptions,
+  SearchOptions,
+  SearchScope,
+} from "@features/search/core/FlexSearchService";
+import { SearchSuggestion } from "@features/search/types/SearchSuggestion";
+import { FileContent } from "@utils/parsePrompt";
+import { eventBus, ExtensionSubscription } from "@infra/vscode/ExtensionBus";
 import { log } from "@infra/vscode/log";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 import trim from "lodash-es/trim.js";
@@ -16,26 +23,80 @@ import { searchResultToPromptFile } from "@features/search/utils/promptFile";
 @injectable()
 export class SearchService {
   private fileManager: FileManager;
-  private engine: SearchEngine;
+  private engine: FlexSearchService;
+  private disposables: ExtensionSubscription[] = [];
 
   constructor(@inject(DI_TOKENS.FileManager) fileManager: FileManager) {
     this.fileManager = fileManager;
-    this.engine = new SearchEngine();
+    this.engine = new FlexSearchService();
+
+    // Listen to filesystem changes and update search index automatically
+    const subFileCreated = eventBus.on(
+      "filesystem.file.created",
+      async ({ filePath }) => {
+        await this.handleFileAddOrChange(filePath);
+      }
+    );
+    const subFileChanged = eventBus.on(
+      "filesystem.file.changed",
+      async ({ filePath }) => {
+        await this.handleFileAddOrChange(filePath);
+      }
+    );
+    const subResourceDeleted = eventBus.on(
+      "filesystem.resource.deleted",
+      ({ path }) => {
+        this.engine.removeDocument(path);
+      }
+    );
+
+    this.disposables.push(subFileCreated, subFileChanged, subResourceDeleted);
+  }
+
+  /** Ensure the global index is built once */
+  private async ensureIndexBuilt(): Promise<void> {
+    await this.engine.ensureIndexed(() => this.getFileContentsForSearch());
+  }
+
+  /** Handle single file add/change */
+  private async handleFileAddOrChange(filePath: string): Promise<void> {
+    try {
+      const content = await this.fileManager
+        .getFileSystemManager()
+        .readFile(filePath);
+
+      this.engine.upsertDocument({ path: filePath, content });
+      // Mark initialised so subsequent searches don't trigger full build
+      // engine will mark not ready
+    } catch (error) {
+      log.warn(`Failed to update search index for ${filePath}`, error);
+    }
   }
 
   /**
-   * Centralized search method using fuse.js
+   * Centralized search method using FlexSearch
    */
   async search(criteria: SearchCriteria): Promise<ContentSearchResult[]> {
     if (!criteria.isActive || !trim(criteria.query)) {
       return [];
     }
 
-    // Get file contents for search
-    const files = await this.getFileContentsForSearch();
+    // Make sure index is ready (built once, then kept hot)
+    await this.ensureIndexBuilt();
 
-    // Use the streamlined SearchEngine
-    const results = await this.engine.search(files, criteria);
+    // Convert SearchCriteria to SearchOptions
+    const searchOptions: SearchOptions = {
+      query: criteria.query,
+      limit: 100,
+      exact: criteria.matchWholeWord,
+      caseSensitive: criteria.caseSensitive,
+      fuzzy: criteria.fuzzy,
+      suggest: false,
+      scope: criteria.scope,
+    };
+
+    // Use FlexSearchService
+    const results = this.engine.search(searchOptions);
 
     // Convert SearchResult[] to ContentSearchResult[]
     const contentResults: ContentSearchResult[] = [];
@@ -44,7 +105,7 @@ export class SearchService {
       contentResults.push({
         file,
         score: result.score,
-        matches: result.matches,
+        matches: this.convertMatches(result.matches),
       });
     }
 
@@ -55,46 +116,78 @@ export class SearchService {
   }
 
   /**
+   * Get autocomplete suggestions
+   */
+  async getSuggestions(criteria: SearchCriteria): Promise<SearchSuggestion[]> {
+    if (!trim(criteria.query)) {
+      return [];
+    }
+
+    await this.ensureIndexBuilt();
+
+    // Convert SearchCriteria to SearchOptions for suggestions
+    const searchOptions: SearchOptions = {
+      query: criteria.query,
+      limit: criteria.maxSuggestions || 5,
+      exact: false,
+      caseSensitive: criteria.caseSensitive,
+      fuzzy: criteria.fuzzy ? { ...criteria.fuzzy, suggest: true } : undefined,
+      suggest: true,
+      scope: criteria.scope,
+    };
+
+    const rawResults = this.engine.search(searchOptions);
+
+    // Map to simple objects expected by the webview (suggestion dropdown)
+    const mapped: SearchSuggestion[] = rawResults.map((r) => ({
+      suggestion: r.title || r.fileName,
+      term: r.title || r.fileName,
+    }));
+
+    return mapped;
+  }
+
+  /**
    * Search in prompt content only
    */
   async searchInContent(
     query: string,
     options: {
       caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
+      fuzzy?: FuzzyOptions;
+      matchWholeWord?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
       query,
-      scope: "content",
+      scope: SearchScope.CONTENT,
       caseSensitive: options.caseSensitive || false,
-      exact: options.exact,
-      threshold: options.threshold,
+      fuzzy: options.fuzzy,
       isActive: true,
+      matchWholeWord: options.matchWholeWord ?? false,
     };
 
     return await this.search(searchCriteria);
   }
 
   /**
-   * Search in prompt titles only
+   * Search in titles only
    */
-  async searchInTitle(
+  async searchInTitles(
     query: string,
     options: {
       caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
+      fuzzy?: FuzzyOptions;
+      matchWholeWord?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
       query,
-      scope: "titles",
+      scope: SearchScope.TITLES,
       caseSensitive: options.caseSensitive || false,
-      exact: options.exact,
-      threshold: options.threshold,
+      fuzzy: options.fuzzy,
       isActive: true,
+      matchWholeWord: options.matchWholeWord ?? false,
     };
 
     return await this.search(searchCriteria);
@@ -107,17 +200,17 @@ export class SearchService {
     query: string,
     options: {
       caseSensitive?: boolean;
-      exact?: boolean;
-      threshold?: number;
+      fuzzy?: FuzzyOptions;
+      matchWholeWord?: boolean;
     } = {}
   ): Promise<ContentSearchResult[]> {
     const searchCriteria: SearchCriteria = {
       query,
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: options.caseSensitive || false,
-      exact: options.exact,
-      threshold: options.threshold,
+      fuzzy: options.fuzzy,
       isActive: true,
+      matchWholeWord: options.matchWholeWord ?? false,
     };
 
     return await this.search(searchCriteria);
@@ -147,30 +240,24 @@ export class SearchService {
   }
 
   /**
-   * Count total matches for search criteria
-   */
-  async countMatches(criteria: SearchCriteria): Promise<number> {
-    if (!criteria.isActive || !trim(criteria.query)) {
-      return 0;
-    }
-
-    const files = await this.getFileContentsForSearch();
-    return await this.engine.count(files, criteria);
-  }
-
-  /**
    * Clear search caches
    */
   clearCache(): void {
     this.engine.clearCache();
+    // engine will mark not ready
+  }
+
+  /** Dispose event subscriptions when service is no longer needed */
+  dispose(): void {
+    this.disposables.forEach((d) => d.unsubscribe());
+    this.disposables = [];
   }
 
   /**
    * Get available search scopes
-   * #TODO:UI must rely on this to show the correct scopes
    */
   getAvailableScopes(): Array<SearchCriteria["scope"]> {
-    return this.engine.getAvailableScopes();
+    return [SearchScope.TITLES, SearchScope.CONTENT, SearchScope.ALL];
   }
 
   async publishResultsUpdated(
@@ -181,6 +268,42 @@ export class SearchService {
   }
 
   // Private helper methods
+
+  private convertMatches(matches: Record<string, string[]>): SearchMatch[] {
+    const searchMatches: SearchMatch[] = [];
+
+    for (const [field, terms] of Object.entries(matches)) {
+      for (const term of terms) {
+        // Map FlexSearch field names to SearchMatch types
+        let matchType: SearchMatch["type"];
+        switch (field) {
+          case "title":
+          case "fileName":
+            matchType = "title";
+            break;
+          case "description":
+            matchType = "description";
+            break;
+          case "tags":
+            matchType = "tags";
+            break;
+          case "content":
+          default:
+            matchType = "content";
+            break;
+        }
+
+        searchMatches.push({
+          type: matchType,
+          position: 0, // FlexSearch doesn't provide exact positions
+          length: term.length,
+          context: term,
+        });
+      }
+    }
+
+    return searchMatches;
+  }
 
   private async getFileContentsForSearch(): Promise<FileContent[]> {
     const structure = await this.fileManager.scanPrompts();

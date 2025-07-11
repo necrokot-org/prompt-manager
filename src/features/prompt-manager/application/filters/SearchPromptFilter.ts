@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import { PromptFile } from "@root/scanner/types";
 import { PromptFilter } from "./PromptFilter";
 import { SearchService } from "@features/search/services/searchService";
-import { SearchCriteria } from "@features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { eventBus } from "@infra/vscode/ExtensionBus";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 
@@ -21,9 +21,10 @@ export class SearchPromptFilter implements PromptFilter {
     // Listen to search criteria changes
     this.subscriptions.push(
       eventBus.on("search.criteria.changed", (payload) => {
-        const { query, scope, caseSensitive, isActive } = payload;
+        const { query, scope, caseSensitive, fuzzy, matchWholeWord, isActive } =
+          payload;
         this.criteria = isActive
-          ? { query, scope, caseSensitive, isActive }
+          ? { query, scope, caseSensitive, fuzzy, matchWholeWord, isActive }
           : null;
       })
     );

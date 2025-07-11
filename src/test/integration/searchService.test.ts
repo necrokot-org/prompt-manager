@@ -5,10 +5,11 @@ import * as path from "path";
 import * as os from "os";
 import { FileManager } from "../../features/prompt-manager/data/fileManager";
 import { SearchService } from "../../features/search/services/searchService";
-import { SearchCriteria } from "../../features/search/ui/SearchPanelProvider";
+import { SearchCriteria } from "@features/search/types/SearchCriteria";
 import { FileSystemManager } from "../../infrastructure/fs/FileSystemManager";
 import { ConfigurationService } from "../../infrastructure/config/config";
 import { setupMockWorkspace, MockWorkspaceSetup } from "./helpers";
+import { SearchScope } from "@features/search/core/FlexSearchService";
 
 suite("SearchService Tests", () => {
   let fileManager: FileManager;
@@ -124,8 +125,8 @@ suite("SearchService Tests", () => {
   });
 
   test("SearchService - Title Search", async () => {
-    const results = await searchService.searchInTitle("Test Prompt", {
-      exact: true,
+    const results = await searchService.searchInTitles("Test Prompt", {
+      caseSensitive: false,
     });
 
     assert.strictEqual(results.length, 1);
@@ -149,8 +150,9 @@ suite("SearchService Tests", () => {
   test("SearchService - Unified Search Interface", async () => {
     const criteria: SearchCriteria = {
       query: "JavaScript",
-      scope: "content",
+      scope: SearchScope.CONTENT,
       caseSensitive: false,
+      
       isActive: true,
     };
 
@@ -180,13 +182,14 @@ suite("SearchService Tests", () => {
   test("SearchService - Match Count", async () => {
     const criteria: SearchCriteria = {
       query: "prompt",
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: false,
+      
       isActive: true,
     };
 
-    const count = await searchService.countMatches(criteria);
-    assert.ok(count > 0);
+    const results = await searchService.search(criteria);
+    assert.ok(results.length > 0);
   });
 
   test("SearchService - Matches Prompt", async () => {
@@ -198,8 +201,9 @@ suite("SearchService Tests", () => {
 
     const criteria: SearchCriteria = {
       query: "JavaScript",
-      scope: "content",
+      scope: SearchScope.CONTENT,
       caseSensitive: false,
+      
       isActive: true,
     };
 
@@ -217,16 +221,17 @@ suite("SearchService Tests", () => {
 
   test("SearchService - Available Scopes", async () => {
     const scopes = searchService.getAvailableScopes();
-    assert.ok(scopes.includes("titles"));
-    assert.ok(scopes.includes("content"));
-    assert.ok(scopes.includes("both"));
+    assert.ok(scopes.includes(SearchScope.TITLES));
+    assert.ok(scopes.includes(SearchScope.CONTENT));
+    assert.ok(scopes.includes(SearchScope.ALL));
   });
 
   test("SearchService - Empty Query", async () => {
     const criteria: SearchCriteria = {
       query: "",
-      scope: "both",
+      scope: SearchScope.ALL,
       caseSensitive: false,
+      
       isActive: false,
     };
 
