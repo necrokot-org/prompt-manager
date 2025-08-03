@@ -12,3 +12,9 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+.prompt_manager/**
+.nyc_output/**
+coverage/**
+__test-workspace__/**
+.nycrc.json
+.github/**

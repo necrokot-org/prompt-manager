@@ -3,6 +3,10 @@
   "displayName": "Prompt Manager",
   "description": "A VSCode extension to manage prompts for LLMs with tree view organization and file management",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/necrokot-org/prompt-manager"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
