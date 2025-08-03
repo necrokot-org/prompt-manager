@@ -2,6 +2,12 @@
 
 All notable changes to the "prompt-manager" extension will be documented in this file.
 
+## [1.0.1] - 2025-01-05
+
+### Fixed
+
+- Fix README formatting
+
 ## [1.0.0] - 2024-12-31
 
 Initial release of Prompt Manager - a VS Code extension for managing AI prompts with tree view organization and powerful search capabilities.
