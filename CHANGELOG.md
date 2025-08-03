@@ -2,65 +2,39 @@
 
 All notable changes to the "prompt-manager" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## [1.0.0] - 2024-12-31
 
-## [Unreleased]
+Initial release of Prompt Manager - a VS Code extension for managing AI prompts with tree view organization and powerful search capabilities.
 
-### Added
+### Features
 
-- **BREAKING**: FlexSearch engine replacing MiniSearch for improved performance and native Boolean operators
-- Native Boolean query support with +, -, |, AND, OR, NOT operators
-- Native case-sensitive search support without post-processing
-- Native autocomplete suggestions with configurable limits
-- Simplified search API with unified SearchOptions interface
+- **Tree View Library** - Organize prompts in folders mirroring your disk structure
+- **YAML Front-matter Support** - Parse `title`, `description`, `tags` and custom fields
+- **Tag-based Filtering** - Click tags to filter prompts
+- **Advanced Search Engine** - Powered by FlexSearch with real-time results
+  - Boolean operators: space/AND, |/OR, -/NOT
+  - Exact phrase matching with quotes
+  - Case-sensitive and whole-word toggles
+  - Fuzzy search with typo tolerance
+  - Scope filtering: Titles, Content, or All
+- **Clipboard Integration** - Copy prompt content with or without metadata
+- **Safe File Operations** - Create, rename, move, delete with confirmation dialogs
+- **Multi-editor Support** - Automatically adapts to VS Code, Cursor, Windsurf
+- **Offline-first** - All data stays local, no external requests
+- **Configurable** - Customize directory name, file naming patterns, tree display
 
-### Deprecated
+### Commands
 
-- MiniSearch engine (replaced by FlexSearch)
-- Legacy SearchCriteria scope-based field filtering (replaced by fields array)
+- Initialize workspace with `.prompt_manager/` directory
+- Create prompts and folders via tree view or commands
+- Search with real-time filtering and suggestions
+- Copy prompt content to clipboard
+- Rename and organize prompts with drag & drop
+- Tag management and filtering
 
-### Changed
+### Configuration
 
-- **BREAKING**: Migrated from MiniSearch to FlexSearch for better performance and simpler codebase
-- **BREAKING**: Search API now uses SearchOptions interface instead of SearchCriteria + files parameters
-- **BREAKING**: Removed complex scope-based searching in favor of explicit fields array
-- **BREAKING**: Autocomplete now returns SearchResult[] instead of Suggestion[]
-- Search indexing now requires explicit index() call before searching
-- Improved Boolean query parsing with native FlexSearch operators
-- Reduced search engine complexity by removing manual post-processing filters
-
-### Removed
-
-- MiniSearch dependency (replaced by FlexSearch)
-- Manual case-sensitive post-filtering logic
-- Manual whole-word boundary filtering logic
-- Complex multi-index strategy for scope/case combinations
-- Legacy SearchCriteria scope enum (titles, content, both)
-
-### Fixed
-
-- Search debouncing now guarantees ≤50ms for suggestion requests
-
-### Technical
-
-- Migrated from MiniSearch to FlexSearch for native Boolean operators and simplified codebase
-- Extracted shared parsePrompt utility from search engine to src/utils/parsePrompt.ts
-- Replaced MiniSearchEngine with FlexSearchService using simplified two-index strategy
-- Updated SearchService to use new FlexSearch API with explicit indexing
-- Removed complex scope-to-field mapping and manual post-processing filters
-- Updated search result utilities to use new SearchResult interface
-
-- Boolean search transformed from Lucene syntax → Fuse extended search
-- New 'Strict' mode checkbox: treats query as raw substring, turning off all operators and fuzziness
-
-- Add dedicated Tags tree with inline clear-filter button and improved active-tag highlight
-
-### Changed
-
-- Environment-aware "Ask AI" button visibility - now only shown in VS Code environment where Chat panel API is available
-
-### Technical
-
-- Updated package.json menu contribution for `promptManager.askAiWithPrompt` with environment-specific `when` clause
-
-- Initial release
+- `promptManager.defaultPromptDirectory` - Default directory name (default: `.prompt_manager`)
+- `promptManager.fileNamingPattern` - File naming convention (kebab-case, snake_case, original)
+- `promptManager.showDescriptionInTree` - Show descriptions in tree view
+- `promptManager.debugLogging` - Enable debug logging
