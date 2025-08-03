@@ -33,16 +33,16 @@ Prompt files live in a normal folder inside your workspace (`.prompt_manager/` b
 
 ## ✨ Main Features
 
-• **Tree-view library** – folders & files mirror your on-disk structure
-• **YAML front-matter parsing** – `title`, `description`, `tags` & any custom fields
-• **Tag filtering** – click to narrow the tree
-• **Blazing-fast search** – real-time results powered by FlexSearch
-• case-sensitive, whole-word & fuzzy toggles
-• scope selector: _Titles • Content • All_
-• **Clipboard helpers** – copy prompt body with or without metadata
-• **Safe CRUD** – create, rename, move & delete with confirmation dialogs
-• **Offline-first** – zero external requests; prompts stay on your disk
-• **Editor-aware** – automatically adapts to VS Code, Cursor, Windsurf, etc.
+- **Tree-view library** – folders & files mirror your on-disk structure
+- **YAML front-matter parsing** – `title`, `description`, `tags` & any custom fields
+- **Tag filtering** – click to narrow the tree
+- **Blazing-fast search** – real-time results powered by FlexSearch
+  - case-sensitive, whole-word & fuzzy toggles
+  - scope selector: _Titles • Content • All_
+- **Clipboard helpers** – copy prompt body with or without metadata
+- **Safe CRUD** – create, rename, move & delete with confirmation dialogs
+- **Offline-first** – zero external requests; prompts stay on your disk
+- **Editor-aware** – automatically adapts to VS Code, Cursor, Windsurf, etc.
 
 ---
 
