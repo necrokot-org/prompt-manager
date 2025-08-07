@@ -2,6 +2,7 @@ import { injectable, inject } from "tsyringe";
 import { PromptFile } from "@root/scanner/types";
 import { PromptFilter } from "./PromptFilter";
 import { TagService } from "../services/TagService";
+import { Tag } from "@features/prompt-manager/domain/Tag";
 import { DI_TOKENS } from "@infra/di/di-tokens";
 
 /**
@@ -24,7 +25,15 @@ export class TagPromptFilter implements PromptFilter {
 
     // Filter files that have the active tag
     return files.filter(
-      (prompt) => prompt.tags && prompt.tags.includes(activeTag.value)
+      (prompt) =>
+        prompt.tags &&
+        prompt.tags.some((tagValue) => {
+          try {
+            return Tag.from(tagValue).equals(activeTag);
+          } catch {
+            return false;
+          }
+        })
     );
   }
 
