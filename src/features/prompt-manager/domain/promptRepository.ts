@@ -69,7 +69,7 @@ export class PromptRepository {
   /**
    * Handle file creation events
    */
-  private handleFileCreated(uri: vscode.Uri): void {
+  private async handleFileCreated(uri: vscode.Uri): Promise<void> {
     log.debug("PromptRepository: File created, invalidating index");
 
     // Determine if the created resource is a file or directory
@@ -80,36 +80,42 @@ export class PromptRepository {
       // Ignore errors – assume file by default
     }
 
-    // Emit corresponding event so other subsystems (search, tree view, etc.) can react
-    if (isDirectory) {
-      fsEvents.dirCreated(uri.fsPath);
-    } else {
-      fsEvents.fileCreated(uri.fsPath);
-    }
+    try {
+      // First invalidate cache to ensure fresh data is available
+      await this.invalidateCache();
 
-    this.invalidateCache().catch((error) => {
+      // Then emit corresponding event so other subsystems get fresh data
+      if (isDirectory) {
+        fsEvents.dirCreated(uri.fsPath);
+      } else {
+        fsEvents.fileCreated(uri.fsPath);
+      }
+    } catch (error) {
       log.error(
         "PromptRepository: Failed to invalidate cache on file creation",
         error
       );
-    });
+    }
   }
 
   /**
    * Handle file deletion events
    */
-  private handleFileDeleted(uri: vscode.Uri): void {
+  private async handleFileDeleted(uri: vscode.Uri): Promise<void> {
     log.debug("PromptRepository: File deleted, invalidating index");
 
-    // Emit unified deletion event (resource deleted)
-    fsEvents.resourceDeleted(uri.fsPath);
+    try {
+      // First invalidate cache to ensure fresh data is available
+      await this.invalidateCache();
 
-    this.invalidateCache().catch((error) => {
+      // Then emit unified deletion event so other subsystems get fresh data
+      fsEvents.resourceDeleted(uri.fsPath);
+    } catch (error) {
       log.error(
         "PromptRepository: Failed to invalidate cache on file deletion",
         error
       );
-    });
+    }
   }
 
   /**
@@ -118,10 +124,11 @@ export class PromptRepository {
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
     // File change handling without timestamp updates
 
-    // Emit generic file changed event (content modification). Directories rarely emit change.
-    fsEvents.fileChanged(uri.fsPath);
-
+    // First invalidate cache to ensure fresh data is available
     await this.invalidateCache();
+
+    // Then emit the file changed event so listeners get fresh data
+    fsEvents.fileChanged(uri.fsPath);
   }
 
   /**

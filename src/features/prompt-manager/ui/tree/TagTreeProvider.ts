@@ -39,10 +39,35 @@ export class TagTreeProvider
   ) {
     this.tagItemFactory = new TagItemFactory();
 
-    // Listen to tag tree refresh events
+    // Listen to tag-specific operations (select, clear, rename, delete)
     this.subscriptions.push(
       eventBus.on("ui.tree.tags.refresh", (payload) => {
-        log.debug("TagTreeProvider: Refreshing due to event", payload);
+        log.debug("TagTreeProvider: Refreshing due to tag operation", payload);
+        this.refresh();
+      })
+    );
+
+    // Listen to filesystem events since tags come from file content
+    this.subscriptions.push(
+      eventBus.on("filesystem.file.created", (payload) => {
+        log.debug("TagTreeProvider: File created, refreshing tags", payload);
+        this.refresh();
+      })
+    );
+
+    this.subscriptions.push(
+      eventBus.on("filesystem.file.changed", (payload) => {
+        log.debug("TagTreeProvider: File changed, refreshing tags", payload);
+        this.refresh();
+      })
+    );
+
+    this.subscriptions.push(
+      eventBus.on("filesystem.resource.deleted", (payload) => {
+        log.debug(
+          "TagTreeProvider: Resource deleted, refreshing tags",
+          payload
+        );
         this.refresh();
       })
     );
@@ -124,7 +149,10 @@ export class TagTreeProvider
       for (const tag of tags) {
         let count = 0;
         for (const prompt of allPrompts) {
-          if (prompt.tags && prompt.tags.includes(tag.value)) {
+          if (
+            prompt.tags &&
+            prompt.tags.some((tagValue) => Tag.from(tagValue).equals(tag))
+          ) {
             count++;
           }
         }
