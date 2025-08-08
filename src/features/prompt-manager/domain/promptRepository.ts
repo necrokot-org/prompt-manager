@@ -165,8 +165,14 @@ export class PromptRepository {
   /**
    * Create a new folder
    */
-  public async createFolder(folderName: string): Promise<string | null> {
-    const folderPath = await this.fileManager.createFolder(folderName);
+  public async createFolder(
+    folderName: string,
+    parentFolderPath?: string
+  ): Promise<string | null> {
+    const folderPath = await this.fileManager.createFolder(
+      folderName,
+      parentFolderPath
+    );
     if (folderPath) {
       await this.invalidateCache();
     }

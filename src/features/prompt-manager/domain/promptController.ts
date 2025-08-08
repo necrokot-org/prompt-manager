@@ -207,7 +207,10 @@ export class PromptController {
       return;
     }
 
-    const newFolderPath = await this.repository.createFolder(folderName);
+    const newFolderPath = await this.repository.createFolder(
+      folderName,
+      folderPath
+    );
     if (newFolderPath) {
       vscode.window.showInformationMessage(`Created folder "${folderName}"`);
     }
