@@ -18,13 +18,18 @@ export { z } from "zod";
 // Re-export types
 export type { ExtensionConfig } from "./schemas/config.js";
 export type { PromptContent, FrontMatter } from "./schemas/prompt.js";
+export type { FileNameOptions } from "./schemas/fileName.js";
 
 // Export markdown utilities
 export * from "./markdown.js";
 
 // Import schemas for validation functions
 import { ExtensionConfigSchema } from "./schemas/config.js";
-import { FileNameSchema, createFileNameSchema } from "./schemas/fileName.js";
+import {
+  FileNameSchema,
+  createFileNameSchema,
+  type FileNameOptions,
+} from "./schemas/fileName.js";
 import {
   SearchQuerySchema,
   createSearchQuerySchema,
@@ -121,8 +126,11 @@ export function sanitizeConfig(config: unknown): any {
   return result.success ? result.data : config;
 }
 
-export function sanitizeFileName(fileName: string): string {
-  const result = validateFileName(fileName);
+export function sanitizeFileName(
+  fileName: string,
+  options?: FileNameOptions
+): string {
+  const result = validateFileName(fileName, options);
   return result.success ? result.data : fileName;
 }
 

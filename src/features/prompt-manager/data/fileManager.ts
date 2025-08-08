@@ -110,8 +110,10 @@ export class FileManager {
 
     await this.ensurePromptManagerDirectory();
 
-    // Sanitize filename
-    const sanitizedName = sanitizeFileName(fileName);
+    // Sanitize filename while preserving spaces and original formatting
+    const sanitizedName = sanitizeFileName(fileName, {
+      namingPattern: "original",
+    });
     const fullFileName = `${sanitizedName}.md`;
 
     const targetDir = folderPath || promptPath;

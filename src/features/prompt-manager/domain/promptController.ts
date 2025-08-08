@@ -298,8 +298,9 @@ export class PromptController {
       prompt: "Enter the name for your new prompt",
       placeHolder: "e.g., Code Review Helper",
       validateInput: (value: string) => {
+        // Validate without requiring extension - createPromptFile will handle adding .md
         const result = validateFileName(value, {
-          requiredExtension: ".md",
+          namingPattern: "original", // Preserve user input as-is for title
         });
 
         if (!result.success) {
@@ -311,13 +312,8 @@ export class PromptController {
       },
     });
 
-    if (fileName) {
-      // Sanitize the file name before returning
-      const sanitized = sanitizeFileName(fileName + ".md");
-      return sanitized.replace(/\.md$/, ""); // Remove extension for display
-    }
-
-    return undefined;
+    // Return the original input as-is - createPromptFile will handle filename normalization and .md extension
+    return fileName;
   }
 
   /**
