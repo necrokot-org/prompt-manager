@@ -147,7 +147,10 @@ export class FileManager {
     }
   }
 
-  public async createFolder(folderName: string): Promise<string | null> {
+  public async createFolder(
+    folderName: string,
+    parentFolderPath?: string
+  ): Promise<string | null> {
     const promptPath = this.fileSystemManager.getPromptManagerPath();
     if (!promptPath) {
       return null;
@@ -156,7 +159,8 @@ export class FileManager {
     await this.ensurePromptManagerDirectory();
 
     const sanitizedName = sanitizeFileName(folderName);
-    const folderPath = path.join(promptPath, sanitizedName);
+    const targetDir = parentFolderPath || promptPath;
+    const folderPath = path.join(targetDir, sanitizedName);
 
     if (this.fileSystemManager.fileExists(folderPath)) {
       log.warn(`Folder "${sanitizedName}" already exists.`);
