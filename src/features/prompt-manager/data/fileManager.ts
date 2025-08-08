@@ -127,7 +127,7 @@ export class FileManager {
 
     // Build prompt content using unified schema utilities
     const promptContent: PromptContent = {
-      content: `# ${fileName}\n\nWrite your prompt here...`,
+      content: `Write your prompt here...`,
       title: fileName,
       description: "",
       tags: [],
