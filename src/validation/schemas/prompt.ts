@@ -222,14 +222,15 @@ export function serializePromptContent(prompt: PromptContent): string {
   if (prompt.title) {
     data.title = prompt.title;
   }
-  if (prompt.description) {
+
+  if (prompt.description !== undefined) {
     data.description = prompt.description;
   }
-  if (prompt.tags && prompt.tags.length > 0) {
+
+  if (prompt.tags !== undefined) {
     data.tags = prompt.tags;
   }
 
-  // Add any additional front matter fields
   if (prompt.frontMatter) {
     Object.entries(prompt.frontMatter).forEach(([key, value]) => {
       if (!FRONT_MATTER_FIELDS.includes(key as any)) {
