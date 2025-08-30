@@ -460,8 +460,14 @@ suite("PromptTreeProvider", () => {
         .resolves({ hasConflict: false });
       mockFileSystemManager.moveFile = sinon.stub().resolves();
 
-      // Mock the refresh method on promptTreeProvider
-      const refreshStub = sinon.stub(promptTreeProvider, "refresh");
+      // Mock the fileManager.rebuildIndexForce method
+      const rebuildIndexStub = sinon.stub().resolves();
+      mockPromptController.getRepository = () => ({
+        getFileManager: () => ({
+          getPromptManagerPath: () => "/test/path",
+          rebuildIndexForce: rebuildIndexStub,
+        }),
+      });
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
@@ -509,12 +515,12 @@ suite("PromptTreeProvider", () => {
         "Should preserve filename"
       );
 
-      // Verify success message and refresh
+      // Verify success message and rebuild index
       assert.ok(
         showInformationMessageStub.calledOnce,
         "Should show success message"
       );
-      assert.ok(refreshStub.calledOnce, "Should refresh tree");
+      assert.ok(rebuildIndexStub.calledOnce, "Should rebuild index");
     });
   });
 
@@ -552,12 +558,12 @@ suite("PromptTreeProvider", () => {
       });
 
       // Mock the fileManager methods
-      const mockFileManager = {
-        rebuildIndexForce: sinon.stub().resolves(),
-      };
+      const rebuildIndexStub = sinon.stub().resolves();
 
-      mockPromptController.getRepository = sinon.stub().returns({
-        getFileManager: () => mockFileManager,
+      mockPromptController.getRepository = () => ({
+        getFileManager: () => ({
+          rebuildIndexForce: rebuildIndexStub,
+        }),
       });
 
       // Mock successful folder move
@@ -565,9 +571,6 @@ suite("PromptTreeProvider", () => {
       mockFileSystemManager.checkMoveConflict = sinon
         .stub()
         .resolves({ hasConflict: false });
-
-      // Mock the refresh method
-      const refreshStub = sinon.stub(promptTreeProvider, "refresh");
 
       const dataTransfer = new vscode.DataTransfer();
       dataTransfer.set(
@@ -596,9 +599,7 @@ suite("PromptTreeProvider", () => {
         showInformationMessageStub.calledOnce,
         "Should show success message"
       );
-
-      // Note: The setTimeout-based rebuildIndexForce is tested at integration level
-      // as it requires complex timing control that's difficult to test in unit tests
+      assert.ok(rebuildIndexStub.calledOnce, "Should rebuild index");
     });
 
     test("should handle folder move failure gracefully", async () => {
