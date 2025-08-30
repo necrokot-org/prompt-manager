@@ -204,8 +204,8 @@ Happy prompting!
 
       log.debug(`File moved from ${sourcePath} to ${targetPath}`);
 
-      // Fire event so listeners (e.g., search cache, tree view) can react
-      fsEvents.fileChanged(targetPath);
+      fsEvents.resourceDeleted(sourcePath);
+      fsEvents.fileCreated(targetPath);
     } catch (error) {
       log.error(
         `Failed to move file from ${sourcePath} to ${targetPath}:`,
