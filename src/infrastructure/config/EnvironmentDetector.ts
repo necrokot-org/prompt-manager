@@ -7,7 +7,7 @@ import { injectable } from "tsyringe";
 export enum Environment {
   VSCode = "vscode",
   Cursor = "cursor",
-  Windserf = "windserf",
+  Windsurf = "windsurf",
   Unknown = "unknown",
 }
 
@@ -70,11 +70,11 @@ export class EnvironmentDetector {
   }
 
   /**
-   * Check if running in Windserf
-   * @returns true if the current environment is Windserf
+   * Check if running in Windsurf
+   * @returns true if the current environment is Windsurf
    */
-  isWindserf(): boolean {
-    return this.getEnvironment() === Environment.Windserf;
+  isWindsurf(): boolean {
+    return this.getEnvironment() === Environment.Windsurf;
   }
 
   /**
@@ -112,8 +112,8 @@ export class EnvironmentDetector {
       if (/(^|\W)cursor($|\W)/.test(hostLower)) {
         return Environment.Cursor;
       }
-      if (/(^|\W)windserf($|\W)/.test(hostLower)) {
-        return Environment.Windserf;
+      if (/(^|\W)windsurf($|\W)/.test(hostLower)) {
+        return Environment.Windsurf;
       }
       if (/(^|\W)(vscode|visual\s*studio\s*code)($|\W)/.test(hostLower)) {
         return Environment.VSCode;
@@ -126,8 +126,8 @@ export class EnvironmentDetector {
       if (/(^|\W)cursor($|\W)/.test(nameLower)) {
         return Environment.Cursor;
       }
-      if (/(^|\W)windserf($|\W)/.test(nameLower)) {
-        return Environment.Windserf;
+      if (/(^|\W)windsurf($|\W)/.test(nameLower)) {
+        return Environment.Windsurf;
       }
       if (/(^|\W)(vscode|visual\s*studio\s*code)($|\W)/.test(nameLower)) {
         return Environment.VSCode;

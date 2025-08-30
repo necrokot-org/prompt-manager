@@ -109,7 +109,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.VSCode,
         isVSCode: () => true,
         isCursor: () => false,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 
@@ -140,7 +140,7 @@ suite("Environment Context Keys", () => {
       expect(
         vscodeStubs.executeCommand.calledWith(
           "setContext",
-          "promptManager.isWindserf",
+          "promptManager.isWindsurf",
           false
         )
       ).to.be.true;
@@ -159,7 +159,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.VSCode,
         isVSCode: () => true,
         isCursor: () => false,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 
@@ -190,7 +190,7 @@ suite("Environment Context Keys", () => {
       const expectedKeys = [
         "promptManager.isVSCode",
         "promptManager.isCursor",
-        "promptManager.isWindserf",
+        "promptManager.isWindsurf",
         "promptManager.isUnknown",
       ];
 
@@ -214,7 +214,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.Cursor,
         isVSCode: () => false,
         isCursor: () => true,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 
@@ -228,8 +228,8 @@ suite("Environment Context Keys", () => {
     });
   });
 
-  test("Windserf environment detection", async () => {
-    test("should set correct context keys for Windserf environment", async () => {
+  test("Windsurf environment detection", async () => {
+    test("should set correct context keys for Windsurf environment", async () => {
       // Clear container first to ensure clean state
       container.clearInstances();
 
@@ -245,7 +245,7 @@ suite("Environment Context Keys", () => {
       const expectedKeys = [
         "promptManager.isVSCode",
         "promptManager.isCursor",
-        "promptManager.isWindserf",
+        "promptManager.isWindsurf",
         "promptManager.isUnknown",
       ];
 
@@ -264,12 +264,12 @@ suite("Environment Context Keys", () => {
       });
     });
 
-    test("should not show warning message for Windserf environment", async () => {
+    test("should not show warning message for Windsurf environment", async () => {
       const fakeDetector = {
-        getEnvironment: () => Environment.Windserf,
+        getEnvironment: () => Environment.Windsurf,
         isVSCode: () => false,
         isCursor: () => false,
-        isWindserf: () => true,
+        isWindsurf: () => true,
         isUnknown: () => false,
       };
 
@@ -300,7 +300,7 @@ suite("Environment Context Keys", () => {
       const expectedKeys = [
         "promptManager.isVSCode",
         "promptManager.isCursor",
-        "promptManager.isWindserf",
+        "promptManager.isWindsurf",
         "promptManager.isUnknown",
       ];
 
@@ -344,7 +344,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.VSCode,
         isVSCode: () => true,
         isCursor: () => false,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 
@@ -373,7 +373,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.Cursor,
         isVSCode: () => false,
         isCursor: () => true,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 
@@ -394,7 +394,7 @@ suite("Environment Context Keys", () => {
       const expectedKeys = [
         "promptManager.isVSCode",
         "promptManager.isCursor",
-        "promptManager.isWindserf",
+        "promptManager.isWindsurf",
         "promptManager.isUnknown",
       ];
 
@@ -428,7 +428,7 @@ suite("Environment Context Keys", () => {
         isCursor: () => {
           throw new Error("Detector error");
         },
-        isWindserf: () => {
+        isWindsurf: () => {
           throw new Error("Detector error");
         },
         isUnknown: () => {
@@ -459,7 +459,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.Cursor,
         isVSCode: () => false,
         isCursor: () => true,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 
@@ -495,7 +495,7 @@ suite("Environment Context Keys", () => {
       const environmentKeys = [
         "promptManager.isVSCode",
         "promptManager.isCursor",
-        "promptManager.isWindserf",
+        "promptManager.isWindsurf",
         "promptManager.isUnknown",
       ];
 
@@ -549,7 +549,7 @@ suite("Environment Context Keys", () => {
         getEnvironment: () => Environment.VSCode,
         isVSCode: () => true,
         isCursor: () => false,
-        isWindserf: () => false,
+        isWindsurf: () => false,
         isUnknown: () => false,
       };
 

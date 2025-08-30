@@ -21,7 +21,7 @@ suite("EnvironmentDetector Test Suite", () => {
       assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
       assert.strictEqual(detector.isVSCode(), true);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
     });
 
     test("should detect VS Code when appName is 'Visual Studio Code'", () => {
@@ -31,7 +31,7 @@ suite("EnvironmentDetector Test Suite", () => {
       assert.strictEqual(detector.getEnvironment(), Environment.VSCode);
       assert.strictEqual(detector.isVSCode(), true);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
       assert.strictEqual(detector.isUnknown(), false);
     });
   });
@@ -44,7 +44,7 @@ suite("EnvironmentDetector Test Suite", () => {
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), true);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
     });
 
     test("should detect Cursor when appName contains 'cursor' in mixed case", () => {
@@ -64,34 +64,34 @@ suite("EnvironmentDetector Test Suite", () => {
     });
   });
 
-  suite("Windserf Environment Detection", () => {
-    test("should detect Windserf when appName contains 'windserf'", () => {
-      const mockEnv: VSCodeEnv = { appName: "Windserf" };
+  suite("Windsurf Environment Detection", () => {
+    test("should detect Windsurf when appName contains 'windsurf'", () => {
+      const mockEnv: VSCodeEnv = { appName: "Windsurf" };
       detector = new EnvironmentDetector(mockEnv);
 
-      assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
+      assert.strictEqual(detector.getEnvironment(), Environment.Windsurf);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), true);
+      assert.strictEqual(detector.isWindsurf(), true);
     });
 
-    test("should detect Windserf when appName contains 'windserf' in mixed case", () => {
-      const mockEnv: VSCodeEnv = { appName: "WINDSERF Editor" };
+    test("should detect Windsurf when appName contains 'windsurf' in mixed case", () => {
+      const mockEnv: VSCodeEnv = { appName: "WINDsurf Editor" };
       detector = new EnvironmentDetector(mockEnv);
 
-      assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
-      assert.strictEqual(detector.isWindserf(), true);
+      assert.strictEqual(detector.getEnvironment(), Environment.Windsurf);
+      assert.strictEqual(detector.isWindsurf(), true);
     });
 
-    test("should detect Windserf when appHost contains 'windserf'", () => {
+    test("should detect Windsurf when appHost contains 'windsurf'", () => {
       const mockEnv: VSCodeEnv = {
         appName: "Unknown",
-        appHost: "windserf-app",
+        appHost: "windsurf-app",
       };
       detector = new EnvironmentDetector(mockEnv);
 
-      assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
-      assert.strictEqual(detector.isWindserf(), true);
+      assert.strictEqual(detector.getEnvironment(), Environment.Windsurf);
+      assert.strictEqual(detector.isWindsurf(), true);
     });
   });
 
@@ -104,7 +104,7 @@ suite("EnvironmentDetector Test Suite", () => {
       assert.strictEqual(detector.isUnknown(), true);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
     });
 
     test("should return Unknown when both appName and appHost are undefined", () => {
@@ -126,12 +126,12 @@ suite("EnvironmentDetector Test Suite", () => {
     test("should prioritize appHost over appName when both are present", () => {
       const mockEnv: VSCodeEnv = {
         appName: "cursor",
-        appHost: "windserf-host",
+        appHost: "windsurf-host",
       };
       detector = new EnvironmentDetector(mockEnv);
 
-      assert.strictEqual(detector.getEnvironment(), Environment.Windserf);
-      assert.strictEqual(detector.isWindserf(), true);
+      assert.strictEqual(detector.getEnvironment(), Environment.Windsurf);
+      assert.strictEqual(detector.isWindsurf(), true);
     });
 
     test("should cache the detection result", () => {
@@ -149,8 +149,8 @@ suite("EnvironmentDetector Test Suite", () => {
   });
 
   suite("Word Boundary Detection", () => {
-    test("should detect Cursor over Windserf when both are present", () => {
-      const mockEnv: VSCodeEnv = { appName: "cursor windserf" };
+    test("should detect Cursor over Windsurf when both are present", () => {
+      const mockEnv: VSCodeEnv = { appName: "cursor windsurf" };
       detector = new EnvironmentDetector(mockEnv);
 
       assert.strictEqual(detector.getEnvironment(), Environment.Cursor);
@@ -199,7 +199,7 @@ suite("EnvironmentDetector Test Suite", () => {
       detector = new EnvironmentDetector(mockEnv);
       assert.strictEqual(detector.isVSCode(), true);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
       assert.strictEqual(detector.isUnknown(), false);
 
       // Test Cursor
@@ -207,15 +207,15 @@ suite("EnvironmentDetector Test Suite", () => {
       detector = new EnvironmentDetector(mockEnv);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), true);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
       assert.strictEqual(detector.isUnknown(), false);
 
-      // Test Windserf
-      mockEnv = { appName: "Windserf" };
+      // Test Windsurf
+      mockEnv = { appName: "Windsurf" };
       detector = new EnvironmentDetector(mockEnv);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), true);
+      assert.strictEqual(detector.isWindsurf(), true);
       assert.strictEqual(detector.isUnknown(), false);
 
       // Test Unknown
@@ -223,7 +223,7 @@ suite("EnvironmentDetector Test Suite", () => {
       detector = new EnvironmentDetector(mockEnv);
       assert.strictEqual(detector.isVSCode(), false);
       assert.strictEqual(detector.isCursor(), false);
-      assert.strictEqual(detector.isWindserf(), false);
+      assert.strictEqual(detector.isWindsurf(), false);
       assert.strictEqual(detector.isUnknown(), true);
     });
   });
