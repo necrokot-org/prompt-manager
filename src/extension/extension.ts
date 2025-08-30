@@ -116,8 +116,8 @@ async function initializeExtension(
     ),
     vscode.commands.executeCommand(
       "setContext",
-      "promptManager.isWindserf",
-      environmentDetector.isWindserf()
+      "promptManager.isWindsurf",
+      environmentDetector.isWindsurf()
     ),
     vscode.commands.executeCommand(
       "setContext",
