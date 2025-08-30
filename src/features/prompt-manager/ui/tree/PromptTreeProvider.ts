@@ -386,8 +386,11 @@ export class PromptTreeProvider
         throw new Error(`Unknown drag data type: ${dragData.type}`);
       }
 
-      // Refresh the tree
-      this.refresh();
+      // Force rebuild the index so the tree renders up-to-date structure
+      await this.promptController
+        .getRepository()
+        .getFileManager()
+        .rebuildIndexForce();
 
       eventBus.emit("dragdrop.operation.completed", {
         command: "move",
