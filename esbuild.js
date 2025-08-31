@@ -11,8 +11,6 @@ const pathAliasPlugin = {
   setup(build) {
     const map = {
       "@infra/": "src/infrastructure/",
-      "@ext/": "src/extension/",
-      "@features/": "src/features/",
       "@root/": "src/",
       "@utils/": "src/utils/",
     };
@@ -65,7 +63,7 @@ const watchPlugin = {
 
 (async () => {
   const ctx = await esbuild.context({
-    entryPoints: ["src/extension/extension.ts"],
+    entryPoints: ["src/presentation/extension/extension.ts"],
     bundle: true,
     format: "cjs",
     platform: "node",

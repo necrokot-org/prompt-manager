@@ -4,29 +4,32 @@ import { InjectionToken } from "tsyringe";
 // Keeping this isolated prevents circular dependencies between service classes
 // and the DI container itself.
 export const DI_TOKENS = {
-  FileManager: Symbol("FileManager"),
+  // Core infrastructure
   FileSystemManager: Symbol("FileSystemManager"),
-  PromptRepository: Symbol("PromptRepository"),
-  PromptController: Symbol("PromptController"),
-  SearchService: Symbol("SearchService"),
   ConfigurationService: Symbol("ConfigurationService"),
   ExtensionContext: Symbol("ExtensionContext"),
-  PromptTreeProvider: Symbol("PromptTreeProvider"),
-  TagTreeProvider: Symbol("TagTreeProvider"),
-  SearchPanelProvider: Symbol("SearchPanelProvider"),
-  CommandHandler: Symbol("CommandHandler"),
   EnvironmentDetector: Symbol("EnvironmentDetector"),
-  // Tag-related tokens
-  TagExtractor: Symbol("TagExtractor"),
-  TagUpdater: Symbol("TagUpdater"),
-  TagRepository: Symbol("TagRepository"),
-  TagFilterState: Symbol("TagFilterState"),
-  TagService: Symbol("TagService"),
-  // Filter-related tokens
+
+  // Ports (interfaces)
+  PromptStore: Symbol("PromptStore"),
+  Indexer: Symbol("Indexer"),
+  SearchEngine: Symbol("SearchEngine"),
+  ConfigReader: Symbol("ConfigReader"),
+
+  // Applications (use cases)
+  PromptApp: Symbol("PromptApp"),
+  TagApp: Symbol("TagApp"),
+  SearchApp: Symbol("SearchApp"),
+  IndexApp: Symbol("IndexApp"),
+
+  // Filters
   PromptFilter: Symbol("PromptFilter"),
   FilterCoordinator: Symbol("FilterCoordinator"),
   TagPromptFilter: Symbol("TagPromptFilter"),
   SearchPromptFilter: Symbol("SearchPromptFilter"),
+
+  // Search infrastructure
+  FlexSearchService: Symbol("FlexSearchService"),
 } as const;
 
 export type DiToken<T = any> = InjectionToken<T>;

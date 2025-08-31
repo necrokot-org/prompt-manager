@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { injectable } from "tsyringe";
 import { FileNamingPattern } from "../../utils/string";
 import { eventBus } from "@infra/vscode/ExtensionBus";
+import { ConfigReader } from "../../application/ports/ConfigReader";
 
 /**
  * Centralized configuration management for Prompt Manager
@@ -43,7 +44,7 @@ export const EXTENSION_CONSTANTS = {
  * Configuration service that integrates with the event bus and dependency injection
  */
 @injectable()
-export class ConfigurationService {
+export class ConfigurationService implements ConfigReader {
   private configWatcher?: vscode.Disposable;
 
   /**

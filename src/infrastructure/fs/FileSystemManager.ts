@@ -128,7 +128,15 @@ Happy prompting!
    */
   public async writeFile(filePath: string, content: string): Promise<void> {
     try {
+      const fileExisted = this.fileExists(filePath);
       await fsExtra.outputFile(filePath, content);
+
+      // Publish event for file change or creation
+      if (fileExisted) {
+        fsEvents.fileChanged(filePath);
+      } else {
+        fsEvents.fileCreated(filePath);
+      }
     } catch (error) {
       log.error(`Failed to write file ${filePath}:`, error);
       throw error;
@@ -141,6 +149,9 @@ Happy prompting!
   public async deleteFile(filePath: string): Promise<void> {
     try {
       await fsExtra.remove(filePath);
+
+      // Publish event for resource deletion
+      fsEvents.resourceDeleted(filePath);
     } catch (error) {
       log.error(`Failed to delete file ${filePath}:`, error);
       throw error;
@@ -152,7 +163,13 @@ Happy prompting!
    */
   public async createDirectory(dirPath: string): Promise<void> {
     try {
+      const dirExisted = this.fileExists(dirPath);
       await fsExtra.ensureDir(dirPath);
+
+      // Publish event for directory creation (only if it didn't exist)
+      if (!dirExisted) {
+        fsEvents.dirCreated(dirPath);
+      }
     } catch (error) {
       log.error(`Failed to create directory ${dirPath}:`, error);
       throw error;

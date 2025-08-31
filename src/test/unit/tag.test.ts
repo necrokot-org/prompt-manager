@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { Tag } from "@features/prompt-manager/domain/Tag";
+import { Tag } from "../../domain/model/Tag";
 
 suite("Tag - Unit Tests", () => {
   suite("constructor", () => {

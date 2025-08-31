@@ -1,12 +1,16 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { setupDependencyInjection, container } from "@infra/di/di-container";
-import { DI_TOKENS } from "@infra/di/di-tokens";
-import { ConfigurationService } from "@infra/config/config";
-import { FileSystemManager } from "@infra/fs/FileSystemManager";
-import { FileManager } from "@features/prompt-manager/data/fileManager";
-import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
+import {
+  setupDependencyInjection,
+  container,
+} from "../../infrastructure/di/di-container";
+import { DI_TOKENS } from "../../infrastructure/di/di-tokens";
+import { ConfigurationService } from "../../infrastructure/config/config";
+import { FileSystemManager } from "../../infrastructure/fs/FileSystemManager";
+import { EnvironmentDetector } from "../../infrastructure/config/EnvironmentDetector";
+import { PromptApp } from "../../application/PromptApp";
+import { TagApp } from "../../application/TagApp";
+import { SearchApp } from "../../application/SearchApp";
 
 suite("DI Container Test Suite", () => {
   let mockContext: vscode.ExtensionContext;
@@ -91,31 +95,27 @@ suite("DI Container Test Suite", () => {
     );
   });
 
-  test("FileManager should be resolvable with injected dependencies", () => {
-    const fileManager = container.resolve<FileManager>(DI_TOKENS.FileManager);
-    assert.ok(fileManager, "FileManager should be resolved");
+  test("PromptApp should be resolvable with injected dependencies", () => {
+    const promptApp = container.resolve<PromptApp>(DI_TOKENS.PromptApp);
+    assert.ok(promptApp, "PromptApp should be resolved");
     assert.ok(
-      fileManager instanceof FileManager,
-      "Should be instance of FileManager"
-    );
-
-    // Verify that FileManager has properly injected FileSystemManager
-    const fileSystemManager = fileManager.getFileSystemManager();
-    assert.ok(fileSystemManager, "FileManager should have FileSystemManager");
-    assert.ok(
-      fileSystemManager instanceof FileSystemManager,
-      "Should be instance of FileSystemManager"
+      promptApp instanceof PromptApp,
+      "Should be instance of PromptApp"
     );
   });
 
-  test("PromptTreeProvider should be resolvable with injected dependencies", () => {
-    const treeProvider = container.resolve<PromptTreeProvider>(
-      DI_TOKENS.PromptTreeProvider
-    );
-    assert.ok(treeProvider, "PromptTreeProvider should be resolved");
+  test("TagApp should be resolvable with injected dependencies", () => {
+    const tagApp = container.resolve<TagApp>(DI_TOKENS.TagApp);
+    assert.ok(tagApp, "TagApp should be resolved");
+    assert.ok(tagApp instanceof TagApp, "Should be instance of TagApp");
+  });
+
+  test("SearchApp should be resolvable with injected dependencies", () => {
+    const searchApp = container.resolve<SearchApp>(DI_TOKENS.SearchApp);
+    assert.ok(searchApp, "SearchApp should be resolved");
     assert.ok(
-      treeProvider instanceof PromptTreeProvider,
-      "Should be instance of PromptTreeProvider"
+      searchApp instanceof SearchApp,
+      "Should be instance of SearchApp"
     );
   });
 
@@ -184,13 +184,13 @@ suite("DI Container Test Suite", () => {
       "FileSystemManager should be singleton"
     );
 
-    const fileManager1 = container.resolve<FileManager>(DI_TOKENS.FileManager);
-    const fileManager2 = container.resolve<FileManager>(DI_TOKENS.FileManager);
-    assert.strictEqual(
-      fileManager1,
-      fileManager2,
-      "FileManager should be singleton"
-    );
+    const promptApp1 = container.resolve<PromptApp>(DI_TOKENS.PromptApp);
+    const promptApp2 = container.resolve<PromptApp>(DI_TOKENS.PromptApp);
+    assert.strictEqual(promptApp1, promptApp2, "PromptApp should be singleton");
+
+    const tagApp1 = container.resolve<TagApp>(DI_TOKENS.TagApp);
+    const tagApp2 = container.resolve<TagApp>(DI_TOKENS.TagApp);
+    assert.strictEqual(tagApp1, tagApp2, "TagApp should be singleton");
 
     const envDetector1 = container.resolve<EnvironmentDetector>(
       DI_TOKENS.EnvironmentDetector

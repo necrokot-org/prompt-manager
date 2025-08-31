@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
-import {
-  SearchScope,
-  FuzzyOptions,
-} from "@features/search/core/FlexSearchService";
+import { SearchScope } from "../search/core/FlexSearchService";
+import { FuzzyOptions } from "../../domain/model/SearchQuery";
 
 // ---------------------------------------------------------------------------
 // Typed Event Map -----------------------------------------------------------

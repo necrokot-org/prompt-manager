@@ -2,7 +2,7 @@ import { setup, teardown, suite, test } from "mocha";
 import { expect } from "chai";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
-import { activate } from "@ext/extension";
+import { activate } from "../../presentation/extension/extension";
 import { Environment } from "@infra/config/EnvironmentDetector";
 import { container } from "@infra/di/di-container";
 import { DI_TOKENS } from "@infra/di/di-tokens";
@@ -383,12 +383,12 @@ suite("Environment Context Keys", () => {
 
       await activate(mockContext);
 
-      // Should set exactly 4 context keys
+      // Should set exactly 5 context keys (4 env + 1 tag filter)
       const setContextCalls = vscodeStubs.executeCommand
         .getCalls()
         .filter((call) => call.args[0] === "setContext");
 
-      expect(setContextCalls).to.have.lengthOf(4);
+      expect(setContextCalls).to.have.lengthOf(5);
 
       // Verify all expected context keys are set
       const expectedKeys = [
@@ -396,6 +396,7 @@ suite("Environment Context Keys", () => {
         "promptManager.isCursor",
         "promptManager.isWindsurf",
         "promptManager.isUnknown",
+        "promptManager.tagFilterActive",
       ];
 
       expectedKeys.forEach((key) => {
@@ -414,7 +415,7 @@ suite("Environment Context Keys", () => {
         .getCalls()
         .filter((call) => call.args[0] === "setContext");
 
-      expect(setContextCalls).to.have.lengthOf(4);
+      expect(setContextCalls).to.have.lengthOf(5);
     });
 
     test("should handle EnvironmentDetector errors gracefully", async () => {
@@ -507,8 +508,8 @@ suite("Environment Context Keys", () => {
         environmentKeys.includes(call.args[1])
       );
 
-      // All environment keys should be set
-      expect(environmentCalls).to.have.lengthOf(4);
+      // All environment keys should be set (4 env + 1 tag filter)
+      expect(environmentCalls).to.have.lengthOf(5);
 
       // Count how many are set to true
       const trueCount = environmentCalls.filter(

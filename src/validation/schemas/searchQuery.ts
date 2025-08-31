@@ -1,6 +1,6 @@
 import { z } from "zod";
 import safeRegex from "safe-regex2";
-import { SearchScope } from "@features/search/core/FlexSearchService";
+import { SearchScope } from "../../infrastructure/search/core/FlexSearchService";
 
 /**
  * Validate regex syntax and security using safe-regex2 and standard RegExp

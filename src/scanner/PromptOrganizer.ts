@@ -1,7 +1,9 @@
 import * as path from "path";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { log } from "@infra/vscode/log";
-import { PromptFile, PromptFolder, PromptStructure } from "./types";
+import { Prompt } from "../domain/model/Prompt";
+import { Folder } from "../domain/model/Folder";
+import { PromptStructure } from "../domain/model/PromptStructure";
 
 /**
  * PromptOrganizer groups PromptFile objects into a hierarchical PromptStructure
@@ -12,12 +14,12 @@ export class PromptOrganizer {
   constructor(private fileSystemManager: FileSystemManager) {}
 
   public async organize(
-    promptFiles: PromptFile[],
+    promptFiles: Prompt[],
     dirPath: string
   ): Promise<PromptStructure> {
-    const folders: PromptFolder[] = [];
-    const rootPrompts: PromptFile[] = [];
-    const folderMap = new Map<string, PromptFile[]>();
+    const folders: Folder[] = [];
+    const rootPrompts: Prompt[] = [];
+    const folderMap = new Map<string, Prompt[]>();
 
     for (const file of promptFiles) {
       const relativePath = path.relative(dirPath, file.path);
@@ -65,7 +67,7 @@ export class PromptOrganizer {
    */
   private async addEmptyDirectories(
     basePath: string,
-    folderMap: Map<string, PromptFile[]>,
+    folderMap: Map<string, Prompt[]>,
     currentRelativePath: string
   ): Promise<void> {
     const currentPath = path.join(basePath, currentRelativePath);

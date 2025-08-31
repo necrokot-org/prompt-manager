@@ -22,12 +22,6 @@
       "@infra/*": [
         "infrastructure/*"
       ],
-      "@ext/*": [
-        "extension/*"
-      ],
-      "@features/*": [
-        "features/*"
-      ],
       "@root/*": [
         "*"
       ],

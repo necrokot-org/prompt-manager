@@ -2,31 +2,31 @@ import "reflect-metadata";
 import { container } from "tsyringe";
 import * as vscode from "vscode";
 import { DI_TOKENS } from "./di-tokens";
-import { PromptController } from "@features/prompt-manager/domain/promptController";
-import { PromptRepository } from "@features/prompt-manager/domain/promptRepository";
-import { PromptTreeProvider } from "@features/prompt-manager/ui/tree/PromptTreeProvider";
-import { TagTreeProvider } from "@features/prompt-manager/ui/tree/TagTreeProvider";
-import { SearchPanelProvider } from "@features/search/ui/SearchPanelProvider";
-import { FileManager } from "@features/prompt-manager/data/fileManager";
-import { SearchService } from "@features/search/services/searchService";
-import { ConfigurationService } from "@infra/config/config";
-import { FileSystemManager } from "@infra/fs/FileSystemManager";
-import { CommandHandler } from "../../extension/commands/commandHandler";
-import { EnvironmentDetector } from "@infra/config/EnvironmentDetector";
+import { APP_TOKENS } from "../../application/di-tokens";
 
-// Tag-related imports
-import { TagExtractor } from "@features/prompt-manager/domain/TagExtractor";
-import { TagUpdater } from "@features/prompt-manager/domain/TagUpdater";
-import { TagService } from "@features/prompt-manager/application/services/TagService";
-import { FileTagRepository } from "@features/prompt-manager/infrastructure/repositories/FileTagRepository";
-import { PersistentTagFilter } from "@features/prompt-manager/infrastructure/persistence/PersistentTagFilter";
+// Application layer
+import { PromptApp } from "../../application/PromptApp";
+import { TagApp } from "../../application/TagApp";
+import { SearchApp } from "../../application/SearchApp";
+import { IndexApp } from "../../application/IndexApp";
 
-// Filter-related imports
+// Infrastructure layer
+import { FsPromptStore } from "../prompt/FsPromptStore";
+import { IndexerImpl } from "../prompt/indexing/IndexerImpl";
+import { FlexSearchEngine } from "../search/FlexSearchEngine";
+import { ConfigurationService } from "../config/config";
+import { FileSystemManager } from "../fs/FileSystemManager";
+import { EnvironmentDetector } from "../config/EnvironmentDetector";
+
+// Filters
 import {
+  FilterCoordinator,
   TagPromptFilter,
   SearchPromptFilter,
-  FilterCoordinator,
-} from "@features/prompt-manager/application/filters";
+} from "../../application/filters";
+
+// Search infrastructure
+import { FlexSearchService } from "../search/core/FlexSearchService";
 
 /**
  * Configure and register all services with the DI container
@@ -34,60 +34,55 @@ import {
 export function setupDependencyInjection(context: vscode.ExtensionContext) {
   // Core infrastructure
   container.registerInstance(DI_TOKENS.ExtensionContext, context);
-
-  // File system
   container.registerSingleton(DI_TOKENS.FileSystemManager, FileSystemManager);
   container.registerSingleton(
     DI_TOKENS.ConfigurationService,
     ConfigurationService
   );
 
-  // Data layer
-  container.registerSingleton(DI_TOKENS.FileManager, FileManager);
+  // Ports (adapters) - ConfigurationService also implements ConfigReader
+  container.registerSingleton(DI_TOKENS.ConfigReader, ConfigurationService);
 
-  // Domain layer
-  container.registerSingleton(DI_TOKENS.PromptRepository, PromptRepository);
-  container.registerSingleton(DI_TOKENS.PromptController, PromptController);
+  // Ports (adapters)
+  container.registerSingleton(DI_TOKENS.PromptStore, FsPromptStore);
+  container.registerSingleton(DI_TOKENS.Indexer, IndexerImpl);
+  container.registerSingleton(DI_TOKENS.SearchEngine, FlexSearchEngine);
 
-  // Search
-  container.registerSingleton(DI_TOKENS.SearchService, SearchService);
+  // Applications (use cases)
+  container.registerSingleton(DI_TOKENS.PromptApp, PromptApp);
+  container.registerSingleton(DI_TOKENS.TagApp, TagApp);
+  container.registerSingleton(DI_TOKENS.SearchApp, SearchApp);
+  container.registerSingleton(DI_TOKENS.IndexApp, IndexApp);
 
-  // UI layer
-  container.registerSingleton(DI_TOKENS.PromptTreeProvider, PromptTreeProvider);
-  container.registerSingleton(DI_TOKENS.TagTreeProvider, TagTreeProvider);
-  container.registerSingleton(
-    DI_TOKENS.SearchPanelProvider,
-    SearchPanelProvider
-  );
-
-  // Commands
-  container.registerSingleton(DI_TOKENS.CommandHandler, CommandHandler);
-
-  // Environment detection
-  container.registerInstance(
-    DI_TOKENS.EnvironmentDetector,
-    new EnvironmentDetector(vscode.env)
-  );
-
-  // Tag services
-  container.registerSingleton(DI_TOKENS.TagExtractor, TagExtractor);
-  container.registerSingleton(DI_TOKENS.TagUpdater, TagUpdater);
-  container.registerSingleton(DI_TOKENS.TagRepository, FileTagRepository);
-  container.registerSingleton(DI_TOKENS.TagFilterState, PersistentTagFilter);
-  container.registerSingleton(DI_TOKENS.TagService, TagService);
-
-  // Filter services
+  // Filters
   container.registerSingleton(DI_TOKENS.TagPromptFilter, TagPromptFilter);
   container.registerSingleton(DI_TOKENS.SearchPromptFilter, SearchPromptFilter);
   container.registerSingleton(DI_TOKENS.FilterCoordinator, FilterCoordinator);
 
-  // Register filters for multi-injection
+  // Register filters for multi-injection under both infra and app tokens
   container.register(DI_TOKENS.PromptFilter, {
     useToken: DI_TOKENS.TagPromptFilter,
   });
   container.register(DI_TOKENS.PromptFilter, {
     useToken: DI_TOKENS.SearchPromptFilter,
   });
+
+  // Multi-injection under app token (for FilterCoordinator)
+  container.register(APP_TOKENS.PromptFilter, {
+    useToken: DI_TOKENS.TagPromptFilter,
+  });
+  container.register(APP_TOKENS.PromptFilter, {
+    useToken: DI_TOKENS.SearchPromptFilter,
+  });
+
+  // Search infrastructure
+  container.registerSingleton(DI_TOKENS.FlexSearchService, FlexSearchService);
+
+  // Environment detection
+  container.registerInstance(
+    DI_TOKENS.EnvironmentDetector,
+    new EnvironmentDetector(vscode.env)
+  );
 }
 
 /**

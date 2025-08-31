@@ -3,7 +3,14 @@ import fg from "fast-glob";
 import { FileSystemManager } from "@infra/fs/FileSystemManager";
 import { parsePromptContentSync } from "@root/validation/schemas/prompt";
 import { log } from "@infra/vscode/log";
-import { PromptFile, ScanOptions } from "./types";
+import { Prompt } from "../domain/model/Prompt";
+
+interface ScanOptions {
+  includeHidden?: boolean;
+  maxDepth?: number;
+  fileExtensions?: string[];
+  excludePatterns?: string[];
+}
 
 /**
  * FilesystemWalker is a narrow utility responsible for converting files on
@@ -16,7 +23,7 @@ export class FilesystemWalker {
   public async scanDirectory(
     dirPath: string,
     options: ScanOptions = {}
-  ): Promise<PromptFile[]> {
+  ): Promise<Prompt[]> {
     const {
       includeHidden = false,
       maxDepth = 10,
@@ -51,7 +58,7 @@ export class FilesystemWalker {
         absolute: false,
       });
 
-      const promptFiles: PromptFile[] = [];
+      const promptFiles: Prompt[] = [];
 
       for (const relativePath of entries) {
         const fullPath = path.join(dirPath, relativePath);
@@ -68,7 +75,7 @@ export class FilesystemWalker {
     }
   }
 
-  private async parsePromptFile(filePath: string): Promise<PromptFile | null> {
+  private async parsePromptFile(filePath: string): Promise<Prompt | null> {
     try {
       const stats = await this.fileSystemManager.getFileStats(filePath);
       const content = await this.fileSystemManager.readFile(filePath);
@@ -83,7 +90,6 @@ export class FilesystemWalker {
         description: parsed.description,
         tags: parsed.tags || [],
         fileSize: stats.size,
-        isDirectory: false,
       };
     } catch (error) {
       log.error(
