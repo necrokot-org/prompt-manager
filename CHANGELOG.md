@@ -2,6 +2,13 @@
 
 All notable changes to the "prompt-manager" extension will be documented in this file.
 
+## [1.0.3] - 2025-10-15
+
+### Fixed
+
+- Fixed tree update ([#80](https://github.com/necrokot-org/prompt-manager/pull/80))
+- Fix typo in windsurf detection ([81](https://github.com/necrokot-org/prompt-manager/pull/81))
+
 ## [1.0.2] - 2025-01-11
 
 ### Fixed

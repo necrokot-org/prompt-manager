@@ -2,7 +2,7 @@
   "name": "necrokot-prompt-manager",
   "displayName": "Necrokot's Prompt Manager",
   "description": "A VSCode extension to manage prompts for LLMs with tree view organization and file management",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "necrokot",
   "author": {
     "name": "Alexandr Leontyev",
