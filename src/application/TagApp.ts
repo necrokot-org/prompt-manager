@@ -56,11 +56,11 @@ export class TagApp {
     const index = this.allTags.findIndex((t) => t.equals(oldTag));
     if (index >= 0) {
       this.allTags[index] = newTag;
-      if (this.activeTag?.equals(oldTag)) {
-        this.activeTag = newTag;
-      }
-      this._onTagsChanged.fire();
     }
+    if (this.activeTag?.equals(oldTag)) {
+      this.activeTag = newTag;
+    }
+    this._onTagsChanged.fire();
   }
 
   remove(tag: Tag): void {

@@ -44,7 +44,7 @@ export class FlexSearchEngine implements SearchEngine {
       limit: query.maxSuggestions || 100,
     };
 
-    const results = this.flexSearch.search(searchOptions);
+    const results = this.flexSearch.search(searchOptions) || [];
 
     return results.map((result) => ({
       id: result.id,

@@ -73,7 +73,7 @@ export class FsPromptStore implements PromptStore {
 
     await this.ensureDirectory();
 
-    const sanitizedName = sanitizeFileName(name);
+    const sanitizedName = sanitizeFileName(name, { namingPattern: "original" });
     const targetDir = parentFolderPath || rootPath;
     const folderPath = path.join(targetDir, sanitizedName);
 

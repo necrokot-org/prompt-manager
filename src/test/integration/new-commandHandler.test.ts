@@ -65,7 +65,8 @@ suite("New CommandHandler", () => {
       mockPromptApp,
       mockTagApp,
       mockSearchApp,
-      mockIndexApp
+      mockIndexApp,
+      mockContext
     );
   });
 
@@ -362,6 +363,12 @@ suite("New CommandHandler", () => {
         .stub(vscode.workspace, "openTextDocument")
         .rejects(new Error("File not found"));
 
+      // Re-stub showErrorMessage after restore
+      const showErrorMessageStub = sinon.stub(
+        vscode.window,
+        "showErrorMessage"
+      );
+
       // Find and execute the openPrompt command
       const openPromptCall = vscodeStubs.commands
         .getCalls()
@@ -370,7 +377,7 @@ suite("New CommandHandler", () => {
       await openPromptCall!.args[1](testFilePath);
 
       expect(
-        vscodeStubs.window.showErrorMessage.calledWith(
+        showErrorMessageStub.calledWith(
           "Failed to open prompt: Error: File not found"
         )
       ).to.be.true;

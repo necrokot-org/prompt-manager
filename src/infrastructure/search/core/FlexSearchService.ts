@@ -46,21 +46,18 @@ export class FlexSearchService {
   private documents: Map<string, FileContent> = new Map();
 
   constructor() {
-    // Create case-insensitive indexes (using default encoder which normalizes case)
+    // Create case-insensitive indexes (omit encoder for default case-insensitive behavior)
     this.titleIndexCI = new Index({
-      encode: "default",
       tokenize: "forward",
       resolution: 9,
     });
 
     this.contentIndexCI = new Index({
-      encode: "default",
       tokenize: "forward",
       resolution: 9,
     });
 
     this.pathIndexCI = new Index({
-      encode: "default",
       tokenize: "forward",
       resolution: 9,
     });
@@ -245,19 +242,16 @@ export class FlexSearchService {
 
     // Case-insensitive indexes
     this.titleIndexCI = new Index({
-      encode: "default",
       tokenize: "forward",
       resolution: 9,
     });
 
     this.contentIndexCI = new Index({
-      encode: "default",
       tokenize: "forward",
       resolution: 9,
     });
 
     this.pathIndexCI = new Index({
-      encode: "default",
       tokenize: "forward",
       resolution: 9,
     });

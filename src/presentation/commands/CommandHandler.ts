@@ -10,7 +10,8 @@ export class CommandHandler {
     private promptApp: PromptApp,
     private tagApp: TagApp,
     private searchApp: SearchApp,
-    private indexApp: IndexApp
+    private indexApp: IndexApp,
+    private context?: vscode.ExtensionContext
   ) {}
 
   public registerCommands(): void {
@@ -61,7 +62,9 @@ export class CommandHandler {
       ),
     ];
 
-    // Commands will be managed by the extension context
+    if (this.context) {
+      this.context.subscriptions.push(...commands);
+    }
   }
 
   private toPath(input: unknown): string {

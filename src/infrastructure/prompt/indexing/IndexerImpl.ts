@@ -17,6 +17,8 @@ export class IndexerImpl implements Indexer {
   private debounceMs = 250;
   private pendingDebounce: Promise<PromptStructure> | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
+  private debounceResolve: ((v: PromptStructure) => void) | null = null;
+  private debounceReject: ((e: any) => void) | null = null;
 
   private buildInFlight: Promise<PromptStructure> | null = null;
 
@@ -36,7 +38,7 @@ export class IndexerImpl implements Indexer {
     if (this.buildInFlight) {
       return this.buildInFlight;
     }
-    this.buildInFlight = this.doBuild().finally(() => {
+    this.buildInFlight = this.doBuild(true).finally(() => {
       this.buildInFlight = null;
     });
     return this.buildInFlight;
@@ -47,18 +49,22 @@ export class IndexerImpl implements Indexer {
       return this.pendingDebounce;
     }
     this.pendingDebounce = new Promise<PromptStructure>((resolve, reject) => {
+      this.debounceResolve = resolve;
+      this.debounceReject = reject;
       if (this.debounceTimer) {
         clearTimeout(this.debounceTimer);
       }
       this.debounceTimer = setTimeout(async () => {
         this.debounceTimer = null;
         try {
-          const result = await this.build();
+          const result = await this.doBuild(false);
           resolve(result);
         } catch (e) {
           reject(e);
         } finally {
           this.pendingDebounce = null;
+          this.debounceResolve = null;
+          this.debounceReject = null;
         }
       }, this.debounceMs);
     });
@@ -66,17 +72,38 @@ export class IndexerImpl implements Indexer {
   }
 
   public async rebuildNow(): Promise<PromptStructure> {
+    // Clear any pending debounce timer
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
-    this.pendingDebounce = null;
-    return this.build();
+
+    // If there was a pending debounce promise, resolve it with its own build
+    if (this.pendingDebounce && this.debounceResolve) {
+      // Start the debounced build but don't await it
+      this.doBuild(false)
+        .then((res) => {
+          this.debounceResolve?.(res);
+        })
+        .catch((e) => {
+          this.debounceReject?.(e);
+        })
+        .finally(() => {
+          this.pendingDebounce = null;
+          this.debounceResolve = null;
+          this.debounceReject = null;
+        });
+    }
+
+    // Run immediate build (separate from debounced one)
+    return this.doBuild(false);
   }
 
   // Internal
 
-  private async doBuild(): Promise<PromptStructure> {
+  private async doBuild(
+    suppressErrors: boolean = true
+  ): Promise<PromptStructure> {
     const root = this.fs.getPromptManagerPath();
     if (!root || !this.fs.fileExists(root)) {
       this.cache = EMPTY;
@@ -88,9 +115,12 @@ export class IndexerImpl implements Indexer {
       const structure = await this.organizer.organize(files, root);
       this.cache = structure;
       return structure;
-    } catch {
-      this.cache = EMPTY;
-      return this.cache;
+    } catch (e) {
+      if (suppressErrors) {
+        this.cache = EMPTY;
+        return this.cache;
+      }
+      throw e;
     }
   }
 }

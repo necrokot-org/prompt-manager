@@ -4,9 +4,6 @@ import * as sinon from "sinon";
 import * as vscode from "vscode";
 import { SearchApp } from "../../application/SearchApp";
 import { SearchQuery } from "../../domain/model/SearchQuery";
-import { SearchEngine } from "../../application/ports/SearchEngine";
-import { PromptApp } from "../../application/PromptApp";
-import { SearchPromptFilter } from "../../application/filters/SearchPromptFilter";
 import { PromptStructure } from "../../domain/model/PromptStructure";
 
 suite("SearchApp", () => {
@@ -14,6 +11,7 @@ suite("SearchApp", () => {
   let mockSearchEngine: any;
   let mockPromptApp: any;
   let mockSearchFilter: any;
+  let mockIndexer: any;
 
   setup(() => {
     // Mock dependencies
@@ -22,21 +20,31 @@ suite("SearchApp", () => {
       search: sinon.stub().returns([]),
     };
 
+    const treeChangedEmitter = new vscode.EventEmitter<void>();
+
     mockPromptApp = {
       structure: sinon.stub().resolves({ folders: [], rootPrompts: [] }),
       copyContent: sinon.stub().resolves("test content"),
-      onTreeChanged: new vscode.EventEmitter<void>().event,
-      _onTreeChanged: new vscode.EventEmitter<void>(),
+      onTreeChanged: treeChangedEmitter.event,
+      _onTreeChanged: treeChangedEmitter,
     } as any;
 
     mockSearchFilter = {
       setCriteria: sinon.stub(),
     };
 
+    mockIndexer = {
+      build: sinon.stub().resolves({ folders: [], rootPrompts: [] }),
+      rebuild: sinon.stub().resolves({ folders: [], rootPrompts: [] }),
+      rebuildNow: sinon.stub().resolves({ folders: [], rootPrompts: [] }),
+      get: sinon.stub().returns({ folders: [], rootPrompts: [] }),
+    };
+
     searchApp = new SearchApp(
       mockSearchEngine,
       mockPromptApp,
-      mockSearchFilter
+      mockSearchFilter,
+      mockIndexer
     );
   });
 

@@ -95,7 +95,8 @@ export async function activate(context: vscode.ExtensionContext) {
       services.promptApp,
       services.tagApp,
       services.searchApp,
-      services.indexApp
+      services.indexApp,
+      context
     );
 
     // Register UI

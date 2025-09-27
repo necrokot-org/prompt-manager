@@ -13,17 +13,20 @@ suite("SearchPanelView", () => {
   let mockWebview: sinon.SinonStubbedInstance<vscode.Webview>;
 
   setup(() => {
-    // Mock SearchApp
+    // Mock SearchApp - use shared EventEmitters for tests
+    const searchChangedEmitter = new vscode.EventEmitter<void>();
+    const resultsCountChangedEmitter = new vscode.EventEmitter<number>();
+
     mockSearchApp = {
       setCriteria: sinon.stub().resolves(),
       clear: sinon.stub(),
       getCurrentQuery: sinon.stub(),
       getResults: sinon.stub(),
       getResultsCount: sinon.stub(),
-      onSearchChanged: new vscode.EventEmitter<void>().event,
-      _onSearchChanged: new vscode.EventEmitter<void>(),
-      onResultsCountChanged: new vscode.EventEmitter<number>().event,
-      _onResultsCountChanged: new vscode.EventEmitter<number>(),
+      onSearchChanged: searchChangedEmitter.event,
+      _onSearchChanged: searchChangedEmitter,
+      onResultsCountChanged: resultsCountChangedEmitter.event,
+      _onResultsCountChanged: resultsCountChangedEmitter,
     } as any;
 
     // Mock Webview
